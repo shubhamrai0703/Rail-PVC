@@ -157,9 +157,9 @@ These require Saqlain's domain confirmation before the relevant task can be comp
 
 | ID | Question | Blocks | Status |
 |---|---|---|---|
-| KU-001 | Quarter mapping: is measurement_date correct, or does it vary by Railway zone? | P2-006 | **UNCONFIRMED** |
-| KU-002 | Schedule C extra NS items in 2nd bill of BCT-24-25-252 — intentionally included or spreadsheet error? | P2-004 | **UNCONFIRMED** |
-| KU-003 | Treatment of negative PVC: recover from next bill, or immediate offset? | P2-007 | **UNCONFIRMED** |
+| KU-001 | Quarter mapping: is measurement_date correct, or does it vary by Railway zone? | P2-006 | **CONFIRMED 2026-05-14**: Use "To" date of MB period. Calendar Qs (Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec), FY label Apr-Mar. Format: Q2-FY2025-26. |
+| KU-002 | Schedule C extra NS items in 2nd bill of BCT-24-25-252 — intentionally included or spreadsheet error? | P2-004 | **CONFIRMED 2026-05-14**: Extra NS items included in on-account amount, then explicitly subtracted from W. ~16L yellow-highlighted items are eligible=False. Engine blocks on eligible=None. |
+| KU-003 | Treatment of negative PVC: recover from next bill, or immediate offset? | P2-007 | **CONFIRMED 2026-05-14**: Zero-floor this bill; carry negative_carry_forward forward for recovery from next bill's PVC total. |
 
 ---
 

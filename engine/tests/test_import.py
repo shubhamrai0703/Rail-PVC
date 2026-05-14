@@ -16,7 +16,7 @@ def test_calculate_pvc_returns_result():
         steel_plates_amount=Decimal("0"),
         steel_other_amount=Decimal("0"),
         technical_withheld=Decimal("0"),
-        extra_item_amount=Decimal("0"),
+        extra_item_decisions=[],
         carry_forwards=[],
         measurement_date=date(2025, 5, 15),
     )
