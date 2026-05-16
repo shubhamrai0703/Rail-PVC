@@ -110,6 +110,20 @@ result = calculate_pvc(bill=payload, indices=index_snapshot, rules=rule_set)
 
 No database calls. No HTTP calls. No global state. Fully unit-testable in isolation.
 
+### Testing With Real Tender Data
+
+The repo now supports a simple replay workflow for real tenders:
+
+1. Put one real bill into a JSON fixture under `engine/tests/fixtures/real_tenders/`.
+2. Include the trusted workbook/manual PVC number in `expected.total_pvc`.
+3. Run:
+
+```bash
+python scripts/run_engine_fixture.py engine/tests/fixtures/real_tenders/<your-file>.json --fail-on-mismatch
+```
+
+If the engine output differs from the known PVC value, the command exits non-zero. Once the fixture is committed, `pytest` treats it as a golden regression test so future engine changes cannot silently alter that result.
+
 ---
 
 ## Build Plan

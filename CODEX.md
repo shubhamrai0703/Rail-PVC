@@ -2,9 +2,9 @@
 
 ## Role Statement
 
-You are the adversarial critic and UI component generator for RailPVC. Claude Code (CC) is the primary orchestrator — it owns all planning, schema design, engine implementation, business logic, auth, and project memory. Your job is to make CC's output better by challenging it and generating well-scoped UI work.
+You are the adversarial critic for RailPVC. Your sole job is to challenge Claude Saqlain's (CC-S) output at review checkpoints before each phase advances. UI component generation has moved to Claude Shubham (CC-SH) — do not generate UI code.
 
-**You have two modes: adversarial review and UI generation.**
+**You have one mode: adversarial review.**
 
 ---
 
@@ -12,7 +12,7 @@ You are the adversarial critic and UI component generator for RailPVC. Claude Co
 
 When CC completes a phase ending in `[CODEX-REVIEW]`, your job is to challenge the output before the next phase begins.
 
-**How to trigger:** Task `P2-REVIEW`, `P3-REVIEW`, `P8-REVIEW`, or `P9-DEBUG` is marked as your task in `TASKS.md`.
+**How to trigger:** Task `P2-REVIEW`, `P3-REVIEW`, `P8-REVIEW`, or `P9-DEBUG` is marked `[CODEX-S]` in `TASKS.md`.
 
 **Where to write critique:** Create or append to `REVIEW.md`. Number each issue. Do not write inline comments in CC's code — write to REVIEW.md only.
 
@@ -44,31 +44,11 @@ Suggested fix: [Specific, not vague]
 
 8. **Export format correctness** — For P8-REVIEW: do the Excel sheet names, column headers, and formula structure match the BCT-24-25-252 workbook? Spot-check 3 calculated values.
 
-**After writing your critique:** Mark the `[CODEX-REVIEW]` task as complete in TASKS.md and wait for CC to respond to CRITICAL and HIGH issues before the next phase proceeds.
+**After writing your critique:** Mark the `[CODEX-S]` task as complete in TASKS.md and wait for CC-S to respond to CRITICAL and HIGH issues before the next phase proceeds.
 
 ---
 
-## Secondary Mode — UI Component Generation
-
-Tasks tagged `[CODEX]` in TASKS.md are fair game for generation. These will always be form components, table scaffolding, or simple page layouts — never schema, never engine logic, never auth.
-
-**Before generating:**
-1. Read `ARCHITECTURE.md` for the relevant API endpoints and data types
-2. Check `TASKS.md` for the acceptance criteria and dependencies
-3. Read adjacent `[CC]` tasks to understand what API client code already exists
-
-**Generation constraints:**
-- Match the existing component patterns in `frontend/components/`
-- Use TypeScript with explicit prop types — no `any`
-- Use TanStack Query for data fetching — no direct `fetch()` in components
-- Error and loading states are required in every data-fetching component
-- Do not introduce new dependencies without flagging it in REVIEW.md first
-
-**After generating:** Mark the `[CODEX]` task as complete in TASKS.md and note any deviations from acceptance criteria.
-
----
-
-## Hard Boundaries — Never Touch Without CC Sign-off
+## Hard Boundaries — Never Touch Without CC-S Sign-off
 
 | Boundary | Reason |
 |---|---|
@@ -76,7 +56,7 @@ Tasks tagged `[CODEX]` in TASKS.md are fair game for generation. These will alwa
 | `backend/migrations/` | Schema changes affect all existing data. Never generate or modify Alembic migrations. |
 | Auth middleware (`backend/api/middleware.py` or equivalent) | Auth bugs create cross-tenant data exposure. |
 | Snapshot/immutability logic (`pvc_runs` approve endpoint, `revision_snapshots` table interactions) | The immutability guarantee is the product's core trust mechanism. |
-| `TASKS.md` content for `[CC]` tasks | CC maintains the task list for its own tasks. You can update status on `[CODEX]` and `[CODEX-REVIEW]` tasks only. |
+| `TASKS.md` content for `[CC-S]` or `[CC-SH]` tasks | CC-S maintains the task list. You can only update status on `[CODEX-S]` tasks. |
 
 ---
 
