@@ -1,0 +1,1479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>RailPVC — Phase 4 Design Options</title>
+
+<!-- Typefaces for the four visual-identity options -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ─── Reset + meta-page chrome ─── */
+  *,*::before,*::after { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body {
+    margin: 0;
+    background: #f7f7f8;
+    color: #18181b;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .meta {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 48px 32px 96px;
+  }
+  .meta-hd {
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #e4e4e7;
+  }
+  .meta-hd h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .meta-hd p { color: #71717a; margin: 0; font-size: 14px; }
+  .sec { margin-top: 64px; }
+  .sec > h2 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #52525b;
+    margin: 0 0 4px;
+  }
+  .sec > .lede { color: #71717a; font-size: 14px; margin: 0 0 24px; max-width: 720px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  @media (max-width: 1100px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: #fff;
+    border: 1px solid #e4e4e7;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .card-hd {
+    padding: 12px 14px;
+    border-bottom: 1px solid #e4e4e7;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    background: #fafafa;
+  }
+  .card-hd .opt-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #a1a1aa;
+  }
+  .card-hd .opt-name { font-weight: 600; font-size: 13px; }
+  .card-bd { padding: 0; }
+  .swatch-row {
+    display: flex; gap: 6px; padding: 10px 14px;
+    border-bottom: 1px solid #e4e4e7; font-size: 11px; color: #71717a;
+    align-items: center; flex-wrap: wrap;
+  }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.08); }
+  .pros-cons {
+    font-size: 11px; color: #52525b; padding: 10px 14px;
+    border-top: 1px solid #e4e4e7; background: #fafafa;
+  }
+  .pros-cons b { color: #18181b; font-weight: 600; }
+
+  /* ─── Mini-app shell (used for typography demo) ─── */
+  .mini {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    height: 360px;
+    font-size: 13px;
+  }
+  .mini-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--mini-border);
+    background: var(--mini-header-bg);
+  }
+  .mini-brand { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .mini-brand-mark {
+    width: 18px; height: 18px; border-radius: 4px;
+    background: var(--mini-accent);
+  }
+  .mini-ctx {
+    font-size: 11px; color: var(--mini-muted);
+    padding: 3px 8px; border: 1px solid var(--mini-border);
+    border-radius: 999px;
+    font-feature-settings: 'tnum';
+  }
+  .mini-tabs {
+    display: flex; gap: 16px; padding: 0 12px;
+    border-bottom: 1px solid var(--mini-border);
+    background: var(--mini-bg);
+  }
+  .mini-tab { padding: 10px 0; font-size: 12px; color: var(--mini-muted); }
+  .mini-tab.active {
+    color: var(--mini-fg);
+    border-bottom: 2px solid var(--mini-accent);
+    font-weight: 500;
+  }
+  .mini-body { padding: 14px 12px; background: #fff; overflow: hidden; }
+  .mini-row {
+    display: grid; grid-template-columns: 1fr 90px 110px 24px;
+    align-items: center; gap: 8px;
+    padding: var(--mini-rowpad) 4px;
+    border-bottom: 1px solid var(--mini-border);
+    font-size: 12.5px;
+  }
+  .mini-row.head {
+    color: var(--mini-muted);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--mini-border);
+  }
+  .mini-row .qty,
+  .mini-row .amt {
+    text-align: right;
+    font-family: var(--mini-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+  .mini-row .name { font-weight: 500; }
+  .mini-row .badge {
+    font-size: 10px; padding: 1px 6px; border-radius: 999px;
+    background: var(--mini-accent-soft); color: var(--mini-accent);
+    font-weight: 500; letter-spacing: 0.02em;
+  }
+  .mini-formula {
+    background: var(--mini-bg);
+    border-top: 1px solid var(--mini-border);
+    padding: 8px 12px;
+    display: grid; grid-template-columns: 24px 1fr auto;
+    align-items: center; gap: 10px;
+  }
+  .mini-fx {
+    font-family: var(--mini-mono);
+    font-size: 11px; color: var(--mini-muted);
+    width: 24px; height: 22px;
+    border: 1px solid var(--mini-border);
+    border-radius: 4px;
+    display: grid; place-items: center;
+    background: #fff;
+  }
+  .mini-fx-body {
+    font-family: var(--mini-mono);
+    font-size: 12px; color: var(--mini-fg);
+  }
+  .mini-fx-body .op { color: var(--mini-muted); }
+  .mini-btn {
+    border: 0; padding: 6px 12px; border-radius: 6px;
+    background: var(--mini-accent); color: #fff;
+    font-family: inherit; font-size: 12px; font-weight: 500;
+    cursor: pointer;
+  }
+
+  /* ─── Variable bindings per option ─── */
+  .opt-fintech {
+    --mini-sans: 'Inter', sans-serif;
+    --mini-mono: 'JetBrains Mono', monospace;
+    --mini-accent: #4F46E5;     /* indigo-600 */
+    --mini-accent-soft: #EEF2FF;
+    --mini-fg: #18181b;
+    --mini-muted: #71717a;      /* zinc-500 */
+    --mini-border: #e4e4e7;     /* zinc-200 */
+    --mini-bg: #fafafa;
+    --mini-header-bg: #ffffff;
+    --mini-rowpad: 10px;
+    font-family: var(--mini-sans);
+  }
+  .opt-editorial {
+    --mini-sans: 'Geist', sans-serif;
+    --mini-mono: 'Geist Mono', monospace;
+    --mini-accent: #D97706;     /* amber-600 */
+    --mini-accent-soft: #FFFBEB;
+    --mini-fg: #0f172a;         /* slate-900 */
+    --mini-muted: #64748b;      /* slate-500 */
+    --mini-border: #e2e8f0;     /* slate-200 */
+    --mini-bg: #f8fafc;
+    --mini-header-bg: #ffffff;
+    --mini-rowpad: 8px;
+    font-family: var(--mini-sans);
+  }
+  .opt-engineering {
+    --mini-sans: 'IBM Plex Sans', sans-serif;
+    --mini-mono: 'IBM Plex Mono', monospace;
+    --mini-accent: #047857;     /* emerald-700 */
+    --mini-accent-soft: #ECFDF5;
+    --mini-fg: #111827;
+    --mini-muted: #6b7280;
+    --mini-border: #e5e7eb;
+    --mini-bg: #f9fafb;
+    --mini-header-bg: #ffffff;
+    --mini-rowpad: 6px;
+    font-family: var(--mini-sans);
+  }
+  .opt-warm {
+    --mini-sans: 'Geist', sans-serif;
+    --mini-mono: 'Geist Mono', monospace;
+    --mini-accent: #C2410C;     /* orange-700 / terracotta */
+    --mini-accent-soft: #FFF7ED;
+    --mini-fg: #1c1917;         /* stone-900 */
+    --mini-muted: #78716c;      /* stone-500 */
+    --mini-border: #e7e5e4;     /* stone-200 */
+    --mini-bg: #fafaf9;
+    --mini-header-bg: #ffffff;
+    --mini-rowpad: 10px;
+    font-family: var(--mini-sans);
+  }
+
+  /* ─── Sidebar previews ─── */
+  .sb-card { display: grid; grid-template-rows: auto 1fr; height: 380px; }
+  .sb-frame {
+    display: grid;
+    grid-template-columns: var(--sb-w) 1fr;
+    height: 100%;
+    background: #fafafa;
+    font-family: 'Inter', sans-serif;
+    transition: grid-template-columns 200ms ease;
+  }
+  .sb-rail {
+    background: #18181b;
+    color: #d4d4d8;
+    padding: 12px 0;
+    display: flex; flex-direction: column;
+    border-right: 1px solid #27272a;
+    overflow: hidden;
+  }
+  .sb-brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 14px 14px;
+    border-bottom: 1px solid #27272a;
+    margin-bottom: 12px;
+  }
+  .sb-brand-mark {
+    width: 22px; height: 22px; border-radius: 5px;
+    background: linear-gradient(135deg, #4F46E5, #818cf8);
+    flex: 0 0 auto;
+  }
+  .sb-brand-name { font-weight: 600; font-size: 13px; color: #fafafa; white-space: nowrap; }
+  .sb-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 14px;
+    font-size: 13px; color: #a1a1aa;
+    white-space: nowrap;
+  }
+  .sb-item.active { background: #27272a; color: #fafafa; border-left: 2px solid #4F46E5; padding-left: 12px; }
+  .sb-item .ic {
+    width: 16px; height: 16px; flex: 0 0 auto;
+    border: 1.5px solid currentColor; border-radius: 3px;
+  }
+  .sb-item .ic.alt { border-radius: 50%; }
+  .sb-item .ic.alt2 { border-style: dashed; }
+  .sb-foot {
+    margin-top: auto; padding: 12px 14px;
+    border-top: 1px solid #27272a;
+    font-size: 11px; color: #71717a;
+    display: flex; align-items: center; gap: 8px;
+    white-space: nowrap;
+  }
+  .sb-foot .av {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #52525b; color: #fafafa;
+    display: grid; place-items: center; font-size: 10px; font-weight: 600;
+    flex: 0 0 auto;
+  }
+  .sb-main { padding: 20px; }
+  .sb-main h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+  .sb-main p { margin: 0; font-size: 12px; color: #71717a; }
+  .sb-main .blocks {
+    margin-top: 16px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .sb-main .block {
+    border: 1px solid #e4e4e7; border-radius: 8px;
+    padding: 12px; background: #fff; height: 64px;
+  }
+
+  /* Variant: expanded (Option A default) */
+  .sb-expanded { --sb-w: 200px; }
+  .sb-expanded .sb-item .label { display: inline; }
+
+  /* Variant: collapsed-icons (Option B default) */
+  .sb-collapsed { --sb-w: 48px; position: relative; }
+  .sb-collapsed .sb-item .label,
+  .sb-collapsed .sb-brand-name,
+  .sb-collapsed .sb-foot .foot-label { display: none; }
+  .sb-collapsed .sb-brand { justify-content: center; padding: 0 0 14px; }
+  .sb-collapsed .sb-item { justify-content: center; padding: 8px 0; }
+  .sb-collapsed .sb-item.active { padding-left: 0; border-left: 0; box-shadow: inset 2px 0 0 #4F46E5; }
+  .sb-collapsed .sb-foot { justify-content: center; padding: 12px 0; }
+
+  /* Hover-overlay flyout for option B */
+  .sb-flyout {
+    position: absolute;
+    top: 0; left: 48px;
+    width: 180px; height: 100%;
+    background: #18181b;
+    border-right: 1px solid #27272a;
+    padding: 12px 0;
+    opacity: 0; pointer-events: none;
+    transform: translateX(-4px);
+    transition: opacity 140ms ease, transform 140ms ease;
+    z-index: 2;
+  }
+  .sb-collapsed:hover .sb-flyout { opacity: 1; transform: translateX(0); pointer-events: auto; }
+  .sb-flyout .fly-hd {
+    padding: 4px 14px 12px; font-weight: 600; color: #fafafa; font-size: 13px;
+    border-bottom: 1px solid #27272a; margin-bottom: 12px;
+  }
+  .sb-flyout .sb-item { color: #a1a1aa; }
+  .sb-flyout .sb-item.active { background: #27272a; color: #fafafa; border-left: 2px solid #4F46E5; padding-left: 12px; }
+  .sb-flyout .hint {
+    position: absolute; bottom: 12px; left: 14px;
+    font-size: 10px; color: #52525b;
+  }
+
+  /* Variant: responsive (Option C) */
+  .sb-responsive { --sb-w: 200px; }
+  .sb-responsive[data-mode="narrow"] { --sb-w: 48px; }
+  .sb-responsive[data-mode="narrow"] .sb-item .label,
+  .sb-responsive[data-mode="narrow"] .sb-brand-name,
+  .sb-responsive[data-mode="narrow"] .sb-foot .foot-label { display: none; }
+  .sb-responsive[data-mode="narrow"] .sb-brand { justify-content: center; padding: 0 0 14px; }
+  .sb-responsive[data-mode="narrow"] .sb-item { justify-content: center; padding: 8px 0; }
+  .sb-responsive[data-mode="narrow"] .sb-item.active {
+    padding-left: 0; border-left: 0; box-shadow: inset 2px 0 0 #4F46E5;
+  }
+  .sb-responsive[data-mode="narrow"] .sb-foot { justify-content: center; padding: 12px 0; }
+  .toggle {
+    display: inline-flex; gap: 0; border: 1px solid #e4e4e7; border-radius: 6px;
+    overflow: hidden; font-size: 11px; font-family: 'JetBrains Mono', monospace;
+  }
+  .toggle button {
+    border: 0; background: #fff; padding: 4px 10px; cursor: pointer; color: #71717a;
+  }
+  .toggle button.on { background: #18181b; color: #fafafa; }
+
+  /* ─── Command palette ─── */
+  .cmd-card { height: 380px; position: relative; overflow: hidden; }
+  .cmd-canvas {
+    height: 100%; background:
+      radial-gradient(800px 200px at 50% 0%, #ffffff, transparent),
+      repeating-linear-gradient(0deg, #f4f4f5 0, #f4f4f5 1px, transparent 1px, transparent 28px);
+    padding: 56px 16px 0;
+    display: flex; justify-content: center;
+    font-family: 'Inter', sans-serif;
+  }
+  .palette {
+    width: 100%; max-width: 360px;
+    background: #fff;
+    border: 1px solid #e4e4e7;
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0,0,0,.10), 0 4px 10px rgba(0,0,0,.06);
+    overflow: hidden;
+  }
+  .pal-search {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #e4e4e7;
+  }
+  .pal-search .ic { font-size: 14px; color: #a1a1aa; }
+  .pal-search input {
+    flex: 1; border: 0; outline: 0; font-size: 13px;
+    background: transparent;
+    font-family: inherit;
+    color: #18181b;
+  }
+  .pal-kbd {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 2px 6px; background: #f4f4f5; border-radius: 4px; color: #71717a;
+  }
+  .pal-group {
+    padding: 6px 0;
+  }
+  .pal-group + .pal-group { border-top: 1px solid #f4f4f5; }
+  .pal-group-hd {
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #a1a1aa; padding: 6px 14px;
+  }
+  .pal-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; font-size: 13px;
+    color: #27272a;
+  }
+  .pal-item.sel { background: #f4f4f5; }
+  .pal-item .lab { flex: 1; }
+  .pal-item .arrow { color: #a1a1aa; font-size: 12px; }
+  .pal-empty {
+    padding: 8px 14px; font-size: 12px; color: #a1a1aa;
+  }
+  .cmd-trigger {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: #71717a; font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ─── Toasts ─── */
+  .toast-card { height: 380px; position: relative; overflow: hidden; padding: 0; }
+  .toast-stage {
+    height: 100%; padding: 16px;
+    background:
+      linear-gradient(180deg, #fff, #fafafa);
+    position: relative;
+  }
+  .toast-stage .demo-btns {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .toast-stage .demo-btn {
+    border: 1px solid #e4e4e7; background: #fff;
+    padding: 6px 10px; border-radius: 6px; font-size: 12px;
+    cursor: pointer; font-family: inherit;
+  }
+  .toast-stage .demo-btn:hover { background: #f4f4f5; }
+  .toast-stage .demo-btn.primary {
+    background: #18181b; color: #fff; border-color: #18181b;
+  }
+  .toast-stack {
+    position: absolute; bottom: 16px; right: 16px;
+    display: flex; flex-direction: column; gap: 8px;
+    width: 280px;
+  }
+  /* Sonner-like */
+  .toast.sonner {
+    background: #fff; border: 1px solid #e4e4e7;
+    border-radius: 10px; padding: 12px 14px;
+    box-shadow: 0 6px 16px rgba(0,0,0,.08);
+    display: grid; grid-template-columns: 18px 1fr; gap: 10px;
+    font-family: 'Inter', sans-serif;
+  }
+  .toast.sonner .check {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #16a34a; color: #fff;
+    display: grid; place-items: center; font-size: 11px;
+    margin-top: 2px;
+  }
+  .toast.sonner .ttl { font-size: 13px; font-weight: 500; color: #18181b; }
+  .toast.sonner .dsc { font-size: 12px; color: #71717a; font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', monospace; }
+  /* Radix custom — squarer, branded */
+  .toast.radix {
+    background: #18181b; color: #fafafa;
+    border-radius: 8px; padding: 12px 14px;
+    box-shadow: 0 6px 16px rgba(0,0,0,.18);
+    display: grid; grid-template-columns: 4px 1fr; gap: 12px;
+    font-family: 'Inter', sans-serif;
+  }
+  .toast.radix::before {
+    content: ''; display: block; width: 3px; background: #22c55e; border-radius: 2px;
+  }
+  .toast.radix .ttl { font-size: 13px; font-weight: 600; }
+  .toast.radix .dsc { font-size: 12px; color: #a1a1aa; font-family: 'JetBrains Mono', monospace; }
+  /* react-hot-toast — pill */
+  .toast.rht {
+    background: #fff; border-radius: 999px; padding: 8px 14px;
+    box-shadow: 0 6px 14px rgba(0,0,0,.10);
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'Inter', sans-serif; font-size: 12.5px;
+    width: max-content; max-width: 100%;
+  }
+  .toast.rht .check {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #16a34a; color: #fff;
+    display: grid; place-items: center; font-size: 10px;
+  }
+
+  /* ─── Extras: number cells, badges, buttons ─── */
+  .table {
+    border: 1px solid #e4e4e7; border-radius: 8px; overflow: hidden; background: #fff;
+    font-family: 'Inter', sans-serif;
+  }
+  .table .row {
+    display: grid; grid-template-columns: 1fr 110px 110px 110px;
+    align-items: center; gap: 8px; padding: 10px 14px;
+    border-bottom: 1px solid #f4f4f5; font-size: 13px;
+  }
+  .table .row.head {
+    font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: #71717a; background: #fafafa; padding-top: 8px; padding-bottom: 8px;
+  }
+  .table .num { text-align: right; }
+  .num-mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+  .num-sans-tab { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+  .num-sans-prop { /* default */ }
+  .label-tag { font-size: 10px; color: #a1a1aa; padding-left: 14px; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid; line-height: 1.6;
+  }
+  .badge.draft { color: #57534e; background: #fafaf9; border-color: #e7e5e4; }
+  .badge.draft .dot { width: 6px; height: 6px; border-radius: 50%; background: #a8a29e; }
+  .badge.approved { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
+  .badge.approved .dot { width: 6px; height: 6px; border-radius: 50%; background: #16a34a; }
+  .badge.superseded { color: #6b7280; background: #f3f4f6; border-color: #e5e7eb; text-decoration: line-through; text-decoration-color: #9ca3af; }
+  .badge.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+  .badge.error .dot { width: 6px; height: 6px; border-radius: 50%; background: #dc2626; }
+
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    border: 1px solid #e4e4e7; background: #fff; color: #18181b;
+    padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: inherit;
+  }
+  .btn:hover { background: #fafafa; }
+  .btn.primary { background: #18181b; color: #fff; border-color: #18181b; }
+  .btn.primary:hover { background: #27272a; }
+  .btn.danger { background: #fff; color: #991b1b; border-color: #fecaca; }
+  .btn.danger:hover { background: #fef2f2; }
+  .btn.approve {
+    background: #16a34a; color: #fff; border-color: #15803d;
+  }
+  .btn.approve:hover { background: #15803d; }
+  .btn.approve-quiet {
+    background: #fff; color: #166534; border: 1px solid #bbf7d0;
+  }
+  .btn.approve-quiet:hover { background: #f0fdf4; }
+
+  /* Approve confirm card */
+  .approve-card {
+    border: 1px solid #e4e4e7; border-radius: 10px; background: #fff;
+    padding: 20px; max-width: 460px;
+  }
+  .approve-card h4 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+  .approve-card p { margin: 0 0 4px; font-size: 13px; color: #52525b; }
+  .approve-card .total {
+    font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
+    font-size: 20px; font-weight: 600; color: #18181b;
+    padding: 12px 0; border-top: 1px solid #f4f4f5; margin: 12px 0; border-bottom: 1px solid #f4f4f5;
+  }
+  .approve-card .warn {
+    font-size: 12px; color: #991b1b; background: #fef2f2;
+    border: 1px solid #fecaca; border-radius: 6px;
+    padding: 8px 10px; margin: 8px 0 14px;
+  }
+  .approve-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Empty state */
+  .empty {
+    background: #fff; border: 1px dashed #d4d4d8; border-radius: 10px;
+    padding: 40px 20px; text-align: center; color: #71717a;
+  }
+  .empty .icon {
+    width: 36px; height: 36px; border: 1.5px solid #d4d4d8;
+    border-radius: 8px; margin: 0 auto 12px;
+  }
+  .empty h4 { margin: 0 0 6px; font-size: 15px; color: #18181b; font-weight: 600; }
+  .empty p { margin: 0 0 16px; font-size: 13px; }
+
+  /* Header context pill */
+  .hdr-ex {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    background: #fff; border: 1px solid #e4e4e7; border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+  }
+  .hdr-ex .crumbs { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .hdr-ex .crumb-sep { color: #a1a1aa; }
+  .hdr-ex .crumb { color: #52525b; }
+  .hdr-ex .crumb.cur { color: #18181b; font-weight: 500; }
+  .hdr-ex .ctx-pill {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; padding: 4px 10px;
+    background: #f4f4f5; border-radius: 999px; color: #52525b;
+    font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
+  }
+  .hdr-ex .ctx-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: #16a34a; }
+
+  /* Notes inline */
+  .note {
+    font-size: 12px; color: #52525b; background: #fff7ed;
+    border: 1px solid #fed7aa; border-left: 3px solid #c2410c;
+    border-radius: 6px; padding: 10px 12px; margin: 12px 0 0;
+  }
+  .note b { color: #18181b; }
+
+  /* Decision tracker at the bottom */
+  .decisions {
+    background: #fff; border: 1px solid #e4e4e7; border-radius: 10px;
+    padding: 20px;
+  }
+  .decisions h3 { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
+  .decisions .dec {
+    display: grid; grid-template-columns: 180px 1fr;
+    gap: 12px; padding: 10px 0; border-top: 1px solid #f4f4f5;
+    align-items: baseline;
+  }
+  .decisions .dec:first-of-type { border-top: 0; }
+  .decisions .dec dt { color: #71717a; font-size: 13px; }
+  .decisions .dec dd { margin: 0; font-size: 13px; color: #18181b; }
+  .decisions .dec dd .pick { font-family: 'JetBrains Mono', monospace; color: #4F46E5; }
+
+</style>
+</head>
+<body>
+
+<div class="meta">
+
+  <div class="meta-hd">
+    <h1>RailPVC — Phase 4 design options</h1>
+    <p>Side-by-side previews for the four decisions in the brief, plus a handful of extras that I think deserve your eye before I scaffold the shell. Pick one per section.</p>
+  </div>
+
+  <!-- ════════════ 1. VISUAL IDENTITY ════════════ -->
+  <section class="sec">
+    <h2>1 · Visual identity</h2>
+    <p class="lede">
+      The same fragment rendered in each option: a contract row with a numeric total, a JPC index badge,
+      and an Excel-style formula bar. Pay attention to how numbers feel — that's where you'll spend
+      the most time.
+    </p>
+
+    <div class="grid-4">
+
+      <!-- A -->
+      <div class="card opt-fintech">
+        <div class="card-hd">
+          <span class="opt-name">A · Modern fintech</span>
+          <span class="opt-id">Inter · JetBrains Mono</span>
+        </div>
+        <div class="swatch-row">
+          <span class="swatch" style="background:#4F46E5"></span> indigo-600
+          <span class="swatch" style="background:#fafafa;border-color:#e4e4e7"></span>
+          <span class="swatch" style="background:#e4e4e7"></span>
+          <span class="swatch" style="background:#18181b"></span>
+        </div>
+        <div class="mini">
+          <div class="mini-top">
+            <div class="mini-brand"><span class="mini-brand-mark"></span> RailPVC</div>
+            <div class="mini-ctx">Acme Infra · Bill 2 · Q2-FY2025-26</div>
+          </div>
+          <div class="mini-tabs">
+            <div class="mini-tab active">Bill lines</div>
+            <div class="mini-tab">Recoveries</div>
+            <div class="mini-tab">Indices</div>
+          </div>
+          <div class="mini-body">
+            <div class="mini-row head"><div>Item</div><div class="qty">Qty</div><div class="amt">Amount (₹)</div><div></div></div>
+            <div class="mini-row">
+              <div class="name">DSR 2.7 — Earthwork excavation</div>
+              <div class="qty">1,240.00</div>
+              <div class="amt">8,46,300.50</div>
+              <div></div>
+            </div>
+            <div class="mini-row">
+              <div class="name">Cement (OPC 43) <span class="badge">cement</span></div>
+              <div class="qty">412.00</div>
+              <div class="amt">2,03,540.00</div>
+              <div></div>
+            </div>
+            <div class="mini-row">
+              <div class="name">TMT rebar <span class="badge">steel_tmt</span></div>
+              <div class="qty">186.500</div>
+              <div class="amt">11,06,012.20</div>
+              <div></div>
+            </div>
+            <div class="mini-row" style="border-bottom:0">
+              <div class="name" style="font-weight:600">PVC total</div>
+              <div class="qty"></div>
+              <div class="amt" style="font-weight:600">76,959.55</div>
+              <div></div>
+            </div>
+          </div>
+          <div class="mini-formula">
+            <div class="mini-fx">fx</div>
+            <div class="mini-fx-body">W <span class="op">=</span> OAB <span class="op">−</span> Cement <span class="op">−</span> Steel<sub>tmt</sub> <span class="op">−</span> …</div>
+            <button class="mini-btn">Run PVC</button>
+          </div>
+        </div>
+        <div class="pros-cons">
+          <b>+</b> Most contemporary; Inter is the safe default for 2026 SaaS. JetBrains Mono renders ₹ amounts cleanly.<br>
+          <b>−</b> Indigo is the most-used accent in the segment; least distinctive.
+        </div>
+      </div>
+
+      <!-- B -->
+      <div class="card opt-editorial">
+        <div class="card-hd">
+          <span class="opt-name">B · Editorial / serious</span>
+          <span class="opt-id">Geist · Geist Mono</span>
+        </div>
+        <div class="swatch-row">
+          <span class="swatch" style="background:#D97706"></span> amber-600
+          <span class="swatch" style="background:#f8fafc;border-color:#e2e8f0"></span>
+          <span class="swatch" style="background:#e2e8f0"></span>
+          <span class="swatch" style="background:#0f172a"></span>
+        </div>
+        <div class="mini">
+          <div class="mini-top">
+            <div class="mini-brand"><span class="mini-brand-mark"></span> RailPVC</div>
+            <div class="mini-ctx">Acme Infra · Bill 2 · Q2-FY2025-26</div>
+          </div>
+          <div class="mini-tabs">
+            <div class="mini-tab active">Bill lines</div>
+            <div class="mini-tab">Recoveries</div>
+            <div class="mini-tab">Indices</div>
+          </div>
+          <div class="mini-body">
+            <div class="mini-row head"><div>Item</div><div class="qty">Qty</div><div class="amt">Amount (₹)</div><div></div></div>
+            <div class="mini-row">
+              <div class="name">DSR 2.7 — Earthwork excavation</div>
+              <div class="qty">1,240.00</div>
+              <div class="amt">8,46,300.50</div>
+              <div></div>
+            </div>
+            <div class="mini-row">
+              <div class="name">Cement (OPC 43) <span class="badge">cement</span></div>
+              <div class="qty">412.00</div>
+              <div class="amt">2,03,540.00</div>
+              <div></div>
+            </div>
+            <div class="mini-row">
+              <div class="name">TMT rebar <span class="badge">steel_tmt</span></div>
+              <div class="qty">186.500</div>
+              <div class="amt">11,06,012.20</div>
+              <div></div>
+            </div>
+            <div class="mini-row" style="border-bottom:0">
+              <div class="name" style="font-weight:600">PVC total</div>
+              <div class="qty"></div>
+              <div class="amt" style="font-weight:600">76,959.55</div>
+              <div></div>
+            </div>
+          </div>
+          <div class="mini-formula">
+            <div class="mini-fx">fx</div>
+            <div class="mini-fx-body">W <span class="op">=</span> OAB <span class="op">−</span> Cement <span class="op">−</span> Steel<sub>tmt</sub> <span class="op">−</span> …</div>
+            <button class="mini-btn">Run PVC</button>
+          </div>
+        </div>
+        <div class="pros-cons">
+          <b>+</b> Geist is already in <code>next/font</code>; amber accent feels Stripe-y / authoritative.<br>
+          <b>−</b> Amber + red errors live close on the spectrum — must keep error reds vivid.
+        </div>
+      </div>
+
+      <!-- C -->
+      <div class="card opt-engineering">
+        <div class="card-hd">
+          <span class="opt-name">C · Engineering / IDE</span>
+          <span class="opt-id">IBM Plex Sans · Mono</span>
+        </div>
+        <div class="swatch-row">
+          <span class="swatch" style="background:#047857"></span> emerald-700
+          <span class="swatch" style="background:#f9fafb;border-color:#e5e7eb"></span>
+          <span class="swatch" style="background:#e5e7eb"></span>
+          <span class="swatch" style="background:#111827"></span>
+        </div>
+        <div class="mini">
+          <div class="mini-top">
+            <div class="mini-brand"><span class="mini-brand-mark"></span> RailPVC</div>
+            <div class="mini-ctx">Acme Infra · Bill 2 · Q2-FY2025-26</div>
+          </div>
+          <div class="mini-tabs">
+            <div class="mini-tab active">Bill lines</div>
+            <div class="mini-tab">Recoveries</div>
+            <div class="mini-tab">Indices</div>
+          </div>
+          <div class="mini-body">
+            <div class="mini-row head"><div>Item</div><div class="qty">Qty</div><div class="amt">Amount (₹)</div><div></div></div>
+            <div class="mini-row">
+              <div class="name">DSR 2.7 — Earthwork excavation</div>
+              <div class="qty">1,240.00</div>
+              <div class="amt">8,46,300.50</div>
+              <div></div>
+            </div>
+            <div class="mini-row">
+              <div class="name">Cement (OPC 43) <span class="badge">cement</span></div>
+              <div class="qty">412.00</div>
+              <div class="amt">2,03,540.00</div>
+              <div></div>
+            </div>
+            <div class="mini-row">
+              <div class="name">TMT rebar <span class="badge">steel_tmt</span></div>
+              <div class="qty">186.500</div>
+              <div class="amt">11,06,012.20</div>
+              <div></div>
+            </div>
+            <div class="mini-row" style="border-bottom:0">
+              <div class="name" style="font-weight:600">PVC total</div>
+              <div class="qty"></div>
+              <div class="amt" style="font-weight:600">76,959.55</div>
+              <div></div>
+            </div>
+          </div>
+          <div class="mini-formula">
+            <div class="mini-fx">fx</div>
+            <div class="mini-fx-body">W <span class="op">=</span> OAB <span class="op">−</span> Cement <span class="op">−</span> Steel<sub>tmt</sub> <span class="op">−</span> …</div>
+            <button class="mini-btn">Run PVC</button>
+          </div>
+        </div>
+        <div class="pros-cons">
+          <b>+</b> Tightest density — most rows on screen. Strongest "calc tool" feel. Plex Mono is gorgeous for formulas.<br>
+          <b>−</b> Plex Sans can feel slightly utilitarian at marketing/landing surfaces (not relevant for MVP).
+        </div>
+      </div>
+
+      <!-- D -->
+      <div class="card opt-warm">
+        <div class="card-hd">
+          <span class="opt-name">D · Warm / Indian context</span>
+          <span class="opt-id">Geist · terracotta accent</span>
+        </div>
+        <div class="swatch-row">
+          <span class="swatch" style="background:#C2410C"></span> orange-700
+          <span class="swatch" style="background:#fafaf9;border-color:#e7e5e4"></span>
+          <span class="swatch" style="background:#e7e5e4"></span>
+          <span class="swatch" style="background:#1c1917"></span>
+        </div>
+        <div class="mini">
+          <div class="mini-top">
+            <div class="mini-brand"><span class="mini-brand-mark"></span> RailPVC</div>
+            <div class="mini-ctx">Acme Infra · Bill 2 · Q2-FY2025-26</div>
+          </div>
+          <div class="mini-tabs">
+            <div class="mini-tab active">Bill lines</div>
+            <div class="mini-tab">Recoveries</div>
+            <div class="mini-tab">Indices</div>
+          </div>
+          <div class="mini-body">
+            <div class="mini-row head"><div>Item</div><div class="qty">Qty</div><div class="amt">Amount (₹)</div><div></div></div>
+            <div class="mini-row">
+              <div class="name">DSR 2.7 — Earthwork excavation</div>
+              <div class="qty">1,240.00</div>
+              <div class="amt">8,46,300.50</div>
+              <div></div>
+            </div>
+            <div class="mini-row">
+              <div class="name">Cement (OPC 43) <span class="badge">cement</span></div>
+              <div class="qty">412.00</div>
+              <div class="amt">2,03,540.00</div>
+              <div></div>
+            </div>
+            <div class="mini-row">
+              <div class="name">TMT rebar <span class="badge">steel_tmt</span></div>
+              <div class="qty">186.500</div>
+              <div class="amt">11,06,012.20</div>
+              <div></div>
+            </div>
+            <div class="mini-row" style="border-bottom:0">
+              <div class="name" style="font-weight:600">PVC total</div>
+              <div class="qty"></div>
+              <div class="amt" style="font-weight:600">76,959.55</div>
+              <div></div>
+            </div>
+          </div>
+          <div class="mini-formula">
+            <div class="mini-fx">fx</div>
+            <div class="mini-fx-body">W <span class="op">=</span> OAB <span class="op">−</span> Cement <span class="op">−</span> Steel<sub>tmt</sub> <span class="op">−</span> …</div>
+            <button class="mini-btn">Run PVC</button>
+          </div>
+        </div>
+        <div class="pros-cons">
+          <b>+</b> Distinct, contextually anchored. Stone palette is unusually warm for a SaaS — memorable.<br>
+          <b>−</b> Terracotta clashes with destructive-red (errors, recoveries). We'd reserve red for true failures only.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ════════════ 2. SIDEBAR ════════════ -->
+  <section class="sec">
+    <h2>2 · Sidebar shape</h2>
+    <p class="lede">
+      Same three nav items (Contracts / Indices / Documents) and same user footer in each variant.
+      Option B is interactive — hover the rail to see the flyout. Option C has manual mode toggle.
+    </p>
+
+    <div class="grid-3">
+
+      <!-- A: Labeled, manual collapse -->
+      <div class="card sb-card">
+        <div class="card-hd">
+          <span class="opt-name">A · Labeled expanded</span>
+          <span class="opt-id">manual ⌘\</span>
+        </div>
+        <div class="sb-frame sb-expanded">
+          <div class="sb-rail">
+            <div class="sb-brand">
+              <span class="sb-brand-mark"></span>
+              <span class="sb-brand-name">RailPVC</span>
+            </div>
+            <div class="sb-item active"><span class="ic"></span><span class="label">Contracts</span></div>
+            <div class="sb-item"><span class="ic alt"></span><span class="label">Index Manager</span></div>
+            <div class="sb-item"><span class="ic alt2"></span><span class="label">Document Vault</span></div>
+            <div class="sb-foot">
+              <span class="av">SM</span>
+              <span class="foot-label">Saqlain · Acme Infra</span>
+            </div>
+          </div>
+          <div class="sb-main">
+            <h3>Contracts</h3>
+            <p>3 active · 1 archived</p>
+            <div class="blocks">
+              <div class="block"></div><div class="block"></div>
+              <div class="block"></div><div class="block"></div>
+            </div>
+          </div>
+        </div>
+        <div class="pros-cons">
+          <b>+</b> Discoverable, labels visible to new users. Manual collapse with <code>⌘\</code> for canvas mode.<br>
+          <b>−</b> 200–240px is real estate; AG Grid loses width on 13" laptops.
+        </div>
+      </div>
+
+      <!-- B: Icon-only with hover flyout -->
+      <div class="card sb-card">
+        <div class="card-hd">
+          <span class="opt-name">B · Icon rail + hover flyout</span>
+          <span class="opt-id">hover the rail →</span>
+        </div>
+        <div class="sb-frame sb-collapsed">
+          <div class="sb-rail">
+            <div class="sb-brand">
+              <span class="sb-brand-mark"></span>
+              <span class="sb-brand-name">RailPVC</span>
+            </div>
+            <div class="sb-item active"><span class="ic"></span><span class="label">Contracts</span></div>
+            <div class="sb-item"><span class="ic alt"></span><span class="label">Index Manager</span></div>
+            <div class="sb-item"><span class="ic alt2"></span><span class="label">Document Vault</span></div>
+            <div class="sb-foot">
+              <span class="av">SM</span>
+              <span class="foot-label">Saqlain</span>
+            </div>
+          </div>
+          <div class="sb-flyout">
+            <div class="fly-hd">RailPVC</div>
+            <div class="sb-item active"><span class="ic"></span><span class="label" style="display:inline">Contracts</span></div>
+            <div class="sb-item"><span class="ic alt"></span><span class="label" style="display:inline">Index Manager</span></div>
+            <div class="sb-item"><span class="ic alt2"></span><span class="label" style="display:inline">Document Vault</span></div>
+            <div class="hint">hover-revealed, doesn't push canvas</div>
+          </div>
+          <div class="sb-main">
+            <h3>Contracts</h3>
+            <p>3 active · 1 archived</p>
+            <div class="blocks">
+              <div class="block"></div><div class="block"></div>
+              <div class="block"></div><div class="block"></div>
+            </div>
+          </div>
+        </div>
+        <div class="pros-cons">
+          <b>+</b> Maximum canvas always. Labels still one hover away.<br>
+          <b>−</b> Less discoverable for first-time users; icons must be unambiguous.
+        </div>
+      </div>
+
+      <!-- C: Responsive auto-collapse -->
+      <div class="card sb-card">
+        <div class="card-hd">
+          <span class="opt-name">C · Responsive auto-collapse</span>
+          <span class="opt-id">
+            <span class="toggle" id="sb-toggle">
+              <button class="on" data-mode="wide">wide</button><button data-mode="narrow">narrow</button>
+            </span>
+          </span>
+        </div>
+        <div class="sb-frame sb-responsive" id="sb-responsive" data-mode="wide">
+          <div class="sb-rail">
+            <div class="sb-brand">
+              <span class="sb-brand-mark"></span>
+              <span class="sb-brand-name">RailPVC</span>
+            </div>
+            <div class="sb-item active"><span class="ic"></span><span class="label">Contracts</span></div>
+            <div class="sb-item"><span class="ic alt"></span><span class="label">Index Manager</span></div>
+            <div class="sb-item"><span class="ic alt2"></span><span class="label">Document Vault</span></div>
+            <div class="sb-foot">
+              <span class="av">SM</span>
+              <span class="foot-label">Saqlain · Acme Infra</span>
+            </div>
+          </div>
+          <div class="sb-main">
+            <h3>Contracts</h3>
+            <p>3 active · 1 archived</p>
+            <div class="blocks">
+              <div class="block"></div><div class="block"></div>
+              <div class="block"></div><div class="block"></div>
+            </div>
+          </div>
+        </div>
+        <div class="pros-cons">
+          <b>+</b> Adapts to a 1366×768 field laptop without configuration. Best balance of A and B.<br>
+          <b>−</b> Two states to design; user has less control unless we also keep <code>⌘\</code> manual override.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="note">
+      <b>My lean:</b> Option C. Contractors on 13" laptops will resent giving up 240px of grid width;
+      power users on a desk monitor will appreciate the labels. Cost: design twice, but the second
+      state is just the first state with labels hidden.
+    </div>
+  </section>
+
+  <!-- ════════════ 3. COMMAND PALETTE ════════════ -->
+  <section class="sec">
+    <h2>3 · Command palette / global shortcuts</h2>
+    <p class="lede">
+      Three scopes for what lands in Phase 4. All three include the <code>⌘K</code> header affordance —
+      the question is what it opens.
+    </p>
+
+    <div class="grid-3">
+
+      <!-- A: route jump -->
+      <div class="card cmd-card">
+        <div class="card-hd">
+          <span class="opt-name">A · Route-jump only (now)</span>
+          <span class="opt-id">cmdk · ~150 LOC</span>
+        </div>
+        <div class="cmd-canvas">
+          <div class="palette">
+            <div class="pal-search">
+              <span class="ic">⌕</span>
+              <input value="con" />
+              <span class="pal-kbd">esc</span>
+            </div>
+            <div class="pal-group">
+              <div class="pal-group-hd">Navigate</div>
+              <div class="pal-item sel"><span class="lab">Contracts</span><span class="pal-kbd">g c</span></div>
+              <div class="pal-item"><span class="lab">Index Manager</span><span class="pal-kbd">g i</span></div>
+              <div class="pal-item"><span class="lab">Document Vault</span><span class="pal-kbd">g d</span></div>
+            </div>
+            <div class="pal-group">
+              <div class="pal-group-hd">Recent runs</div>
+              <div class="pal-empty">No runs yet · waiting on Phase 5</div>
+            </div>
+          </div>
+        </div>
+        <div class="cmd-trigger">⌘K</div>
+        <div class="pros-cons">
+          <b>+</b> Sets keyboard-first DNA. Vim-style <code>g c</code> jumps cost nothing extra.<br>
+          <b>−</b> Limited utility until Phase 5 fills "Recent runs."
+        </div>
+      </div>
+
+      <!-- B: palette + actions -->
+      <div class="card cmd-card">
+        <div class="card-hd">
+          <span class="opt-name">B · Palette + actions (now)</span>
+          <span class="opt-id">cmdk + action stubs</span>
+        </div>
+        <div class="cmd-canvas">
+          <div class="palette">
+            <div class="pal-search">
+              <span class="ic">⌕</span>
+              <input value="" placeholder="Type a command or jump…" />
+              <span class="pal-kbd">esc</span>
+            </div>
+            <div class="pal-group">
+              <div class="pal-group-hd">Actions</div>
+              <div class="pal-item sel"><span class="lab">+ New contract</span><span class="pal-kbd">n c</span></div>
+              <div class="pal-item"><span class="lab">+ New bill</span><span class="pal-kbd">n b</span></div>
+            </div>
+            <div class="pal-group">
+              <div class="pal-group-hd">Navigate</div>
+              <div class="pal-item"><span class="lab">Contracts</span><span class="pal-kbd">g c</span></div>
+              <div class="pal-item"><span class="lab">Index Manager</span><span class="pal-kbd">g i</span></div>
+              <div class="pal-item"><span class="lab">Document Vault</span><span class="pal-kbd">g d</span></div>
+            </div>
+            <div class="pal-group">
+              <div class="pal-group-hd">Help</div>
+              <div class="pal-item"><span class="lab">Keyboard shortcuts</span><span class="pal-kbd">?</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="cmd-trigger">⌘K</div>
+        <div class="pros-cons">
+          <b>+</b> Full keyboard culture from day one.<br>
+          <b>−</b> Actions are stubs until P5 forms exist; risk of dangling commands.
+        </div>
+      </div>
+
+      <!-- C: defer -->
+      <div class="card cmd-card">
+        <div class="card-hd">
+          <span class="opt-name">C · Defer to Phase 5/6</span>
+          <span class="opt-id">stub button only</span>
+        </div>
+        <div class="cmd-canvas">
+          <div class="palette" style="max-width: 300px;">
+            <div class="pal-search">
+              <span class="ic">⌕</span>
+              <input value="" placeholder="Search…" disabled />
+              <span class="pal-kbd">⌘K</span>
+            </div>
+            <div class="pal-empty" style="padding: 20px 14px; text-align:center;">
+              Coming soon — once there's data to search.
+            </div>
+          </div>
+        </div>
+        <div class="cmd-trigger">⌘K · header affordance only</div>
+        <div class="pros-cons">
+          <b>+</b> Less surface to maintain; no premature commands.<br>
+          <b>−</b> Keyboard culture lands later; user trains the slow muscle first.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="note">
+      <b>My lean:</b> Option A. Cheap to build, sets the right precedent, and the empty
+      "Recent runs" section is itself a piece of UI continuity that fills in for free over Phases 5–7.
+    </div>
+  </section>
+
+  <!-- ════════════ 4. TOASTS ════════════ -->
+  <section class="sec">
+    <h2>4 · Toast library</h2>
+    <p class="lede">
+      Same content in each option: "Approved run #14 · ₹76,959.55 · Q2-FY2025-26".
+      Click the buttons to fire each style. Sonner and react-hot-toast are visually accurate
+      to their library defaults; the Radix custom is a sketch of how we'd build one.
+    </p>
+
+    <div class="grid-3">
+
+      <!-- Sonner -->
+      <div class="card toast-card">
+        <div class="card-hd">
+          <span class="opt-name">A · Sonner</span>
+          <span class="opt-id">~5KB · de-facto 2026</span>
+        </div>
+        <div class="toast-stage" id="stage-sonner">
+          <div class="demo-btns">
+            <button class="demo-btn" data-fire="sonner-success">Success</button>
+            <button class="demo-btn" data-fire="sonner-promise">Promise</button>
+            <button class="demo-btn" data-fire="sonner-error">Error</button>
+          </div>
+          <div class="toast-stack"></div>
+        </div>
+        <div class="pros-cons">
+          <b>+</b> <code>toast.promise()</code> wraps async engine calls in one line. Rounded card, drop shadow, swipe-dismiss.<br>
+          <b>−</b> One more 3rd-party design surface.
+        </div>
+      </div>
+
+      <!-- Radix custom -->
+      <div class="card toast-card">
+        <div class="card-hd">
+          <span class="opt-name">B · Custom radix-toast</span>
+          <span class="opt-id">~80 LOC + dep</span>
+        </div>
+        <div class="toast-stage" id="stage-radix">
+          <div class="demo-btns">
+            <button class="demo-btn" data-fire="radix-success">Success</button>
+            <button class="demo-btn" data-fire="radix-promise">Promise</button>
+            <button class="demo-btn" data-fire="radix-error">Error</button>
+          </div>
+          <div class="toast-stack"></div>
+        </div>
+        <div class="pros-cons">
+          <b>+</b> Exact brand match — dark inverted, accent left-bar. Strongest visual identity.<br>
+          <b>−</b> We re-implement promise toasts. Slower to build, more to own.
+        </div>
+      </div>
+
+      <!-- RHT -->
+      <div class="card toast-card">
+        <div class="card-hd">
+          <span class="opt-name">C · react-hot-toast</span>
+          <span class="opt-id">~3KB</span>
+        </div>
+        <div class="toast-stage" id="stage-rht">
+          <div class="demo-btns">
+            <button class="demo-btn" data-fire="rht-success">Success</button>
+            <button class="demo-btn" data-fire="rht-promise">Promise</button>
+            <button class="demo-btn" data-fire="rht-error">Error</button>
+          </div>
+          <div class="toast-stack"></div>
+        </div>
+        <div class="pros-cons">
+          <b>+</b> Smallest, fastest install. Pill shape is friendly.<br>
+          <b>−</b> Default look is more 2020 than 2026 — needs restyling to match the rest.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="note">
+      <b>My lean:</b> Sonner. The promise-toast pattern fits the engine flow perfectly
+      ("Calculating PVC…" → "Approved · ₹76,959.55") and that one line replaces a useState +
+      conditional render for every async call in the app.
+    </div>
+  </section>
+
+  <!-- ════════════ 5. EXTRAS ════════════ -->
+  <section class="sec">
+    <h2>5 · Extras I'd like your eye on</h2>
+    <p class="lede">
+      Smaller patterns that I'll otherwise just pick. Tell me to change any of them.
+    </p>
+
+    <!-- 5a. Number cells -->
+    <div style="margin-bottom: 32px;">
+      <h3 style="font-size:14px; margin:0 0 4px;">5a · Number cell typography</h3>
+      <p class="lede" style="margin-bottom:12px;">
+        Decimal amounts will render thousands of times across the app. Three treatments of the same
+        rupee figure — which feels right for a column of contract totals?
+      </p>
+      <div class="table">
+        <div class="row head"><div>Treatment</div><div class="num">Small (₹)</div><div class="num">Medium (₹)</div><div class="num">Large (₹)</div></div>
+        <div class="row">
+          <div>JetBrains Mono · tabular <span class="label-tag">(my pick)</span></div>
+          <div class="num num-mono">76,959.55</div>
+          <div class="num num-mono">11,06,012.20</div>
+          <div class="num num-mono">2,43,87,654.10</div>
+        </div>
+        <div class="row">
+          <div>Sans · tabular nums <span class="label-tag">Inter w/ feature</span></div>
+          <div class="num num-sans-tab">76,959.55</div>
+          <div class="num num-sans-tab">11,06,012.20</div>
+          <div class="num num-sans-tab">2,43,87,654.10</div>
+        </div>
+        <div class="row" style="border-bottom:0">
+          <div>Sans · proportional <span class="label-tag">default Inter</span></div>
+          <div class="num num-sans-prop">76,959.55</div>
+          <div class="num num-sans-prop">11,06,012.20</div>
+          <div class="num num-sans-prop">2,43,87,654.10</div>
+        </div>
+      </div>
+      <div class="note">
+        Mono + tabular wins on alignment, but mono in <em>every</em> numeric cell is heavy.
+        My plan: <b>mono for grid totals, formula bar, run IDs, and badge counts;
+        sans+tabular for general listings;</b> never proportional digits in a numeric column.
+      </div>
+    </div>
+
+    <!-- 5b. Status badges -->
+    <div style="margin-bottom: 32px;">
+      <h3 style="font-size:14px; margin:0 0 4px;">5b · Run-status badges</h3>
+      <p class="lede" style="margin-bottom:12px;">
+        Approved is the audit-critical state. Draft is malleable. Superseded is historical.
+        Errors block. These will live on every PVC-run row.
+      </p>
+      <div class="btn-row">
+        <span class="badge draft"><span class="dot"></span> Draft</span>
+        <span class="badge approved"><span class="dot"></span> Approved · 2026-04-12</span>
+        <span class="badge superseded">Superseded by #15</span>
+        <span class="badge error"><span class="dot"></span> Blocked · 2 validation errors</span>
+      </div>
+    </div>
+
+    <!-- 5c. Approve button & confirm -->
+    <div style="margin-bottom: 32px;">
+      <h3 style="font-size:14px; margin:0 0 4px;">5c · Approve action — pattern</h3>
+      <p class="lede" style="margin-bottom:12px;">
+        Approving a run is irreversible (revisions create superseding runs; the original is locked
+        forever). Treatment options for the trigger button, and the confirm modal I'd build for it:
+      </p>
+
+      <div class="grid-2">
+        <div>
+          <div class="btn-row" style="margin-bottom:8px;">
+            <button class="btn approve">Approve run</button>
+            <span class="label-tag">Loud green — irreversible</span>
+          </div>
+          <div class="btn-row" style="margin-bottom:8px;">
+            <button class="btn approve-quiet">Approve run</button>
+            <span class="label-tag">Quiet green — restrained</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn primary">Approve run</button>
+            <span class="label-tag">Default primary — no signal of finality</span>
+          </div>
+          <div class="note">
+            <b>My pick:</b> the loud green, paired with the confirm card to the right.
+            The button's visual loudness signals "this is the moment" — the confirm
+            is what actually prevents misclicks.
+          </div>
+        </div>
+
+        <div class="approve-card">
+          <h4>Approve run #14?</h4>
+          <p>Acme Infra · Bill 2 · Q2-FY2025-26</p>
+          <div class="total">₹76,959.55</div>
+          <div class="warn">
+            Once approved, this run cannot be edited. Future corrections must create a new run
+            that supersedes this one.
+          </div>
+          <div class="approve-actions">
+            <button class="btn">Cancel</button>
+            <button class="btn approve">Approve and lock</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5d. Header context -->
+    <div style="margin-bottom: 32px;">
+      <h3 style="font-size:14px; margin:0 0 4px;">5d · Header context pill</h3>
+      <p class="lede" style="margin-bottom:12px;">
+        When the user is deep inside a contract, the header carries the current context (contract +
+        bill + quarter). I'd make this clickable to jump up. Asking now because it shapes how
+        breadcrumbs vs the pill divide responsibility.
+      </p>
+      <div class="hdr-ex">
+        <div class="crumbs">
+          <span class="crumb">Contracts</span>
+          <span class="crumb-sep">/</span>
+          <span class="crumb">Acme Infra (BCT-24-25-252)</span>
+          <span class="crumb-sep">/</span>
+          <span class="crumb cur">Bill 2</span>
+        </div>
+        <div class="ctx-pill">
+          <span class="dot"></span> Q2-FY2025-26 · ₹76,959.55 · Approved
+        </div>
+      </div>
+    </div>
+
+    <!-- 5e. Empty state -->
+    <div>
+      <h3 style="font-size:14px; margin:0 0 4px;">5e · Empty state</h3>
+      <p class="lede" style="margin-bottom:12px;">
+        The contractor's first session lands on an empty Contracts list. The empty state has to
+        feel intentional, not under-construction.
+      </p>
+      <div class="empty">
+        <div class="icon"></div>
+        <h4>No contracts yet</h4>
+        <p>Start with an LOA / tender number. You can upload the agreement after.</p>
+        <button class="btn primary">+ Add your first contract</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ════════════ DECISION TRACKER ════════════ -->
+  <section class="sec">
+    <div class="decisions">
+      <h3>Tell me your picks</h3>
+      <dl>
+        <div class="dec"><dt>1 · Visual identity</dt><dd><span class="pick">A / B / C / D</span> — and any tweak (e.g., swap accent to X).</dd></div>
+        <div class="dec"><dt>2 · Sidebar</dt><dd><span class="pick">A / B / C</span> — keep <code>⌘\</code> manual override?</dd></div>
+        <div class="dec"><dt>3 · Cmd palette</dt><dd><span class="pick">A / B / C</span> — and whether g-prefix Vim jumps land in Phase 4.</dd></div>
+        <div class="dec"><dt>4 · Toast lib</dt><dd><span class="pick">Sonner / Radix custom / react-hot-toast</span>.</dd></div>
+        <div class="dec"><dt>Extras</dt><dd>Any of 5a–5e you want changed. (Default: my picks as annotated.)</dd></div>
+      </dl>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // ─── Sidebar C: wide ↔ narrow toggle ───
+  (function(){
+    const root = document.getElementById('sb-responsive');
+    const tog  = document.getElementById('sb-toggle');
+    if(!root || !tog) return;
+    tog.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-mode]');
+      if(!btn) return;
+      const mode = btn.dataset.mode;
+      root.dataset.mode = mode;
+      tog.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+    });
+  })();
+
+  // ─── Toast fire buttons ───
+  (function(){
+    const recipes = {
+      'sonner-success': {
+        stage: 'stage-sonner', cls: 'sonner',
+        html: `<div class="check">✓</div>
+               <div><div class="ttl">Approved run #14</div>
+               <div class="dsc">₹76,959.55 · Q2-FY2025-26</div></div>`
+      },
+      'sonner-promise': {
+        stage: 'stage-sonner', cls: 'sonner',
+        html: `<div class="check" style="background:#a1a1aa">…</div>
+               <div><div class="ttl">Calculating PVC…</div>
+               <div class="dsc">Acme Infra · Bill 2</div></div>`,
+        then: { delay: 1400, html: `<div class="check">✓</div>
+               <div><div class="ttl">PVC calculated</div>
+               <div class="dsc">₹76,959.55 · 4 components</div></div>` }
+      },
+      'sonner-error': {
+        stage: 'stage-sonner', cls: 'sonner',
+        html: `<div class="check" style="background:#dc2626">✕</div>
+               <div><div class="ttl">Validation failed</div>
+               <div class="dsc">extra item #7 missing eligibility decision</div></div>`
+      },
+      'radix-success': {
+        stage: 'stage-radix', cls: 'radix',
+        html: `<div></div><div><div class="ttl">Approved run #14</div>
+               <div class="dsc">₹76,959.55 · Q2-FY2025-26</div></div>`
+      },
+      'radix-promise': {
+        stage: 'stage-radix', cls: 'radix',
+        html: `<div></div><div><div class="ttl">Calculating PVC…</div>
+               <div class="dsc">Acme Infra · Bill 2</div></div>`,
+        then: { delay: 1400, html: `<div></div><div><div class="ttl">PVC calculated</div>
+               <div class="dsc">₹76,959.55 · 4 components</div></div>` }
+      },
+      'radix-error': {
+        stage: 'stage-radix', cls: 'radix', errorBar: true,
+        html: `<div></div><div><div class="ttl">Validation failed</div>
+               <div class="dsc">extra item #7 missing eligibility</div></div>`
+      },
+      'rht-success': {
+        stage: 'stage-rht', cls: 'rht',
+        html: `<div class="check">✓</div> Approved run #14 · ₹76,959.55`
+      },
+      'rht-promise': {
+        stage: 'stage-rht', cls: 'rht',
+        html: `<div class="check" style="background:#a1a1aa">…</div> Calculating PVC…`,
+        then: { delay: 1400, html: `<div class="check">✓</div> PVC calculated · ₹76,959.55` }
+      },
+      'rht-error': {
+        stage: 'stage-rht', cls: 'rht',
+        html: `<div class="check" style="background:#dc2626">✕</div> Validation failed · extra item #7`
+      },
+    };
+
+    function spawn(recipe){
+      const stage = document.getElementById(recipe.stage);
+      const stack = stage.querySelector('.toast-stack');
+      const t = document.createElement('div');
+      t.className = 'toast ' + recipe.cls;
+      if(recipe.errorBar) t.style.setProperty('--bar', '#dc2626');
+      t.innerHTML = recipe.html;
+      // For radix error bar override
+      if(recipe.errorBar && recipe.cls === 'radix') {
+        t.style.cssText += ';';
+        t.querySelector(':scope')?.remove;
+      }
+      t.style.opacity = '0';
+      t.style.transform = 'translateY(8px)';
+      stack.appendChild(t);
+      requestAnimationFrame(() => {
+        t.style.transition = 'opacity 180ms ease, transform 180ms ease';
+        t.style.opacity = '1';
+        t.style.transform = 'translateY(0)';
+      });
+      const removeAfter = recipe.then ? 4200 : 3200;
+      if(recipe.then){
+        setTimeout(() => { t.innerHTML = recipe.then.html; }, recipe.then.delay);
+      }
+      setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translateY(-4px)';
+        setTimeout(() => t.remove(), 220);
+      }, removeAfter);
+    }
+
+    document.querySelectorAll('[data-fire]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const r = recipes[btn.dataset.fire];
+        if(r) spawn(r);
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>

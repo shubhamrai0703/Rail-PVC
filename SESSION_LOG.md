@@ -358,3 +358,157 @@ CC-S addressed all 5 P3-PRE-REVIEW findings. All CRITICAL and HIGH issues resolv
 - P2-06 (trace provenance) — deferred, decide before Phase 7
 - P3-002 `railway_zone` API validation — Phase 3 (CC-SH) must enforce 422 on missing zone
 - RBI historical seed — Apr-2022 to Nov-2024 still missing
+
+---
+
+## Session 4 — 2026-05-16 (Parallel-track session: P2-06 trace contract + P3-REVIEW pre-flight)
+
+### Context
+
+Shubham working on `shubham/phase-3`. CC-S running parallel tracks that don't conflict with that branch. Two tracks landed; Phase 4 scaffolding queued for a fresh window.
+
+### Track A — P2-06 trace provenance (CLOSED)
+
+The only remaining MEDIUM from P2-REVIEW. Decided to **expand** rather than downgrade, ahead of P3-009 so the persisted shape is final on first write (avoids a Phase 7 schema migration).
+
+**Design decisions (user-confirmed via AskUserQuestion):**
+
+1. **Typed Pydantic `TraceContract`** model — not free dict. `PVCRunResult.trace: TraceContract`. Static type-checking, locked shape, `schema_version: Literal["1.0"]` for evolution.
+2. **Opaque `source_ref: str | None`** added to `ExtraItemDecision` and `CarryForwardPayload`. Engine never interprets — Phase 3 fills with `bill_lines.id`, engine echoes into trace as `bill_line_ref`. Solves the engine-doesn't-know-DB-IDs constraint without coupling.
+3. **Full index value echo** in `index_ref`: base month/value + quarter months/values/avg. Trace is self-contained — `revision_snapshots` is audit truth even if `index_observations` later mutates.
+4. **Both top-level + annotated trace** for W: numeric `result.w_derivation` plus `trace.w_derivation` with per-line `input_field` and per-bucket carry-forward contributions.
+
+**Files changed:**
+
+- `engine/types.py` — added `IndexBaseValue`, `IndexQuarterValues`, `IndexRef`, `DerivedAvgIndexRef` (discriminated union via `kind`), `SteelSubComponentTrace`, `ComponentTrace`, `CarryForwardContribution`, `WDerivationLine`, `WDerivationTrace`, `CarryForwardTrace`, `ExtraItemTrace`, `TraceContract`. `source_ref` on `ExtraItemDecision` + `CarryForwardPayload`. `PVCRunResult.trace: TraceContract`.
+- `engine/calculator.py` — new helpers `_build_index_ref`, `_build_derived_avg_ref`, `_build_component_trace`, `_build_w_derivation_trace`, `_build_carry_forward_traces`, `_build_extra_item_traces`. `_build_trace` now takes `rules` + `w_derivation` (may be None on pre-W block).
+- `engine/tests/test_calculator.py` — 4 existing trace tests converted to attribute access; 8 new tests covering schema_version, W provenance, blocked-run W=None, single vs derived-avg commodity refs, `source_ref` echo to both `trace.carry_forwards` and `trace.w_derivation.inputs[bucket].carry_forward_contributions`, eligible-True vs eligible-False `applied_to_w_subtraction` flag.
+- `REVIEW.md` — full CC-S response added under P2-06 with Phase 3 contract implications.
+- `TASKS.md` — P2-06 marked closed in P2-REVIEW table, P2-011 marked done, branch-strategy header updated (P2-REVIEW gate fully cleared).
+
+**Verification:**
+
+- **99 tests passing (was 91), 0 failing**
+- **Coverage held at 99% on `engine/` package**
+- BCT-24-25-252 Bill-1/Bill-2 fixture totals unchanged (0.00 / 76959.55)
+- `result.trace.model_dump(mode="json")` produces clean nested JSON — ready for `pvc_runs.trace JSONB` persistence in P3-009
+
+**Steel bucket trace shapes:**
+
+- `steel_tmt`, `steel_angles`, `steel_plates`: `formula="steel_bucket_pvc"`, `commodity_index_ref.kind="single"`, references the bucket's own JPC series
+- `steel_other` (GCC 46A.9 SL4): `formula="steel_bucket_pvc_derived_avg"`, `commodity_index_ref.kind="derived_avg"`, `series_list=["steel_tmt","steel_angles","steel_plates"]`, with per-series `IndexRef` echoes
+
+### Track D — P3-REVIEW checklist (PRE-FLIGHT)
+
+Pre-wrote the adversarial checklist for Codex to run against `shubham/phase-3` once P3-001…P3-011 land. Doubles as a CC-SH self-review prompt before requesting Codex — saves one review cycle.
+
+**Section coverage:**
+
+- **CRITICAL (6):** tenant isolation, `railway_zone` 422, Approved pvc_runs 409 + DB trigger, no engine fallback path on validation errors, `index_observations` write-blocked, W derivation parity between API and engine
+- **HIGH (7):** `source_ref` plumbing for P2-06, trace persistence to `pvc_runs.trace` JSONB + snapshot, POST /pvc-runs idempotency, decimal precision through API boundary, `paid_ratio` server-derived only, `component_weights` validation parity, JPC zone-specific snapshot construction
+- **MEDIUM (4):** OpenAPI schema coverage, error response shape, `approved_by` field, rule set copy-on-write
+- **LOW (3):** rate limiting, CORS, OpenAPI examples
+- **Domain-correctness regression set:** BCT-24-25-252 Bill-1 + Bill-2 via the live API, `eligible=None` 422, `steel_tmt_amount` 422, `railway_zone` 422, Approved 409
+
+Lives at the bottom of `REVIEW.md` as a stub awaiting Codex-S to fill per-finding once the branch is ready.
+
+### Phase 3 contract implications recorded for CC-SH
+
+- **P3-009 must persist `trace` as JSONB.** Recommend `pvc_runs.trace JSONB`; `revision_snapshots` should snapshot the full trace document.
+- **P3-002/P3-007/P3-005 must plumb `bill_lines.id` as `source_ref`** when building engine payloads. Without this, Phase 7 cell-level provenance fails silently (renders without bill_line links).
+- These are noted in REVIEW.md P2-06 response so Shubham sees them when reading review state.
+
+### Open items carried forward
+
+- **Phase 4 scaffolding (P4-003, P4-005, P4-006)** — queued for fresh window; design-quality requirement: not dated/boring, Excel-style formula bar + numeric cells where useful, polished and trustworthy
+- **RBI historical seed (Apr 2022 – Nov 2024)** — Saqlain sourcing in parallel
+- **JPC seed Apr 2022 – Nov 2024** — same window
+- **P3-002 `railway_zone` API validation** — Phase 3 (CC-SH)
+
+### Notes for the next CC-S window
+
+The vault `top-of-mind.md`, `01-projects/RailPVC.md`, and `04-logs/sessions/2026-05-16.md` updated to reflect: Phase 3 gate fully clear, P2-06 closed, design philosophy locked in, Phase 4 fresh-window prompt prepared.
+
+---
+
+## Session 5 — 2026-05-16 (Phase 4 Track B scaffolding)
+
+### Context
+
+Fresh window, per the Track B brief (`tasks/track-b-phase4-scaffolding.md`). Branch: `saqlain/phase-4`. CC-SH continues `shubham/phase-3` in parallel — no overlap.
+
+Mid-session, the 13" M2 / 8 GB box hard-froze twice from memory pressure while bringing up `next dev` + Turbopack with concurrent route probes against a heavy Electron AI IDE. No kernel panics — pure jetsam / WindowServer deadlock. Recovery + memory diagnosis written up in `tasks/lessons.md` (2026-05-16 entry). New rules for this hardware: prefer `next build && next start` over `next dev`; probe one route at a time; don't run dev concurrently with Electron AI IDEs. **This session followed those rules end-to-end.**
+
+### What landed (P4-003 + P4-005 + P4-006 base)
+
+**App shell — `frontend/components/shell/`:**
+
+- `AppShell.tsx` — sidebar / header / scrollable main grid; owns `ShellStateProvider` and the `CommandPalette` portal.
+- `Sidebar.tsx` — slate-900 rail, amber-600 brand, three nav items with active-state amber rail. Collapsed 52 px / expanded 220 px.
+- `Header.tsx` — section breadcrumb + `#header-context-slot` (slot for per-route contract/bill/quarter chips later) + ⌘K search-palette opener with `kbd` hint.
+- `CommandPalette.tsx` — `cmdk` dialog. Navigate group only in Phase 4; "Recent runs" stub for Phase 5. `g`-prefix Vim-style jumps (`g c` / `g i` / `g d`), suppressed when typing.
+- `ShellState.tsx` — sidebar `auto | manual` mode (auto-collapse < 1280 px via `matchMedia`); `⌘\` toggles + pins manual; `⌘K` opens palette. Single hook surface for the shell.
+- `nav.ts` — single source of truth for nav items (href, label, lucide icon, jump key).
+
+**UI primitives — `frontend/components/ui/`:** `Button`, `Badge` (`draft|approved|superseded|blocked` variants), `EmptyState`. Small, restrained, slate-first, amber-only-as-accent.
+
+**Routes — `frontend/app/(app)/`:**
+
+- `(app)/layout.tsx` — wraps every authenticated page in `<AppShell>`. Note left for P4-001 auth guard.
+- `(app)/contracts/page.tsx` — empty-state + a "Visual smoke-test" panel that previews badges, a tabular grid (mono right-aligned amounts, lakh-grouped INR), an Excel-style `fx` formula bar, plus throw/toast buttons exercising the error and toast plumbing. This is the AG Grid placeholder (decision below).
+- `(app)/indices/page.tsx` — empty state.
+- `(app)/documents/page.tsx` — empty state.
+- `app/page.tsx` — redirects `/` → `/contracts`.
+
+**Error / 404 surface:**
+
+- `app/error.tsx` — route-level. Branded card. Next 16's reset prop is now `unstable_retry`, so the signature matches.
+- `app/global-error.tsx` — last-resort root boundary.
+- `app/not-found.tsx` — branded 404.
+
+**Data layer — `frontend/lib/`:**
+
+- `providers.tsx` — TanStack `QueryClientProvider` + `ReactQueryDevtools` (dev-only, bottom-left). `staleTime` 30s; no retry on 401/403/404/409/422.
+- `api/client.ts` — typed `apiFetch<T>()`. Throws `ApiError`. Default: surface failures as Sonner toasts; `silent: true` opts a caller out for inline UI handling. Network errors → toast + `ApiError(status=0)`.
+- `api/schema.ts` — empty placeholder for openapi-typescript output. `npm run gen:api` is wired to `${NEXT_PUBLIC_API_URL:-http://localhost:8000}/openapi.json` — runs the moment Shubham's FastAPI exposes the schema.
+- `format.ts` — `formatINR` / `formatINRWithSymbol` using `Intl en-IN` (lakh/crore grouping).
+- `cn.ts` — `clsx + tailwind-merge` helper.
+
+**Root files modified:**
+
+- `app/layout.tsx` — Geist Sans + Geist Mono via `next/font/google`; `Providers` wrapping; `Toaster` (Sonner, bottom-right, closeButton, richColors off).
+- `app/globals.css` — `@theme inline` tokens (slate neutrals + amber-600 accent), tabular-nums on body, `.num-mono` / `.num-sans` helpers, focus-visible ring, Sonner palette overrides.
+- `next.config.ts` — back to an empty config; the stray `~/package-lock.json` workaround was removed in Session 4 diagnosis.
+
+**Dependencies added:** `@tanstack/react-query`, `@tanstack/react-query-devtools`, `sonner`, `cmdk`, `lucide-react`, `openapi-typescript` (dev), `clsx`, `tailwind-merge`.
+
+### Verification (rails respected)
+
+- **Type check:** `npx tsc --noEmit` — clean, 0 errors.
+- **Build:** `next build` — compiled in 1.5 s, TypeScript clean, all 5 routes prerendered as static.
+- **SSR markup probe:** `next start` on :3000, then `curl` one route at a time with pauses (≈6 s between requests) per the lessons-doc rules.
+  - `/contracts` → `<nav class="flex-1 py-2">`, `RailPVC` brand, `Visual smoke-test` panel all present in SSR HTML.
+  - `/indices` → shell nav + `Index Manager` + `Index data not loaded` empty state.
+  - `/documents` → shell nav + `Document Vault` + `No documents yet` empty state.
+- Server killed cleanly between probes. Memory held steady (`Pages free` 29 402 mid-run on the 8 GB box).
+- **No `next dev` was run.** No concurrent route probes.
+
+### AG Grid decision
+
+Confirmed via `AskUserQuestion`: **defer to Phase 5.** The contracts smoke-test panel already proves the design language on tabular data (header row, mono right-aligned numbers, lakh-grouped INR, formula bar). Pulling in `ag-grid-*` (~250 KB) for a placeholder doesn't earn its weight before P5/P6 know the column shape. AG Grid theming against our CSS variables happens when the first real `ContractItem` grid is built.
+
+### Design decisions log
+
+Captured retrospectively in `tasks/track-b-design-decisions.md` (the original brief asked for an `AskUserQuestion` log up front; this session locked decisions inline and the live log wasn't captured). Ten sections: typeface, palette, sidebar shape, command palette, toast lib, density / numeric typography, AG Grid placeholder, error handling, TanStack Query setup, OpenAPI codegen. **Appendix added (post-commit) cross-references each option in `tasks/phase-4-design-options.html` (the four-question mockup) against the file:line where it landed — every Phase 4 decision is now traceable; deferred items (5c approve, 5d pill content, AG Grid) map to phases with the prerequisite data.**
+
+### Open items carried forward
+
+- **P4-001 auth client** — still blocked on P3-001 merging from `shubham/phase-3`. `(app)/layout.tsx` carries the TODO marker for where the auth guard goes.
+- **P4-002 auth pages** — CC-SH task per `TASKS.md`. Not started.
+- **P4-004 contract list** — needs `GET /api/contracts` live.
+- **AG Grid theme tokens** — Phase 5 cost.
+- **RBI / JPC seed backfill** — Apr 2022 – Nov 2024 still missing.
+
+### Notes for the next CC-S window
+
+Hardware rails still apply: 8 GB box + Electron AI IDE + `next dev` = deadlock. Prefer `next build && next start` for any future SSR / route verification. Don't probe routes back-to-back. See `tasks/lessons.md` (2026-05-16 entry) before opening a parallel session.

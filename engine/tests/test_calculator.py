@@ -235,24 +235,24 @@ class TestTrace:
         snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
         bill = _bill(on_account="1000000")
         result = calculate_pvc(bill, snap, _standard_rules())
-        assert result.trace["quarter_used"] == "Q2-FY2025-26"
-        assert result.trace["quarter_months"] == _Q2_MONTHS
+        assert result.trace.quarter_used == "Q2-FY2025-26"
+        assert result.trace.quarter_months == _Q2_MONTHS
 
     def test_trace_contains_component_detail(self):
         snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
         bill = _bill(on_account="1000000")
         result = calculate_pvc(bill, snap, _standard_rules())
         assert result.validation_errors == []
-        assert "labour" in result.trace["components"]
-        labour = result.trace["components"]["labour"]
-        assert "eligible_amount" in labour
-        assert "pvc_value" in labour
+        assert "labour" in result.trace.components
+        labour = result.trace.components["labour"]
+        assert labour.eligible_amount is not None
+        assert labour.pvc_value is not None
 
     def test_trace_blocked_run_still_has_quarter(self):
         snap = IndexSnapshot(base_month=_BASE, series={})
         bill = _bill(on_account="1000000", measurement_date=date(2025, 6, 18))
         result = calculate_pvc(bill, snap, _standard_rules())
-        assert result.trace["quarter_used"] == "Q2-FY2025-26"
+        assert result.trace.quarter_used == "Q2-FY2025-26"
 
     def test_trace_extra_item_decisions_recorded(self):
         snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
@@ -262,9 +262,110 @@ class TestTrace:
         )
         result = calculate_pvc(bill, snap, _standard_rules())
         assert result.validation_errors == []
-        decisions = result.trace["extra_item_decisions"]
+        decisions = result.trace.extra_item_decisions
         assert len(decisions) == 1
-        assert decisions[0]["item_id"] == "NS1"
+        assert decisions[0].item_id == "NS1"
+
+    # P2-06: expanded trace contract — schema_version, provenance, and full echo
+    def test_trace_schema_version_is_pinned(self):
+        snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
+        result = calculate_pvc(_bill(on_account="1000000"), snap, _standard_rules())
+        assert result.trace.schema_version == "1.0"
+
+    def test_trace_w_derivation_has_per_field_provenance(self):
+        snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
+        bill = _bill(on_account="1000000", cement="100000", angles="50000")
+        result = calculate_pvc(bill, snap, _standard_rules())
+        wt = result.trace.w_derivation
+        assert wt is not None
+        assert "W = on_account_amount" in wt.formula
+        assert wt.inputs["on_account_amount"].input_field == "BillPayload.on_account_amount"
+        assert wt.inputs["cement"].input_field == "BillPayload.cement_amount"
+        assert "carry_forwards(subtype=tmt)" in wt.inputs["steel_tmt"].input_field
+        assert wt.w == result.w
+
+    def test_trace_w_derivation_is_none_when_run_blocked_pre_w(self):
+        snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
+        # Undecided extra item blocks W derivation entirely
+        bill = _bill(
+            on_account="1000000",
+            extra_decisions=[ExtraItemDecision(item_id="X", amount=Decimal("1000"), eligible=None)],
+        )
+        result = calculate_pvc(bill, snap, _standard_rules())
+        assert result.validation_errors  # blocked
+        assert result.trace.w_derivation is None
+
+    def test_trace_general_component_echoes_index_values(self):
+        snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
+        result = calculate_pvc(_bill(on_account="1000000"), snap, _standard_rules())
+        labour = result.trace.components["labour"]
+        assert labour.formula == "general_w_component"
+        assert labour.index_ref is not None
+        assert labour.index_ref.series == "labour"
+        assert labour.index_ref.base.month == "2024-12"
+        assert labour.index_ref.base.value == _BASE_INDICES["labour"]
+        assert labour.index_ref.quarter.months == _Q2_MONTHS
+        assert labour.index_ref.quarter.avg == _Q2_AVGS["labour"]
+
+    def test_trace_steel_tmt_uses_single_commodity_ref(self):
+        snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
+        result = calculate_pvc(_bill(on_account="1000000", tmt="200000"), snap, _standard_rules())
+        tmt = result.trace.components["steel_tmt"]
+        assert tmt.formula == "steel_bucket_pvc"
+        ref = tmt.commodity_index_ref
+        assert ref is not None and ref.kind == "single"
+        assert ref.series == "steel_tmt"
+        assert tmt.sub_components is not None
+        assert set(tmt.sub_components.keys()) == {"labour", "plant", "fuel", "materials"}
+
+    def test_trace_steel_other_uses_derived_avg_commodity_ref(self):
+        snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
+        result = calculate_pvc(_bill(on_account="1000000", steel_other="200000"), snap, _standard_rules())
+        other = result.trace.components["steel_other"]
+        assert other.formula == "steel_bucket_pvc_derived_avg"
+        ref = other.commodity_index_ref
+        assert ref is not None and ref.kind == "derived_avg"
+        assert ref.series_list == ["steel_tmt", "steel_angles", "steel_plates"]
+        assert len(ref.per_series) == 3
+
+    def test_trace_carry_forward_echoes_source_ref(self):
+        snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
+        cf = CarryForwardPayload(
+            item_id="10.2",
+            recorded_qty=Decimal("100"),
+            paid_qty_source=Decimal("80"),
+            amount=Decimal("50000"),
+            steel_subtype="angles",
+            source_ref="bill_line_uuid_xyz",
+        )
+        result = calculate_pvc(
+            _bill(on_account="1000000", carry_forwards=[cf]),
+            snap, _standard_rules(),
+        )
+        cft = result.trace.carry_forwards[0]
+        assert cft.bill_line_ref == "bill_line_uuid_xyz"
+        assert cft.applied_to_bucket == "steel_angles"
+        # And the W derivation trace surfaces the same contribution
+        contribs = result.trace.w_derivation.inputs["steel_angles"].carry_forward_contributions
+        assert any(c.source_ref == "bill_line_uuid_xyz" for c in contribs)
+
+    def test_trace_extra_item_echoes_source_ref_and_applied_flag(self):
+        snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
+        bill = _bill(
+            on_account="1000000",
+            extra_decisions=[
+                ExtraItemDecision(item_id="NS-1", amount=Decimal("10000"),
+                                  eligible=False, source_ref="bl-1"),
+                ExtraItemDecision(item_id="NS-2", amount=Decimal("20000"),
+                                  eligible=True, source_ref="bl-2"),
+            ],
+        )
+        result = calculate_pvc(bill, snap, _standard_rules())
+        by_id = {t.item_id: t for t in result.trace.extra_item_decisions}
+        assert by_id["NS-1"].bill_line_ref == "bl-1"
+        assert by_id["NS-1"].applied_to_w_subtraction is True
+        assert by_id["NS-2"].bill_line_ref == "bl-2"
+        assert by_id["NS-2"].applied_to_w_subtraction is False
 
 
 # ---------------------------------------------------------------------------

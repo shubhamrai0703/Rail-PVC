@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ─── Editorial / serious palette ───
+   Geist + Geist Mono are loaded via next/font in layout.tsx.
+   Slate scale for neutrals, amber-600 as the lone accent.        */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* type */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* surface */
+  --color-surface:        #ffffff;
+  --color-surface-muted:  #f8fafc; /* slate-50  */
+  --color-surface-rail:   #0f172a; /* slate-900 */
+  --color-border:         #e2e8f0; /* slate-200 */
+  --color-border-strong:  #cbd5e1; /* slate-300 */
+
+  /* foreground */
+  --color-fg:        #0f172a; /* slate-900 */
+  --color-fg-muted:  #475569; /* slate-600 */
+  --color-fg-subtle: #64748b; /* slate-500 */
+  --color-fg-faint:  #94a3b8; /* slate-400 */
+
+  /* accent — amber-600, used sparingly */
+  --color-accent:        #d97706;
+  --color-accent-hover:  #b45309;
+  --color-accent-soft:   #fffbeb;
+  --color-accent-border: #fde68a;
+
+  /* status */
+  --color-success:        #16a34a;
+  --color-success-soft:   #f0fdf4;
+  --color-success-border: #bbf7d0;
+  --color-danger:         #dc2626;
+  --color-danger-soft:    #fef2f2;
+  --color-danger-border:  #fecaca;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── base ─── */
+html, body {
+  height: 100%;
 }
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-surface-muted);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  /* sans+tabular by default — every numeric column lines up
+     even when we're not in mono territory                        */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "cv11"; /* cv11 = Geist single-storey 'a' for clarity in small sizes */
+}
+
+/* ─── Numeric cell helpers ─── */
+.num-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.num-sans {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ─── Focus ring — keyboard-only ─── */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* ─── Sonner overrides — match our palette ─── */
+:where([data-sonner-toaster]) {
+  --normal-bg: var(--color-surface);
+  --normal-text: var(--color-fg);
+  --normal-border: var(--color-border);
+  --success-bg: var(--color-surface);
+  --success-text: var(--color-fg);
+  --error-bg: var(--color-surface);
+  --error-text: var(--color-fg);
+  font-family: var(--font-sans);
+}
+:where([data-sonner-toast]) {
+  border-radius: 8px !important;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.10) !important;
+}
+:where([data-sonner-toast] [data-description]) {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--color-fg-muted);
 }

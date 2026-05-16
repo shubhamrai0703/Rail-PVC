@@ -61,6 +61,34 @@ Issue: Phase 2 acceptance says every trace field should point to `{input_field, 
 Risk: Phase 3/7 cannot reliably expose cell-level provenance from the engine result even though the interface claims it exists. That weakens auditability and increases the chance that the frontend or export layer will re-derive explanations on its own.
 Suggested fix: Expand the trace schema now to include formula identifiers, index series/month references, and source field/item references for W deductions and each component. If that structure is intentionally deferred, lower the acceptance claim in `TASKS.md` instead of returning a misleading trace shape.
 
+### P2-06 — Fixed (CC-S, 2026-05-16)
+
+Resolved by **expanding** the trace contract, not by downgrading acceptance. Decided ahead of Phase 3's P3-009 so the persisted shape is final on first write.
+
+**Approach:**
+1. `PVCRunResult.trace` is now a typed `TraceContract` Pydantic model (not `dict`). Static type-checking; locked shape; `schema_version="1.0"` for future evolution.
+2. Added opaque `source_ref: str | None` to `ExtraItemDecision` and `CarryForwardPayload`. Engine never interprets it — Phase 3 fills with `bill_lines.id` and the engine echoes it into trace as `bill_line_ref`. Resolves the engine-doesn't-know-DB-IDs constraint without coupling.
+3. `index_ref` echoes **full values** (base month/value + quarter months/values/avg), not just keys. Trace is self-contained — the `revision_snapshots` audit is the truth even if `index_observations` later mutates.
+4. W derivation gets both surfaces: numeric `result.w_derivation` (already there) plus an annotated `trace.w_derivation` that names the input field per line and lists carry-forward contributions per steel bucket.
+5. Steel buckets distinguish `steel_bucket_pvc` (single commodity series, SL1/SL2/SL3) from `steel_bucket_pvc_derived_avg` (SL4, GCC 46A.9 average across three series). Each steel bucket trace enumerates its four sub-component index_refs (labour/plant/fuel/materials).
+
+**Files changed:**
+- `engine/types.py` — `source_ref` on `ExtraItemDecision`/`CarryForwardPayload`; new models: `IndexBaseValue`, `IndexQuarterValues`, `IndexRef`, `DerivedAvgIndexRef` (discriminated union), `SteelSubComponentTrace`, `ComponentTrace`, `CarryForwardContribution`, `WDerivationLine`, `WDerivationTrace`, `CarryForwardTrace`, `ExtraItemTrace`, `TraceContract`. `PVCRunResult.trace: TraceContract`.
+- `engine/calculator.py` — `_build_index_ref`, `_build_derived_avg_ref`, `_build_component_trace`, `_build_w_derivation_trace`, `_build_carry_forward_traces`, `_build_extra_item_traces`. Refactored `_build_trace` to compose these and accept `rules` + `w_derivation` (may be None on pre-W block).
+- `engine/tests/test_calculator.py` — switched existing trace tests to attribute access; added 8 new tests covering schema_version, W provenance, blocked-run W=None, single vs derived-avg commodity refs, source_ref echo to both trace.carry_forwards and trace.w_derivation contributions, eligible-True vs eligible-False applied flag.
+
+**Verification:**
+- 99 tests passing (was 91), 0 failing.
+- Coverage: 99% on `engine/` package — held.
+- BCT-24-25-252 Bill-1/Bill-2 fixtures still pass; expected totals unchanged.
+
+**Phase 3 contract implications:**
+- P3-009 must persist `trace` as a JSONB column on `pvc_components` (or `pvc_runs` if denormalized). Recommend `pvc_runs.trace JSONB` since trace is one document per run.
+- `revision_snapshots` should snapshot the full trace, since it now contains all input values needed to re-render the audit.
+- P3-002/P3-007 (contracts/extra items) and P3-005 (carry-forwards) should plumb `bill_lines.id` through as `source_ref` when constructing the engine payload — required for cell-level provenance in Phase 7.
+
+P2-06 closed.
+
 ## P3-PRE-REVIEW — 2026-05-16
 
 Verified against `REFERENCES/GCC_April-2022ACS14.07.2022-PVCClause.pdf`: GCC 46A.9(1) clearly makes TMT/rebar its own SL1 category, GCC 46A.9(1) SL4 clearly defines “other sections” as the average of SL1/SL2/SL3, and GCC 46A.9(2) matches the 16-zone mapping used in migration 010. The Bill-2 fixture arithmetic also checks out: `avg(56700, 56800, 56500) = 56666.67`, which yields `expected.total_pvc = 76959.55`; the old direct `56900` path reproduces the prior `77565.84`. I could not independently verify the physical workbook itself because it is not present in the repo.
@@ -128,3 +156,55 @@ Migration: `backend/migrations/versions/011_security_hardening.py`.
 Guard `if not commodity_series: return None, None, None, ["empty commodity series list for steel bucket"]` added at the top of the list branch in `_steel_bucket_pvc()` (`engine/components.py`). New test: `TestSteelComponents::test_empty_commodity_series_list_returns_error`.
 
 Tests: 91 passing (includes new test).
+
+---
+
+## P3-REVIEW Checklist (pre-flight, awaiting CC-SH submission)
+
+**Status:** Stub. Codex-S runs this against `shubham/phase-3` once all P3-001…P3-011 land. CC-SH may use it as a self-review before requesting review to cut a cycle.
+
+**Scope:** API correctness, security, contract fidelity to engine. Does NOT re-review engine code (covered by P2-REVIEW).
+
+### CRITICAL — fail merge
+
+1. **Tenant isolation on every protected endpoint.** Every read/write filters by `tenant_id` from the JWT; no endpoint returns or accepts rows belonging to another tenant. Verify by issuing requests with two distinct JWTs against the same resource IDs and confirming 404/403.
+2. **`railway_zone` required on contract create (P3-002).** POST `/api/contracts` without `railway_zone` returns 422; ENUM validation rejects non-listed zones (16 valid values per migration 010). Without this, P3-009 fails downstream when selecting JPC city.
+3. **Approved `pvc_runs` immutability (P3-010).** PUT/PATCH on an Approved run returns 409 Conflict. Verify the DB trigger (`trg_pvc_runs_immutable_approved`, migration 011) fires even for service-role direct writes. The API-layer check is belt; the trigger is suspenders.
+4. **No engine fallback path.** P3-009 must NEVER swallow `validation_errors` from `calculate_pvc()`. Non-empty errors → 422 with the full list, no persisted run row. Verify: pass a payload with `eligible=None` extra item → 422, zero rows inserted in `pvc_runs`.
+5. **`index_observations` writes blocked for authenticated users.** Confirm RLS policy state matches migration 011: `SELECT` only for `authenticated`; no `INSERT`/`UPDATE` policies. Service role bypasses RLS — that path is acceptable.
+6. **W derivation parity.** Snapshot the engine payload P3-009 constructs and assert it matches a hand-built BillPayload for BCT-24-25-252 Bill-1: same on_account, same per-bucket steel amounts (incl. carry-forward proration), same extra_item_decisions with eligibility populated. Field name drift between API and engine = silent miscalculation.
+
+### HIGH — must fix before merge
+
+7. **`source_ref` plumbing (P2-06 contract).** P3-007 (extra items) and P3-005 (carry-forwards) must pass `bill_lines.id` as `source_ref` when constructing engine payloads. Without this, Phase 7 audit UI cannot link a deduction back to its source row.
+8. **Trace persistence.** P3-009 must persist the engine's `TraceContract` (now `schema_version="1.0"`) into `pvc_runs.trace` JSONB. The `revision_snapshot` must capture the trace too — that's the audit truth. Verify shape with `result.trace.model_dump(mode='json')`.
+9. **Idempotency on POST /pvc-runs.** Duplicate POSTs (same bill, same rule_set, no upstream changes) should not create N runs. Either: (a) require an `Idempotency-Key` header, or (b) check for an existing Draft run and 409 with the existing run_id.
+10. **Numeric precision.** All Decimal fields preserve precision through the API boundary (request → engine → DB → response). No float coercion. Spot-check: round-trip `steel_other_amount = "57727.5023"` and confirm bit-identity.
+11. **`paid_ratio` server-derived (P3-005 acceptance).** PUT carry-forward MUST recompute `paid_ratio` from `paid_qty / recorded_qty`; reject any client-supplied ratio. The model's @computed_field is enforcement; the API should not even accept the field in input.
+12. **PVCRuleSet validation parity.** `component_weights` API validation must mirror the engine's `_weights_complete_and_known` validator: reject missing keys, reject unknown keys, allow explicit zero. Verify: `{"labour": 0.20}` → 422 (not silently accepted).
+13. **JPC zone-specific snapshot construction (P3-009).** Building the `IndexSnapshot` for a run must select index_series filtered by `contracts.railway_zone` → city mapping (CLAUDE.md KU-006). Two contracts in different zones submitting on the same day should produce different snapshots.
+
+### MEDIUM — log, don't block
+
+14. **OpenAPI schema coverage.** Every endpoint has request/response schemas; no `Any` returns. Required for P4-006 `openapi-typescript` codegen.
+15. **Error response shape consistency.** 422 returns Pydantic-style `{detail: [{loc, msg, type}]}`; 4xx errors include a `correlation_id` for log tracing.
+16. **`approved_by` field.** Still TEXT (post-MVP debt); confirm endpoint passes the JWT user's email or display name, not the raw `auth.uid()`.
+17. **Audit trail on PVC rule changes.** PUT `/api/contracts/{id}/pvc-rule-set` should not silently overwrite a rule set referenced by an Approved run. Suggested: copy-on-write or hard-link via rule_set_id.
+
+### LOW — nice to have
+
+18. **Rate limiting** on POST `/pvc-runs` (engine call is synchronous in MVP; one tenant DoS-ing themselves is fine, but worth a guard).
+19. **CORS** locked to known origins, not `*`.
+20. **OpenAPI examples** for at least the three trickiest endpoints (POST /pvc-runs, PUT /carry-forwards, POST /contracts with railway_zone).
+
+### Domain-correctness regression set
+
+Codex must rerun these against the live API (not just engine fixtures):
+
+- BCT-24-25-252 Bill-1 (Q2-FY2025-26): full payload → POST /pvc-runs → response `total_pvc=0.00`, `negative_carry_forward=635.38`.
+- BCT-24-25-252 Bill-2 (Q4-FY2025-26): with steel carry-forward → response `total_pvc=76959.55`.
+- Bill with `eligible=None` extra item → 422, no persisted run.
+- Bill with `steel_tmt_amount` omitted from request → 422 (Pydantic field required).
+- Contract POST without `railway_zone` → 422.
+- Approved run, attempt PUT → 409.
+
