@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "RailPVC FastAPI backend"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -9,6 +9,7 @@ dependencies = [
     "asyncpg>=0.29",
     "fastapi>=0.115",
     "pydantic>=2.0",
+    "pyjwt>=2.8",
     "python-dotenv>=1.0",
     "railpvc-engine",
     "sqlalchemy[asyncio]>=2.0",
@@ -16,5 +17,17 @@ dependencies = [
     "uvicorn[standard]>=0.30",
 ]
 
+[dependency-groups]
+dev = [
+    "aiosqlite>=0.20",
+    "httpx>=0.27",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
 [tool.uv.sources]
 railpvc-engine = { path = "../engine", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
