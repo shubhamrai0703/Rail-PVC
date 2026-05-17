@@ -53,13 +53,13 @@ Status: scaffold complete (on main); live integration unblocked
 
 | ID | Title | Owner | Status | Notes |
 |---|---|---|---|---|
-| P4-001 | Supabase auth client wiring | [CC-S] | pending | Backend auth surface now on main |
-| P4-002 | Auth pages: login, signup | [CC-SH] | pending | UI task after P4-001 |
+| P4-001 | Supabase auth client wiring | [CC-S] | complete | `lib/supabase/{client,server}.ts`; middleware; auth header injection in `apiFetch`; user menu + sign-out in Header |
+| P4-002 | Auth pages: login, signup | [CC-S] | complete | `(auth)/login` + `(auth)/signup`; `/auth/callback` route handler |
 | P4-003 | App shell | [CC-S] | complete | Scaffold landed |
 | P4-004 | Contract list dashboard | [CC-S] | pending | `GET /api/contracts` contract is stable |
 | P4-005 | Error boundaries/global handling | [CC-S] | complete | Backend error contract on main (P3-09); pairs with P4-007 |
 | P4-006 | TanStack Query + typed API integration | [CC-S] | in_progress | Generate types from `/openapi.json` once backend deployed |
-| P4-007 | `frontend/lib/api/client.ts` switches on `detail.code` | [CC-S] | pending | Surface `validation_errors`/`run_id` from typed `ApiProblem` payloads |
+| P4-007 | `frontend/lib/api/client.ts` switches on `detail.code` | [CC-S] | complete | `ApiProblem` union + `ApiError.detail`; toast copy per code |
 
 ### Phases 5–9 — Forward Plan
 

@@ -13,12 +13,40 @@ Use it for current milestone decisions and recent sessions only.
 
 ## Current Project State
 
-- Phase 0, 1, 2 complete; Phase 3 remediation **merged to `main`** via PR #3 (2026-05-17)
-- Phase 4 scaffolding already on `main` (merged earlier via PR #1)
-- No active feature branch. `saqlain/phase-3-remediation` and `saqlain/phase-4` deleted (local + origin) after merge / supersession.
+- Phase 0, 1, 2 complete; Phase 3 remediation merged to `main` via PR #3 (2026-05-17)
+- Phase 4: P4-003, P4-005, P4-007, P4-001, P4-002 all complete on `main` (2026-05-17)
+- Remaining Phase 4 (P4-004 contract list, P4-006 typed API schema) blocked on backend deploy
 - Out-of-band: Supabase project keys + Postgres password still need rotation outside the repo.
 
 ## Recent Sessions
+
+### Session 12 — 2026-05-17 (Phase 4: P4-007, P4-001, P4-002)
+
+Completed the three unblocked Phase 4 tasks in one pass. P4-004 and P4-006 remain blocked on backend deploy.
+
+**P4-007 — Typed error contract in `apiFetch`**
+- Added `ApiProblem` discriminated union (7 shapes matching `services/errors.py`)
+- `ApiError` gains `detail?: ApiProblem` — callers can now `switch (err.detail?.code)`
+- `extractApiProblem()` runtime guard; `toastDescription()` with code-specific copy (`engine_validation_error` → first error string, `idempotency_conflict` / `immutable_approved_run` → appends `run_id`)
+
+**P4-001 — Supabase auth client wiring**
+- Fixed leading-space bug in `frontend/.env.local` and `backend/.env` (dotenv kept `" value"` literally)
+- Installed `@supabase/ssr@0.10.3`
+- `lib/supabase/client.ts` — browser singleton (`createBrowserClient`)
+- `lib/supabase/server.ts` — server/RSC client (`createServerClient` + cookies); silent catch on setAll from Server Components
+- `middleware.ts` — protects all app routes; redirects unauthenticated to `/login`; redirects authenticated users away from auth pages
+- `apiFetch` auto-injects `Authorization: Bearer <token>` (lazy browser-only import, no SSR breakage); caller-supplied `Authorization` wins
+- `Header.tsx` — user avatar (initial circle) + sign-out dropdown; `useUser()` hook hydrates after mount
+
+**P4-002 — Auth pages**
+- `app/(auth)/layout.tsx` — centered auth layout with RailPVC brand mark
+- `app/(auth)/login/page.tsx` — email/password form, inline error pill, redirect + `router.refresh()` on success
+- `app/(auth)/signup/page.tsx` — confirm-password validation, 8-char minimum, "check your email" confirmation state
+- `app/auth/callback/route.ts` — PKCE code exchange for email confirmation / magic links
+
+Files changed: `lib/api/client.ts`, `lib/supabase/{client,server}.ts`, `middleware.ts`, `components/shell/Header.tsx`, `app/(auth)/**`, `app/auth/callback/route.ts`, `frontend/.env.local`, `backend/.env`, `TASKS.md`, `SESSION_LOG.md`, `STATUS.md`
+
+Verification: `tsc --noEmit` clean; `next build` clean (10 routes, middleware proxy active); Supabase REST 200 with anon key confirmed pre-work.
 
 ### Session 11 — 2026-05-17 (Phase 3 remediation merged + branch cleanup + post-merge regression)
 

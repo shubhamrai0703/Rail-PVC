@@ -49,7 +49,7 @@ This file is the shortest path to current branch state, blockers, and next actio
 ## Current Priorities
 
 1. [CC-SH] Phase 3 backfill endpoints — schedules, contract_items, recoveries, documents — branch off `main`. Patterns and boundaries documented in PR #3 description.
-2. [CC-S] Frontend `apiFetch` switches on `detail.code` for the typed error contract (P4-007); wire Supabase auth client (P4-001) and contract list (P4-004) once backend is live in a deployed env.
+2. [CC-S] P4-004 (contract list) + P4-006 (typed API schema) — both blocked on backend deploy.
 3. Rotate exposed Supabase credentials (out-of-band).
 
 ## File Classification
