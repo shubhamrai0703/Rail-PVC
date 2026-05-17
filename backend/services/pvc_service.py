@@ -169,6 +169,23 @@ async def assert_bill_belongs_to_tenant(
     return row["contract_id"]
 
 
+async def assert_contract_belongs_to_tenant(
+    session: AsyncSession, contract_id: str, tenant_id: str
+) -> None:
+    """Gate for endpoints nested under a contract URL (schedules, documents,
+    etc.). Raises NotFoundProblem when the contract does not exist OR belongs
+    to a different tenant — same "no-distinguish" rationale as the bill and
+    item assertions so callers cannot probe foreign IDs."""
+    row = (
+        await session.execute(
+            text("SELECT 1 FROM contracts WHERE id = :id AND tenant_id = :tid"),
+            {"id": contract_id, "tid": tenant_id},
+        )
+    ).first()
+    if row is None:
+        raise NotFoundProblem("Contract not found", entity="contract", id=contract_id)
+
+
 async def assert_item_belongs_to_contract(
     session: AsyncSession, item_id: str, contract_id: str
 ) -> None:

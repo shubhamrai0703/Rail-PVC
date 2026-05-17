@@ -15,6 +15,7 @@ from api import (  # noqa: E402  (env must load before module-level imports)
     indices,
     pvc_rules,
     pvc_runs,
+    schedules,
 )
 from services.errors import register_exception_handlers  # noqa: E402
 
@@ -36,6 +37,7 @@ register_exception_handlers(app)
 
 for router in (
     contracts.router,
+    schedules.router,
     bills.router,
     extra_items.router,
     carry_forwards.router,
