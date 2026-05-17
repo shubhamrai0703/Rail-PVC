@@ -10,6 +10,7 @@ load_dotenv()
 from api import (  # noqa: E402  (env must load before module-level imports)
     bills,
     carry_forwards,
+    contract_items,
     contracts,
     extra_items,
     indices,
@@ -38,6 +39,7 @@ register_exception_handlers(app)
 for router in (
     contracts.router,
     schedules.router,
+    contract_items.router,
     bills.router,
     extra_items.router,
     carry_forwards.router,
