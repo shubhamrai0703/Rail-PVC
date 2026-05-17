@@ -18,6 +18,7 @@ This file is the shortest path to current branch state, blockers, and next actio
 ## Active Review Cycle
 
 - No active cycle. P3-01…P3-09 closed; PR #3 merged.
+- Post-merge regression check on `main` by [CODEX-S] on 2026-05-17 — **no findings**. Engine 99/99 + backend 31/31 passing; clean `import engine` and `from main import app` (21 routes); tenant scoping, no global index writes, typed error contract, idempotency logic all still match review intent.
 - Next checkpoint: review of Phase 3 backfill endpoints (schedules / contract_items / recoveries / documents) when CC-SH opens that PR.
 
 ## Branch State

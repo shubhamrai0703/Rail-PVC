@@ -20,12 +20,13 @@ Use it for current milestone decisions and recent sessions only.
 
 ## Recent Sessions
 
-### Session 11 — 2026-05-17 (Phase 3 remediation merged + branch cleanup)
+### Session 11 — 2026-05-17 (Phase 3 remediation merged + branch cleanup + post-merge regression)
 
 - PR #3 merged to `main` (merge commit `07838f4`)
 - Deleted `saqlain/phase-3-remediation` (local + origin) and `saqlain/phase-4` (local + origin) — superseded
 - Slimmed `REVIEW.md` to closure-pointer state per the active-state-files rule
 - `STATUS.md` / `TASKS.md` updated: no active cycle; next workstream is Phase 3 backfill (CC-SH) + Phase 4 integration (CC-S)
+- **[CODEX-S] ran a post-merge regression check on `main` — no findings.** Engine 99/99 + backend 31/31 passing; clean `import engine` from packaged path; `from main import app` registers 21 routes; tenant scoping, no global index writes, typed error contract, idempotency logic all still match review intent.
 
 ### Session 10 — 2026-05-17 (Phase 3 remediation, branch `saqlain/phase-3-remediation`)
 
