@@ -13,12 +13,37 @@ Use it for current milestone decisions and recent sessions only.
 
 ## Current Project State
 
-- Phase 0, 1, 2 complete; Phase 3 remediation merged to `main` via PR #3 (2026-05-17)
-- Phase 4: P4-003, P4-005, P4-007, P4-001, P4-002 all complete on `main` (2026-05-17)
-- Remaining Phase 4 (P4-004 contract list, P4-006 typed API schema) blocked on backend deploy
-- Out-of-band: Supabase project keys + Postgres password still need rotation outside the repo.
+- Phase 0–3 complete. Phase 4 **fully complete** on `main` (2026-05-17) — all P4-001…P4-007 done.
+- Local backend running: `cd backend && uv run uvicorn main:app --reload --port 8000`
+- Local frontend running: `cd frontend && npm start` (port 3000)
+- DB: Supabase at `ivselmhloegjmqrjekcy.supabase.co`, migrations at head (012), DDL for 010–012 applied manually (see Session 13).
+- Tenant provisioned for `saqlainmmomin@gmail.com` — tenant_id `bd589426-93ba-4847-b5f3-1f69b020b4c0`.
+- **Pending**: backend `tests/` use HS256 tokens; auth now uses JWKS/ES256 — test suite will fail until updated.
 
 ## Recent Sessions
+
+### Session 13 — 2026-05-17 (Phase 4 complete: P4-004, P4-006 + infra fixes)
+
+**P4-006 — Typed API schema generated**
+- `npm run gen:api` against live `http://localhost:8000/openapi.json` → `lib/api/schema.ts` (970 lines, full `paths` + `operations` + `components`)
+
+**P4-004 — Contract list dashboard wired**
+- Replaced smoke-test placeholder in `app/(app)/contracts/page.tsx` with a real TanStack Query hook (`useContracts`) hitting `GET /api/contracts`
+- Empty state when no contracts; table view with tender number, contractor, base month, zone, status badge, and disabled View button (Phase 5)
+
+**Infrastructure fixes required before the above could work:**
+
+1. **Supabase JWKS / ES256** — new Supabase projects issue ES256 tokens, not HS256. `services/auth.py` was hardcoded to `HS256`. Updated to use `PyJWKClient` against `/auth/v1/.well-known/jwks.json`; supports both algorithms. `SUPABASE_JWT_SECRET` env var is no longer used for verification (still present but inert).
+
+2. **DB password rotation** — old `Ghost028301@` was expired. Updated `backend/.env` to `Vihandatad00`. DB confirmed reachable and at migration head.
+
+3. **Missing DDL (migrations 010–012 not applied)** — alembic was stamped at 012 but the actual DDL had never run against this Supabase instance. Applied manually: `railway_zone` enum + column, `prevent_approved_run_update` trigger, `idempotency_key` column + partial unique index.
+
+4. **Tenant provisioning** — `saqlainmmomin@gmail.com` had no row in `users`/`tenants`. Provisioned via one-off Python script. Tenant ID: `bd589426-93ba-4847-b5f3-1f69b020b4c0`.
+
+**Pending items flagged:**
+- Backend `tests/` mint HS256 tokens with `SUPABASE_JWT_SECRET` — all auth-dependent tests will fail now that auth uses JWKS/ES256. Needs a test-helper update before next review cycle.
+- `SUPABASE_JWT_SECRET` in `.env` is now inert — can be removed or left as documentation.
 
 ### Session 12 — 2026-05-17 (Phase 4: P4-007, P4-001, P4-002)
 

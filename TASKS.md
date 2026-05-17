@@ -33,6 +33,7 @@ Start with [STATUS.md](STATUS.md) for current blockers and branch state.
 - P3 pre-review hardening: complete
 - P3 initial implementation branch: quarantined after review failure
 - **P3 remediation (P3-01…P3-09): merged to `main` via PR #3 (2026-05-17)**
+- **Phase 4 frontend (P4-001…P4-007): all complete on `main` (2026-05-17)**
 
 ## Current Workstreams
 
@@ -56,9 +57,9 @@ Status: scaffold complete (on main); live integration unblocked
 | P4-001 | Supabase auth client wiring | [CC-S] | complete | `lib/supabase/{client,server}.ts`; middleware; auth header injection in `apiFetch`; user menu + sign-out in Header |
 | P4-002 | Auth pages: login, signup | [CC-S] | complete | `(auth)/login` + `(auth)/signup`; `/auth/callback` route handler |
 | P4-003 | App shell | [CC-S] | complete | Scaffold landed |
-| P4-004 | Contract list dashboard | [CC-S] | pending | `GET /api/contracts` contract is stable |
+| P4-004 | Contract list dashboard | [CC-S] | complete | TanStack Query against live `GET /api/contracts`; empty state + row table |
 | P4-005 | Error boundaries/global handling | [CC-S] | complete | Backend error contract on main (P3-09); pairs with P4-007 |
-| P4-006 | TanStack Query + typed API integration | [CC-S] | in_progress | Generate types from `/openapi.json` once backend deployed |
+| P4-006 | TanStack Query + typed API integration | [CC-S] | complete | `lib/api/schema.ts` generated from live `/openapi.json` (970 lines) |
 | P4-007 | `frontend/lib/api/client.ts` switches on `detail.code` | [CC-S] | complete | `ApiProblem` union + `ApiError.detail`; toast copy per code |
 
 ### Phases 5–9 — Forward Plan

@@ -2,20 +2,26 @@
 
 Every protected route depends on `get_current_user`, which:
   1. Extracts the Bearer token from the Authorization header
-  2. Verifies its signature against SUPABASE_JWT_SECRET (HS256)
+  2. Verifies its signature via Supabase's JWKS endpoint (supports ES256 and HS256)
   3. Looks up the local `users` row by supabase_auth_id to resolve tenant_id
 
 The tenant_id is the authority for tenant isolation everywhere downstream.
 Routes MUST pass it into every query — the backend uses a privileged DB
 connection (see services/db.py), so RLS does not protect us at runtime
 (P3-03). Tenant isolation is the API layer's job, not the database's.
+
+Note: Supabase newer projects issue ES256 tokens signed with an EC key pair.
+We verify via JWKS (PyJWKClient caches the public key) rather than a static
+HS256 secret, which supports both algorithms transparently.
 """
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from functools import lru_cache
 
 import jwt
+from jwt import PyJWKClient
 from fastapi import Depends, Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +39,14 @@ class AuthUser:
     display_name: str | None  # email or claim — used as approved_by
 
 
+@lru_cache(maxsize=1)
+def _jwks_client() -> PyJWKClient:
+    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    if not url:
+        raise AuthProblem("Auth not configured: SUPABASE_URL unset")
+    return PyJWKClient(f"{url}/auth/v1/.well-known/jwks.json", cache_keys=True)
+
+
 def _bearer(request: Request) -> str:
     auth = request.headers.get("authorization") or request.headers.get("Authorization")
     if not auth or not auth.lower().startswith("bearer "):
@@ -41,20 +55,21 @@ def _bearer(request: Request) -> str:
 
 
 def _decode(token: str) -> dict:
-    secret = os.environ.get("SUPABASE_JWT_SECRET")
-    if not secret:
-        # Fail closed: never accept tokens when the verification key is missing.
-        raise AuthProblem("Auth not configured: SUPABASE_JWT_SECRET unset")
     try:
+        signing_key = _jwks_client().get_signing_key_from_jwt(token)
         return jwt.decode(
             token,
-            secret,
-            algorithms=["HS256"],
+            signing_key.key,
+            algorithms=["ES256", "HS256"],
             audience="authenticated",
             options={"require": ["exp", "sub"]},
         )
+    except AuthProblem:
+        raise
     except jwt.PyJWTError as exc:
         raise AuthProblem(f"Invalid token: {exc}") from exc
+    except Exception as exc:
+        raise AuthProblem(f"Token verification failed: {exc}") from exc
 
 
 async def get_current_user(

@@ -6,14 +6,15 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Phase
 
-- Active workstream: Phase 3 backfill endpoints (CC-SH) + Phase 4 frontend integration (CC-S)
-- Review state: Phase 3 remediation merged to `main` via PR #3 (2026-05-17)
+- Active workstream: Phase 3 backfill endpoints (CC-SH) + Phase 5 contract setup UI (CC-S)
+- Phase 4 complete: all P4-001…P4-007 merged to `main` (2026-05-17)
 - Current branch in repo: `main` is the active head — no active feature branch
 
 ## Current Blockers
 
-- None.
-- Out-of-band action still required: rotate the previously-exposed Supabase project keys + Postgres password. Regex test in `backend/tests/test_p3_01_env_example.py` blocks re-introduction in code.
+- None for frontend. Phase 5 contract creation UI needs `POST /api/contracts` (already live).
+- Out-of-band: credential hygiene still pending — old `Ghost028301@` password was rotated; new `Vihandatad00` DB password and JWT secret are in `backend/.env` (git-ignored). Keep `.env` out of version control.
+- `backend/tests/` use HS256 test tokens and will fail against the live ES256 JWKS — test suite needs updating before the next review cycle.
 
 ## Active Review Cycle
 
@@ -48,9 +49,10 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Priorities
 
-1. [CC-SH] Phase 3 backfill endpoints — schedules, contract_items, recoveries, documents — branch off `main`. Patterns and boundaries documented in PR #3 description.
-2. [CC-S] P4-004 (contract list) + P4-006 (typed API schema) — both blocked on backend deploy.
-3. Rotate exposed Supabase credentials (out-of-band).
+1. [CC-SH] Phase 3 backfill endpoints — schedules, contract_items, recoveries, documents — branch off `main`.
+2. [CC-S] Phase 5 — contract creation form (`POST /api/contracts`); backend endpoint already live.
+3. Fix backend test suite — `services/auth.py` now uses JWKS/ES256; test tokens in `tests/` are minted with HS256 and will fail. Update before next review cycle.
+4. Credential hygiene — new DB password + JWT secret are in `backend/.env` only (git-ignored). Document in onboarding.
 
 ## File Classification
 
