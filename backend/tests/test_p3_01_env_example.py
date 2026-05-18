@@ -22,9 +22,11 @@ def test_env_example_exists():
 
 
 def test_no_real_jwt_in_env_example():
-    # Supabase JWTs are HS256 base64url tokens; their second segment is a
-    # base64 payload that is always > 80 chars for a real key. Catch any
-    # value that looks like a real JWT.
+    # Supabase JWTs are three base64url segments (header.payload.signature).
+    # Modern projects sign with ES256 via JWKS; legacy ones used HS256. Both
+    # share the same outer structure, so the regex below matches either.
+    # Real payload segments exceed ~80 chars — catch anything that looks like
+    # a real key regardless of algorithm.
     body = _content()
     for line in body.splitlines():
         if line.startswith("#") or "=" not in line:

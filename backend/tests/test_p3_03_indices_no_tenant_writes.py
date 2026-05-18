@@ -14,7 +14,11 @@ from __future__ import annotations
 import os
 
 os.environ.setdefault("DATABASE_URL", "postgresql://stub:stub@localhost:5432/stub")
-os.environ.setdefault("SUPABASE_JWT_SECRET", "test-secret")
+# TEST-04: services/auth.py verifies via Supabase JWKS (ES256/HS256) at request
+# time — module-level import has no auth dep to satisfy, so no fake secret is
+# needed here. Tests that exercise protected routes use FastAPI's
+# `app.dependency_overrides[get_current_user]` to bypass JWKS entirely (see
+# test_p3_bf_4_documents.py::test_upload_route_returns_503_when_storage_raises).
 
 from main import app  # noqa: E402
 

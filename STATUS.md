@@ -6,27 +6,26 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Phase
 
-- Active workstream: Phase 3 backfill endpoints (CC-SH) + Phase 5 contract setup UI (CC-S)
+- Active workstream: TEST-P3P4 — TEST-01…07 complete on `saqlain/test-p3p4`, awaiting review
+- Phase 3 backfill complete: P3-BF-1…P3-BF-4 merged to `main` via PR #4 (2026-05-18)
 - Phase 4 complete: all P4-001…P4-007 merged to `main` (2026-05-17)
-- Current branch in repo: `main` is the active head — no active feature branch
+- Current branch in repo: `saqlain/test-p3p4` — open PR pending
 
 ## Current Blockers
 
-- None for frontend. Phase 5 contract creation UI needs `POST /api/contracts` (already live).
-- Out-of-band: credential hygiene still pending — old `Ghost028301@` password was rotated; new `Vihandatad00` DB password and JWT secret are in `backend/.env` (git-ignored). Keep `.env` out of version control.
-- `backend/tests/` use HS256 test tokens and will fail against the live ES256 JWKS — test suite needs updating before the next review cycle.
+- Backend tests verified: no HS256 token-minting existed in tests/; protected routes are exercised via `app.dependency_overrides[get_current_user]`. TEST-04 closed without churn.
+- Out-of-band: credential hygiene — DB password and JWT secret are in `backend/.env` (git-ignored). Keep `.env` out of version control.
 
 ## Active Review Cycle
 
-- No active cycle. P3-01…P3-09 closed; PR #3 merged.
-- Post-merge regression check on `main` by [CODEX-S] on 2026-05-17 — **no findings**. Engine 99/99 + backend 31/31 passing; clean `import engine` and `from main import app` (21 routes); tenant scoping, no global index writes, typed error contract, idempotency logic all still match review intent.
-- Next checkpoint: review of Phase 3 backfill endpoints (schedules / contract_items / recoveries / documents) when CC-SH opens that PR.
+- No active cycle. PR #4 reviewed by CC-S (2026-05-18): no CRITICAL/HIGH. Two medium findings (M-1: missing BF-3 recovery_type test; M-2: untyped 500 on Supabase storage error) tracked in TASKS.md as TEST-01 / TEST-02.
+- Next checkpoint: `TEST-P3P4-REVIEW` — Codex-S pass after TEST-01…TEST-04 land.
 
 ## Branch State
 
 - `main` is the active head
-- Deleted: `saqlain/phase-3-remediation` (merged via PR #3), `saqlain/phase-4` (superseded by remediation), `shubham/phase-3` (quarantined)
-- Next feature branches: `shubham/phase-3-backfill` (CC-SH) and `saqlain/phase-4-integration` (CC-S, frontend `apiFetch` for typed error contract + auth wiring) — branch from `main`
+- Deleted: `saqlain/phase-3-remediation`, `saqlain/phase-4`, `shubham/phase-3`, `shubham/phase-3-backfill` (all merged)
+- Next feature branch: `saqlain/test-p3p4` — branch from `main` for TEST-P3P4 fixes
 
 ## What To Read
 
@@ -49,10 +48,9 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Priorities
 
-1. [CC-SH] Phase 3 backfill endpoints — schedules, contract_items, recoveries, documents — branch off `main`.
-2. [CC-S] Phase 5 — contract creation form (`POST /api/contracts`); backend endpoint already live.
-3. Fix backend test suite — `services/auth.py` now uses JWKS/ES256; test tokens in `tests/` are minted with HS256 and will fail. Update before next review cycle.
-4. Credential hygiene — new DB password + JWT secret are in `backend/.env` only (git-ignored). Document in onboarding.
+1. [CC-S] TEST-P3P4 — branch `saqlain/test-p3p4` from `main`; complete TEST-01 through TEST-07 in order.
+2. [CC-S] After TEST-P3P4 merges: Phase 5 contract creation form (`POST /api/contracts`); backend endpoint already live.
+3. Credential hygiene — DB password + JWT secret are in `backend/.env` only (git-ignored). Document in onboarding.
 
 ## File Classification
 

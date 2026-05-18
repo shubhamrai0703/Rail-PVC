@@ -41,3 +41,11 @@ def test_main_app_imports_without_pythonpath():
         capture_output=True, text=True, env=env, check=False,
     )
     assert out.returncode == 0, f"main import failed: {out.stderr}"
+    # TEST-03 (L-2 from PR #4 review): pin the route count so a forgotten
+    # router include — or a stray duplicate registration — fails the test
+    # rather than silently changing the surface area. 28 = the 4 P3-BF
+    # endpoints + the prior 21 + /health + the FastAPI built-ins.
+    assert int(out.stdout.strip()) == 28, (
+        f"unexpected route count: {out.stdout.strip()} (expected 28). "
+        f"If you added/removed a route, update this assertion in the same diff."
+    )

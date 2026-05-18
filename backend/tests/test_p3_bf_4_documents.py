@@ -18,8 +18,11 @@ tests catch it on the diff.
 from __future__ import annotations
 
 import re
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from services.errors import PayloadTooLargeProblem
+import pytest
+
+from services.errors import PayloadTooLargeProblem, StorageProblem
 from services.storage import (
     MAX_FILE_BYTES,
     VALID_DOCUMENT_TYPES,
@@ -123,3 +126,81 @@ def test_payload_too_large_problem_carries_max_bytes():
     assert detail["max_bytes"] == MAX_FILE_BYTES
     # The frontend renders the message verbatim — pin it loosely.
     assert "50" in detail["message"] or str(MAX_FILE_BYTES) in detail["message"]
+
+
+# ---------------------------------------------------------------------------
+# TEST-02 (M-2 from PR #4 review): storage-backend failure → typed 503
+# ---------------------------------------------------------------------------
+
+
+def test_storage_problem_carries_503_and_storage_unavailable_code():
+    p = StorageProblem("backend unavailable", path="t/c/x.pdf")
+    detail = p.to_detail()
+    assert p.status_code == 503
+    assert detail["code"] == "storage_unavailable"
+    assert detail["path"] == "t/c/x.pdf"
+
+
+@pytest.mark.asyncio
+async def test_upload_route_returns_503_when_storage_raises():
+    """When the Supabase SDK throws inside `upload_document`, the route
+    must surface a typed 503/storage_unavailable — not a bare 500. We
+    mock at the trust boundary (`upload_document`) rather than spinning
+    up Supabase. The route is exercised via TestClient with auth +
+    session dependency overrides."""
+    from fastapi.testclient import TestClient
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from api.documents import router as documents_router
+    from main import app
+    from services.auth import AuthUser, get_current_user
+    from services.db import get_session
+    from services.pvc_service import assert_contract_belongs_to_tenant
+
+    fake_user = AuthUser(
+        user_id="u-1",
+        tenant_id="tenant-A",
+        auth_id="auth-1",
+        email="t@example.com",
+        display_name="t@example.com",
+    )
+
+    async def _override_user() -> AuthUser:
+        return fake_user
+
+    async def _override_session() -> AsyncSession:  # type: ignore[return-value]
+        # The contract-ownership gate is the only thing the route asks the
+        # session about before upload; we stub it out below.
+        return MagicMock()
+
+    async def _ok_contract_gate(session, contract_id, tenant_id) -> None:
+        return None
+
+    app.dependency_overrides[get_current_user] = _override_user
+    app.dependency_overrides[get_session] = _override_session
+
+    try:
+        with patch(
+            "api.documents.assert_contract_belongs_to_tenant",
+            new=_ok_contract_gate,
+        ), patch(
+            "api.documents.upload_document",
+            new=AsyncMock(
+                side_effect=StorageProblem(
+                    "backend unavailable", path="tenant-A/contract-X/foo.pdf"
+                )
+            ),
+        ):
+            client = TestClient(app)
+            resp = client.post(
+                "/api/contracts/contract-X/documents",
+                data={"file_type": "agreement"},
+                files={"file": ("foo.pdf", b"hello", "application/pdf")},
+            )
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_session, None)
+
+    assert resp.status_code == 503, resp.text
+    body = resp.json()
+    assert body["detail"]["code"] == "storage_unavailable"

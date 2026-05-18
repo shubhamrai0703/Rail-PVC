@@ -91,6 +91,17 @@ class AuthProblem(ApiProblem):
     code = "unauthenticated"
 
 
+class StorageProblem(ApiProblem):
+    """503 Service Unavailable — used when the external storage backend
+    (Supabase Storage) fails an upload/download. We surface 503 rather
+    than letting the underlying SDK exception escape as an untyped 500
+    so the frontend can render an actionable "storage unavailable —
+    please retry" message and route the user accordingly."""
+
+    status_code = 503
+    code = "storage_unavailable"
+
+
 class PayloadTooLargeProblem(ApiProblem):
     """413 Payload Too Large — used by the documents upload (P3-BF-4) when
     a multipart body exceeds the per-file size cap. Carries `max_bytes` so

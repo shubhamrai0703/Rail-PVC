@@ -20,6 +20,8 @@ import re
 from functools import lru_cache
 from uuid import uuid4
 
+from .errors import StorageProblem
+
 # Matches migration 008 `document_type` ENUM.
 VALID_DOCUMENT_TYPES: frozenset[str] = frozenset({
     "agreement", "mb", "bill", "recovery", "workbook", "other",
@@ -121,12 +123,24 @@ async def get_storage_client():
 
 async def upload_document(path: str, content: bytes, content_type: str) -> None:
     """Upload `content` to Supabase Storage at `path` under the documents
-    bucket. Raises if the storage call returns an error response — the
-    route handler is responsible for translating that into the typed API
-    error contract."""
-    client = await get_storage_client()
-    await client.storage.from_(STORAGE_BUCKET).upload(
-        path=path,
-        file=content,
-        file_options={"content-type": content_type, "upsert": "false"},
-    )
+    bucket. Any failure from the storage SDK — network error, auth error,
+    duplicate key, bucket missing — is wrapped in `StorageProblem(503)`
+    so the route handler never leaks an untyped pg/HTTPX exception as a
+    bare 500 (TEST-02 / M-2 finding from PR #4 review).
+
+    The original exception is chained via `from exc` for log/trace
+    debugging; only the typed error reaches the wire."""
+    try:
+        client = await get_storage_client()
+        await client.storage.from_(STORAGE_BUCKET).upload(
+            path=path,
+            file=content,
+            file_options={"content-type": content_type, "upsert": "false"},
+        )
+    except StorageProblem:
+        raise
+    except Exception as exc:  # noqa: BLE001 — storage SDK raises a wide tree
+        raise StorageProblem(
+            "Document storage backend is unavailable; please retry",
+            path=path,
+        ) from exc
