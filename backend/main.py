@@ -10,11 +10,14 @@ load_dotenv()
 from api import (  # noqa: E402  (env must load before module-level imports)
     bills,
     carry_forwards,
+    contract_items,
     contracts,
+    documents,
     extra_items,
     indices,
     pvc_rules,
     pvc_runs,
+    schedules,
 )
 from services.errors import register_exception_handlers  # noqa: E402
 
@@ -36,12 +39,15 @@ register_exception_handlers(app)
 
 for router in (
     contracts.router,
+    schedules.router,
+    contract_items.router,
     bills.router,
     extra_items.router,
     carry_forwards.router,
     indices.router,
     pvc_rules.router,
     pvc_runs.router,
+    documents.router,
 ):
     app.include_router(router)
 

@@ -91,6 +91,21 @@ class AuthProblem(ApiProblem):
     code = "unauthenticated"
 
 
+class PayloadTooLargeProblem(ApiProblem):
+    """413 Payload Too Large — used by the documents upload (P3-BF-4) when
+    a multipart body exceeds the per-file size cap. Carries `max_bytes` so
+    the frontend can render an exact ceiling rather than guessing."""
+
+    status_code = 413
+    code = "payload_too_large"
+
+    def __init__(self, max_bytes: int) -> None:
+        super().__init__(
+            message=f"File exceeds the {max_bytes}-byte upload cap",
+            max_bytes=max_bytes,
+        )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApiProblem)
     async def _handle(_: Request, exc: ApiProblem) -> JSONResponse:

@@ -169,6 +169,53 @@ async def assert_bill_belongs_to_tenant(
     return row["contract_id"]
 
 
+async def assert_contract_belongs_to_tenant(
+    session: AsyncSession, contract_id: str, tenant_id: str
+) -> None:
+    """Gate for endpoints nested under a contract URL (schedules, documents,
+    etc.). Raises NotFoundProblem when the contract does not exist OR belongs
+    to a different tenant — same "no-distinguish" rationale as the bill and
+    item assertions so callers cannot probe foreign IDs."""
+    row = (
+        await session.execute(
+            text("SELECT 1 FROM contracts WHERE id = :id AND tenant_id = :tid"),
+            {"id": contract_id, "tid": tenant_id},
+        )
+    ).first()
+    if row is None:
+        raise NotFoundProblem("Contract not found", entity="contract", id=contract_id)
+
+
+async def assert_schedule_belongs_to_tenant(
+    session: AsyncSession, schedule_id: str, tenant_id: str
+) -> str:
+    """Return the schedule's contract_id if the caller's tenant owns the
+    parent contract; otherwise raise NotFoundProblem. The contract_id is
+    returned so callers (e.g. contract_items insert) can populate the
+    child's contract_id FK from a trusted server-derived value rather than
+    a client-supplied one — same defence in depth as P3-06 for bill_lines.
+
+    Note: the SELECT does NOT use a Postgres `::text` cast on the UUID so
+    the function stays dialect-agnostic (the helper test runs against
+    aiosqlite). `str(row["contract_id"])` produces the canonical string
+    form whether the driver returns a Python `uuid.UUID` (asyncpg) or
+    a `str` (aiosqlite)."""
+    row = (
+        await session.execute(
+            text("""
+                SELECT s.contract_id
+                FROM schedules s
+                JOIN contracts c ON c.id = s.contract_id
+                WHERE s.id = :sid AND c.tenant_id = :tid
+            """),
+            {"sid": schedule_id, "tid": tenant_id},
+        )
+    ).mappings().first()
+    if row is None:
+        raise NotFoundProblem("Schedule not found", entity="schedule", id=schedule_id)
+    return str(row["contract_id"])
+
+
 async def assert_item_belongs_to_contract(
     session: AsyncSession, item_id: str, contract_id: str
 ) -> None:

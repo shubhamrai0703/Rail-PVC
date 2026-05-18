@@ -14,26 +14,28 @@ import subprocess
 import sys
 
 
+# Winsock needs SystemRoot to load its providers; Python's asyncio imports
+# `_overlapped` at startup, which initialises Winsock. Stripping SystemRoot
+# from the subprocess env causes WinError 10106 before our test code runs.
+# The Linux equivalent has no such requirement.
+_BASE_ENV: dict[str, str] = {"PATH": os.environ.get("PATH", "")}
+if sys.platform == "win32":
+    _BASE_ENV["SystemRoot"] = os.environ.get("SystemRoot", r"C:\Windows")
+
+
 def test_engine_imports_in_clean_subprocess():
-    env = {
-        "PATH": os.environ.get("PATH", ""),
-        # Deliberately omit PYTHONPATH, even if the parent env has one set.
-    }
     out = subprocess.run(
         [sys.executable, "-c", "import engine; from engine import calculate_pvc; print(engine.__file__)"],
-        capture_output=True, text=True, env=env, check=False,
+        capture_output=True, text=True, env=_BASE_ENV, check=False,
     )
     assert out.returncode == 0, f"clean import failed: {out.stderr}"
-    assert "engine/__init__.py" in out.stdout
+    assert "engine/__init__.py" in out.stdout or "engine\\__init__.py" in out.stdout
 
 
 def test_main_app_imports_without_pythonpath():
-    env = {
-        "PATH": os.environ.get("PATH", ""),
-        # Provide a dummy DATABASE_URL so module-level imports don't trip; the
-        # async engine is created lazily so this is enough for import.
-        "DATABASE_URL": "postgresql://stub:stub@localhost:5432/stub",
-    }
+    # Provide a dummy DATABASE_URL so module-level imports don't trip; the
+    # async engine is created lazily so this is enough for import.
+    env = {**_BASE_ENV, "DATABASE_URL": "postgresql://stub:stub@localhost:5432/stub"}
     out = subprocess.run(
         [sys.executable, "-c", "from main import app; print(len(app.routes))"],
         capture_output=True, text=True, env=env, check=False,

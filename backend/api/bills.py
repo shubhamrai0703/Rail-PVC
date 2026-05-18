@@ -1,6 +1,11 @@
 """Bills, bill lines, recoveries. Bill-line creation enforces the full
 parent-child path (P3-06): the line's contract_item must belong to the
-bill's contract, not just to the caller's tenant."""
+bill's contract, not just to the caller's tenant.
+
+Recoveries (P3-BF-3) are a flat child of running_bills: reuse
+`assert_bill_belongs_to_tenant` for the tenant gate; no item-level
+cross-table check is needed because recoveries don't reference
+contract_items."""
 from __future__ import annotations
 
 from datetime import date
@@ -14,13 +19,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.auth import AuthUser, get_current_user
 from services.db import get_session
-from services.errors import NotFoundProblem
+from services.errors import NotFoundProblem, ValidationProblem
 from services.pvc_service import (
     assert_bill_belongs_to_tenant,
     assert_item_belongs_to_contract,
 )
 
 router = APIRouter(prefix="/api", tags=["bills"])
+
+
+# Matches migration 003 `recovery_type` ENUM. The `affects_pvc_base` flag
+# on the row drives whether the recovery is subtracted from the engine's
+# on_account amount during W derivation — set conservatively (default False).
+VALID_RECOVERY_TYPES = frozenset({
+    "security_deposit", "income_tax", "labour_cess", "water", "other",
+})
 
 
 class BillCreate(BaseModel):
@@ -117,6 +130,54 @@ async def create_bill_line(
                 "asl": body.amount_since_last,
                 "autd": body.amount_up_to_date,
                 "sca": body.special_condition_amount,
+            },
+        )
+    ).mappings().first()
+    assert row is not None
+    return {"id": row["id"], "bill_id": bill_id, **body.model_dump(mode="json")}
+
+
+class RecoveryCreate(BaseModel):
+    recovery_type: str
+    amount: Decimal
+    affects_pvc_base: bool = False
+
+
+@router.post("/bills/{bill_id}/recoveries", status_code=status.HTTP_201_CREATED)
+async def create_recovery(
+    bill_id: str,
+    body: RecoveryCreate,
+    user: AuthUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    if body.recovery_type not in VALID_RECOVERY_TYPES:
+        raise ValidationProblem(
+            f"recovery_type must be one of {sorted(VALID_RECOVERY_TYPES)}",
+            field="recovery_type",
+            value=body.recovery_type,
+        )
+
+    # Tenant gate. We discard the returned contract_id — recoveries don't
+    # have a cross-contract integrity dimension; they're a flat child of
+    # the bill.
+    await assert_bill_belongs_to_tenant(session, bill_id, user.tenant_id)
+
+    row = (
+        await session.execute(
+            text("""
+                INSERT INTO recoveries (
+                    bill_id, recovery_type, amount, affects_pvc_base
+                )
+                VALUES (
+                    :bid, CAST(:rtype AS recovery_type), :amt, :pvc
+                )
+                RETURNING id::text AS id
+            """),
+            {
+                "bid": bill_id,
+                "rtype": body.recovery_type,
+                "amt": body.amount,
+                "pvc": body.affects_pvc_base,
             },
         )
     ).mappings().first()
