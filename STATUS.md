@@ -6,26 +6,27 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Phase
 
-- Active workstream: TEST-P3P4 — TEST-01…07 complete on `saqlain/test-p3p4`, awaiting review
-- Phase 3 backfill complete: P3-BF-1…P3-BF-4 merged to `main` via PR #4 (2026-05-18)
-- Phase 4 complete: all P4-001…P4-007 merged to `main` (2026-05-17)
-- Current branch in repo: `saqlain/test-p3p4` — open PR pending
+- **Active workstream (Saqlain):** Phase 5 — contract setup UI (B-1…B-5); design review in progress as of 2026-05-19
+- **Active workstream (Shubham):** SH-P5 — GET bill endpoints + export backend (parallel to Phase 5 UI)
+- TEST-P3P4 complete: TEST-01…07 all merged to `main` (fast-forwarded from `saqlain/test-p3p4`, 2026-05-19)
+- Phase 3 backfill + Phase 4 complete: all on `main`
 
 ## Current Blockers
 
-- Backend tests verified: no HS256 token-minting existed in tests/; protected routes are exercised via `app.dependency_overrides[get_current_user]`. TEST-04 closed without churn.
+- None. No open CRITICAL/HIGH findings.
 - Out-of-band: credential hygiene — DB password and JWT secret are in `backend/.env` (git-ignored). Keep `.env` out of version control.
 
 ## Active Review Cycle
 
-- No active cycle. PR #4 reviewed by CC-S (2026-05-18): no CRITICAL/HIGH. Two medium findings (M-1: missing BF-3 recovery_type test; M-2: untyped 500 on Supabase storage error) tracked in TASKS.md as TEST-01 / TEST-02.
-- Next checkpoint: `TEST-P3P4-REVIEW` — Codex-S pass after TEST-01…TEST-04 land.
+- No active cycle. TEST-P3P4 merged clean; M-1/M-2 closed, 55/55 backend tests passing, 99/99 engine tests passing.
+- Next checkpoint: `P5-REVIEW` — Codex-S pass after Phase 5 UI (B-1…B-5) lands.
 
 ## Branch State
 
 - `main` is the active head
+- `saqlain/test-p3p4` — completed, can be deleted
 - Deleted: `saqlain/phase-3-remediation`, `saqlain/phase-4`, `shubham/phase-3`, `shubham/phase-3-backfill` (all merged)
-- Next feature branch: `saqlain/test-p3p4` — branch from `main` for TEST-P3P4 fixes
+- Next branches: `saqlain/phase-5` (frontend UI), `shubham/phase-5-backend` (GET bill endpoints + exports)
 
 ## What To Read
 
@@ -48,8 +49,8 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Priorities
 
-1. [CC-S] TEST-P3P4 — branch `saqlain/test-p3p4` from `main`; complete TEST-01 through TEST-07 in order.
-2. [CC-S] After TEST-P3P4 merges: Phase 5 contract creation form (`POST /api/contracts`); backend endpoint already live.
+1. [CC-S] Phase 5 UI — branch `saqlain/phase-5`; implement B-1 (creation form) → B-2 (detail) → B-3 (edit) → B-4 (schedules) → B-5 (items grid) in order.
+2. [CC-SH] SH-P5 backend — branch `shubham/phase-5-backend`; add missing GET bill endpoints + export routes (see TASKS.md).
 3. Credential hygiene — DB password + JWT secret are in `backend/.env` only (git-ignored). Document in onboarding.
 
 ## File Classification
