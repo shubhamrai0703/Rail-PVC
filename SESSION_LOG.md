@@ -14,15 +14,44 @@ Use it for current milestone decisions and recent sessions only.
 ## Current Project State
 
 - Phases 0–4 + Phase 3 backfill + TEST-P3P4: all complete on `main` as of 2026-05-19.
-- **Phase 5 UI: P5-001…P5-008 + P5-F1…F5 implementation complete on `saqlain/phase-5` (PR #6). Awaiting P5-REVIEW.**
+- **Phase 5 UI complete and merged to `main` 2026-05-20 (P5-001…P5-008 + P5-F1…F5 + P5-REVIEW remediation).**
 - Active (parallel): GET bill endpoints + export backend (Shubham, `shubham/phase-5-backend`).
-- Test suite on branch: 67/67 backend, 99/99 engine. No open CRITICAL/HIGH findings.
+- Test suite on `main`: **82/82 backend** (clean venv, `fastapi==0.115.12`), 99/99 engine, 16/16 frontend vitest, `next build` + `npm run lint` clean. No open CRITICAL/HIGH findings.
 - Local backend: `cd backend && source .venv/bin/activate && uvicorn main:app --reload --port 8000`
 - Local frontend: `cd frontend && npm run build && npm start` (port 3000) — always rebuild after code changes
 - DB: Supabase at `ivselmhloegjmqrjekcy.supabase.co`, migrations at head (012).
 - Tenant provisioned for `saqlainmmomin@gmail.com` — tenant_id `bd589426-93ba-4847-b5f3-1f69b020b4c0`.
 
 ## Recent Sessions
+
+### Session 19 — 2026-05-20 (P5-REVIEW remediation + merge to `main`)
+
+CC-S ran the adversarial review on `saqlain/phase-5` (Codex-S unavailable this cycle) and posted 14 findings to `REVIEW.md`. Then the same chat remediated all of them. Worked one finding at a time with TDD inside the loop — failing test first, fix, green — and audited each finding for the same class of bug elsewhere before patching the one line the review named.
+
+- **C-1 (CRITICAL).** Root cause was the interaction between `from __future__ import annotations` (PEP 563) and FastAPI 0.115.x's deferred resolution of `-> None` on a 204 handler. The string `"None"` resolves to `NoneType` (the class), FastAPI builds a non-None `response_field`, and the 204-no-body assertion fires at decorator time. Dropped `-> None` on `delete_contract_item`. Audit: single 204 handler and single `-> None` handler in the whole backend; same line. All 10 api modules use the future import, so the bug class would re-arm on any future 204 endpoint someone adds — left an inline comment as a tripwire for the next contributor. Regression pin is the pre-existing `test_p3_08_clean_import.py` which failed-to-collect before the fix.
+
+- **H-1 / M-2.** `parseTsvImport` silently coerced anything-not-in-`["true","1","yes"]` to false for `is_cement_item`, and let any string through verbatim as `steel_subtype`. Extracted the parser to `frontend/lib/parseTsvImport.ts` (pure module) with explicit accept-lists; "Tru" and "TMT" now reject the row to `errors[]`. Added `vitest@2.1.9` and 12 parser tests. Also gated the "Add N rows" button so any parse error blocks the import (M-2).
+
+- **H-2 / M-3 / M-6 / L-4.** Added `FieldNotNullableProblem` (code `field_not_nullable`) and `CementSteelConflictProblem` to `services/errors.py`. Both PUT handlers now reject explicit `null` on NOT NULL columns at the API boundary instead of letting Postgres raise an unstructured 500. PUT uses an effective-row merge for the cement+steel check so a PUT that only sets one field is also caught. UPDATE/DELETE on `contract_items` scoped to `(id, schedule_id)` for defense in depth. 15 new backend tests across `test_p5_001_contracts_put.py` and `test_p5_f3_items_crud.py` — all fail on the pre-remediation handlers.
+
+- **H-3.** `setError` moved out of `ContractForm`'s render body into `useEffect([serverFieldError, setError])`. No RTL test added — installing `@testing-library/react` for one render-lifecycle assertion is bigger scope than the finding warrants; the verification gate's manual smoke covers the behavior pin.
+
+- **M-4.** Zod schema now emits `null` for cleared nullable optional fields (`agreement_number`, `loa_*`, `*_date`, `contract_value`, `bid_amount`, `work_description`) so the Edit form actually clears those columns. `overall_rebate` keeps "blank → drop from body" because it's NOT NULL — and H-2's backend rule would reject an explicit null on that column anyway, so the schema must not surface one. Required typing the form against `z.input` (raw `string | undefined`) and `z.infer` (post-resolver `string | null`) via `useForm<FormInput, unknown, ContractFormValues>`. 4 schema-test cases pin the null semantics.
+
+- **M-5.** `ExtraItemDecisionList.saveChanges` previously blew away `pending` on success — a toggle mid-flight got silently discarded. Now snapshots `savedKeys` at the start of save and uses functional `setPending(prev => filter)` to clear only the saved keys.
+
+- **L-4** inline. **L-1 / L-2 / L-3** deferred to `P5-FUP-L1/L2/L3` in TASKS.md with acceptance criteria.
+
+- **Lint dirt.** The branch had two pre-existing `react-hooks/set-state-in-effect` errors on `ItemsGrid.tsx` (modal reset effect + items-loaded hydration effect). Saqlain asked these to be cleared before merge. Modal: parent now gates the JSX on `importOpen` so the modal mounts fresh each open — the reset effect is dead code. Hydration: replaced the effect with React 19's documented "adjust state during render" pattern, guarded by `hydratedAt` (TanStack Query's `dataUpdatedAt` timestamp). Also removed two now-stale `eslint-disable-next-line no-console` directives in app-level error boundaries. `npm run lint` is now 0/0.
+
+- **Verification gate (clean Python 3.11 venv, declared dep floor `fastapi==0.115.12`):** 82/82 backend (up from 67; 15 new regression pins), 99/99 engine, 16/16 frontend vitest (new infra), `next build` clean, `npm run lint` clean. The previous "67/67" was correct against the implementer's locally-installed FastAPI 0.136 (which has the upstream fix); on the declared floor the suite couldn't even be collected. Now reproducible.
+
+- **Merge.** Fast-forwarded `main` to `saqlain/phase-5` after the verification gate passed. **Not pushed** — awaits manual push by Saqlain. Saqlain will run the WORKPLAN smoke table in tomorrow's session.
+
+- **Lessons captured during the cycle (worth memorising):**
+  - "Same dep range" doesn't mean "same FastAPI minor." The implementer's `0.136.1` had the upstream `response_field` fix the `0.115.12` floor lacks. A clean venv built straight from `pyproject.toml` against the *floor* is the only way to actually certify "clean checkout boots from declared deps."
+  - Pydantic v2's `Optional[T] = None` field shape is ambiguous in PUT semantics — "client sent null" and "client omitted the key" both produce `None`. The fix is a per-model NOT NULL set + iterate `model_fields_set` at the handler; don't try to express it at the field level.
+  - For "external query state → local editable state," React 19's "adjust state during render guarded by a snapshot key" pattern beats `useEffect`. Lint won't yell, and TanStack Query's `dataUpdatedAt` is the natural snapshot key.
 
 ### Session 18 — 2026-05-20 (P5-F1…F5 implementation landed)
 
@@ -95,6 +124,7 @@ Detailed notes moved to git history and [archive/SESSION_LOG_ARCHIVE.md](archive
 
 ## Next Actions
 
-1. [CC-S] Push `saqlain/phase-5` to origin; kick off `P5-REVIEW` (Codex-S adversarial pass).
-2. [CC-S] Resolve P5-REVIEW findings; merge `saqlain/phase-5` once clean.
-3. [CC-SH] Continue SH-P5 (G-1 → G-2 → G-3); request `SH-P5-REVIEW` before merge.
+1. [Saqlain] Run the WORKPLAN smoke table tomorrow against the merged `main` (Create, Edit + clear optional field, Validation, Schedules, Items + bad-row TSV paste, Mutual-exclusion, Extra-items + mid-flight toggle, 409 inline error). Confirm `main` is push-ready.
+2. [Saqlain] Push `main` to origin once smokes pass.
+3. [CC-S] Address `P5-FUP-L1/L2/L3` (deferred LOW findings) post-merge.
+4. [CC-SH] Continue SH-P5 (G-1 → G-2 → G-3); request `SH-P5-REVIEW` before merge.

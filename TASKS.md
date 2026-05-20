@@ -37,7 +37,7 @@ Start with [STATUS.md](STATUS.md) for current blockers and branch state.
 - **Phase 3 backfill (P3-BF-1…P3-BF-4): merged to `main` via PR #4 (2026-05-18)**
 - **TEST-P3P4 (TEST-01…TEST-07): merged to `main` (2026-05-19) — M-1/M-2 closed, 55/55 backend tests, 99/99 engine tests**
 - **Phase 5 UI implementation (P5-001…P5-008): complete on `saqlain/phase-5` (2026-05-19) — 61/61 backend tests, `next build` clean. Awaiting commit + P5-REVIEW.**
-- **P5-REVIEW remediation (2026-05-20): C-1 + H-1/H-2/H-3 + M-1…M-6 + L-4 closed. 82/82 backend (clean venv on `fastapi==0.115.12`), 99/99 engine, 16/16 frontend vitest, `next build` clean. L-1/L-2/L-3 deferred to follow-up tasks below.**
+- **P5-REVIEW remediation + Phase 5 merge to `main` (2026-05-20):** C-1 + H-1/H-2/H-3 + M-1…M-6 + L-4 closed. Pre-existing lint dirt also cleared. **82/82 backend** on `fastapi==0.115.12`, 99/99 engine, 16/16 frontend vitest, `next build` clean, `npm run lint` 0/0. Local merge complete; awaiting Saqlain's smoke pass + push. L-1/L-2/L-3 deferred to P5-FUP rows below.
 
 ## Current Workstreams
 

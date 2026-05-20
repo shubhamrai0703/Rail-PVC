@@ -6,7 +6,8 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Phase
 
-- **Active workstream (Saqlain):** Phase 5 — UX polish fixes **P5-F1…F5 + P5-REVIEW remediation complete** on `saqlain/phase-5` (2026-05-20). **82/82 backend tests passing** on the declared dep floor (`fastapi==0.115.12`), **99/99 engine tests**, **16/16 frontend vitest**, `next build` clean. All CRITICAL/HIGH/MEDIUM closed; L-1/L-2/L-3 deferred to follow-up tasks (L-4 fixed inline). Awaiting human push + merge decision.
+- **Phase 5 merged to `main` (2026-05-20).** P5-001…P5-008 + P5-F1…F5 + P5-REVIEW remediation all on `main`. **82/82 backend** on declared dep floor (`fastapi==0.115.12`), **99/99 engine**, **16/16 frontend vitest**, `next build` clean, `npm run lint` clean (0/0). Local merge only — not pushed.
+- **Active workstream (Saqlain):** WORKPLAN smoke verification on the merged `main` tomorrow, then push to origin.
 - **Active workstream (Shubham):** SH-P5 — GET bill endpoints + export backend (parallel to Phase 5 UI).
 - TEST-P3P4 complete: TEST-01…07 all merged to `main` (fast-forwarded from `saqlain/test-p3p4`, 2026-05-19).
 - Phase 3 backfill + Phase 4 complete: all on `main`.
@@ -18,13 +19,13 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Active Review Cycle
 
-- `P5-REVIEW` **closed** (2026-05-20). CC-S reviewed (Codex-S unavailable), all 14 findings resolved: 1 CRITICAL + 3 HIGH + 6 MEDIUM + 1 LOW closed inline; L-1/L-2/L-3 deferred to TASKS.md.
-- Suite state on branch: **82/82 backend tests** on declared dep floor `fastapi==0.115.12` (67 prior + 15 new regression pins), **99/99 engine tests**, **16/16 frontend vitest** (new), `next build` clean. Route count 31 unchanged.
+- **None open.** `P5-REVIEW` closed and merged 2026-05-20 (see [REVIEW.md](REVIEW.md) for the closure pointer + commit chain; per-finding CC Responses preserved in commit `259d0cb`).
+- Suite state on `main`: **82/82 backend tests** on declared dep floor `fastapi==0.115.12` (67 prior + 15 new regression pins), **99/99 engine tests**, **16/16 frontend vitest**, `next build` clean, `npm run lint` clean. Route count 31.
 
 ## Branch State
 
-- `main` — last commit `22ba97c` (docs sync 2026-05-19).
-- `saqlain/phase-5` — Phase 5 implementation + P5-F1…F5 + P5-REVIEW remediation complete (PR #6). Smoke test passed 2026-05-20. BUG-1 fixed (`CAST(:stype AS schedule_type)`). `base_month` edit-mode fix included. P5-REVIEW resolved 2026-05-20 (C-1/H-1/H-2/H-3/M-1…M-6/L-4 closed; L-1/L-2/L-3 deferred). Awaiting human push + merge.
+- `main` — Phase 5 + P5-REVIEW remediation merged via fast-forward 2026-05-20. **Not yet pushed to origin** (awaiting Saqlain's smoke pass + manual push).
+- `saqlain/phase-5` — fully merged into `main`. Deletable after origin push.
 - `shubham/phase-5-backend` — Shubham's parallel track (GET bills + exports), in progress.
 - Deletable: `saqlain/test-p3p4` (already merged).
 
@@ -49,8 +50,8 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Priorities
 
-1. [human] Push `saqlain/phase-5` to origin; merge to `main` once review responses are accepted.
-2. [CC-S] Address the deferred L-1/L-2/L-3 + lint-dirty follow-up tasks post-merge.
+1. [Saqlain] Run WORKPLAN smoke table against merged `main` tomorrow; push `main` to origin if clean.
+2. [CC-S] Address `P5-FUP-L1/L2/L3` (deferred LOW findings) post-push.
 3. [CC-SH] Continue SH-P5 backend (G-1 → G-2 → G-3); request `SH-P5-REVIEW` before merge.
 
 ## File Classification
