@@ -15,7 +15,6 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 - None blocking. No open CRITICAL/HIGH findings.
 - Out-of-band: credential hygiene — DB password and JWT secret are in `backend/.env` (git-ignored). Keep `.env` out of version control.
-- Pre-existing frontend lint dirty: 2 `react-hooks/set-state-in-effect` errors on `ItemsGrid.tsx:116,278`. Not introduced by P5-REVIEW remediation; filed as a follow-up task.
 
 ## Active Review Cycle
 

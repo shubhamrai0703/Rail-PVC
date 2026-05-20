@@ -17,7 +17,6 @@ export default function RouteError({
   useEffect(() => {
     // In a real backend we'd ship this to Sentry / equivalent.
     // For now: surface in dev tools so the cause is reachable.
-    // eslint-disable-next-line no-console
     console.error("[route-error]", error);
   }, [error]);
 

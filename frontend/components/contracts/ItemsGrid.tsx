@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
 import {
@@ -100,25 +100,16 @@ function TooltipHeader(
 }
 
 function ImportRowsModal({
-  open,
   onClose,
   onAdd,
 }: {
-  open: boolean;
   onClose: () => void;
   onAdd: (rows: RowState[]) => void;
 }) {
+  // The parent gates rendering on `importOpen`, so this component mounts
+  // fresh each time the modal opens — no effect-driven state reset needed.
   const [raw, setRaw] = useState("");
   const [parsed, setParsed] = useState<ParseResult | null>(null);
-
-  useEffect(() => {
-    if (!open) {
-      setRaw("");
-      setParsed(null);
-    }
-  }, [open]);
-
-  if (!open) return null;
 
   return (
     <div
@@ -271,18 +262,25 @@ export function ItemsGrid({ scheduleId }: { scheduleId: string }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [selectedCount, setSelectedCount] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
+  const [hydratedAt, setHydratedAt] = useState<number | null>(null);
   const gridRef = useRef<AgGridReact<RowState>>(null);
 
-  useEffect(() => {
-    if (itemsQuery.data) {
-      setRows(
-        itemsQuery.data.map((r) => ({ ...r, _rowState: "persisted" as const })),
-      );
-      setSaveProgress(null);
-      setSaveError(null);
-      setSelectedCount(0);
-    }
-  }, [itemsQuery.data]);
+  // React 19 pattern for syncing external query state into local editable
+  // state without a setState-in-effect: adjust state during render guarded by
+  // a "did we already process this snapshot" check. Re-runs the render with
+  // fresh rows when itemsQuery refetches; idempotent on subsequent renders.
+  if (
+    itemsQuery.data &&
+    itemsQuery.dataUpdatedAt !== hydratedAt
+  ) {
+    setHydratedAt(itemsQuery.dataUpdatedAt);
+    setRows(
+      itemsQuery.data.map((r) => ({ ...r, _rowState: "persisted" as const })),
+    );
+    setSaveProgress(null);
+    setSaveError(null);
+    setSelectedCount(0);
+  }
 
   const cementSteelConflicts = useMemo(
     () => rows.filter((r) => r.is_cement_item && r.steel_subtype),
@@ -581,11 +579,12 @@ export function ItemsGrid({ scheduleId }: { scheduleId: string }) {
         )}
       </div>
 
-      <ImportRowsModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        onAdd={appendImportedRows}
-      />
+      {importOpen && (
+        <ImportRowsModal
+          onClose={() => setImportOpen(false)}
+          onAdd={appendImportedRows}
+        />
+      )}
     </div>
   );
 }
