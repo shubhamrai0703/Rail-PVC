@@ -127,12 +127,16 @@ export function ExtraItemDecisionList({
   }
 
   async function saveChanges() {
+    // REVIEW.md M-5 — snapshot the keys we are saving NOW. A toggle that
+    // arrives while the request is in flight will add a key to `pending`;
+    // on success we must clear only the keys in `savedKeys`, not blow away
+    // the new toggle. Previously `setPending({})` ate that user action
+    // silently.
     const entries = Object.entries(pending);
     if (entries.length === 0) return;
+    const savedKeys = new Set(entries.map(([k]) => k));
     setSaving(true);
     try {
-      // Issue all upserts in parallel — failures preserve `pending` so the
-      // user can retry without losing their staged edits.
       await Promise.all(
         entries.map(([item_id, v]) =>
           apiFetch(`/api/contracts/${contractId}/extra-item-decisions`, {
@@ -142,7 +146,11 @@ export function ExtraItemDecisionList({
           }),
         ),
       );
-      setPending({});
+      setPending((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).filter(([k]) => !savedKeys.has(k)),
+        ),
+      );
       toast.success(
         `Saved ${entries.length} decision${entries.length === 1 ? "" : "s"}`,
       );

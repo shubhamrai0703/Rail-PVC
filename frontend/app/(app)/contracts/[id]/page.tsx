@@ -11,7 +11,10 @@ import { Button } from "@/components/ui/Button";
 import { ContractForm } from "@/components/contracts/ContractForm";
 import { ScheduleForm } from "@/components/contracts/ScheduleForm";
 import { ItemsGrid } from "@/components/contracts/ItemsGrid";
-import type { ContractFormValues } from "@/lib/contracts-schema";
+import type { z } from "zod";
+import { contractCreateSchema, type ContractFormValues } from "@/lib/contracts-schema";
+
+type ContractFormInput = z.input<typeof contractCreateSchema>;
 
 interface Contract {
   id: string;
@@ -49,7 +52,7 @@ function statusVariant(s: string): "draft" | "approved" | "superseded" | "blocke
   return "draft";
 }
 
-function toFormDefaults(c: Contract): Partial<ContractFormValues> {
+function toFormDefaults(c: Contract): Partial<ContractFormInput> {
   return {
     tender_number: c.tender_number,
     agreement_number: c.agreement_number ?? undefined,

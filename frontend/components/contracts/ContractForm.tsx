@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { z } from "zod";
 import { Button } from "@/components/ui/Button";
 import {
   contractCreateSchema,
@@ -9,13 +11,20 @@ import {
 } from "@/lib/contracts-schema";
 import { ZoneSelect } from "./ZoneSelect";
 
+// The schema's *input* type is what react-hook-form sees pre-resolver
+// (i.e. raw form values: `string | undefined`). The schema's *output* type
+// — `ContractFormValues` — is what the resolver hands back. The form is
+// typed against both so M-4's `"" → null` transform doesn't break the
+// resolver type contract.
+type FormInput = z.input<typeof contractCreateSchema>;
+
 type Props = {
-  defaultValues?: Partial<ContractFormValues>;
+  defaultValues?: Partial<FormInput>;
   onSubmit: (values: ContractFormValues) => Promise<void>;
   onCancel?: () => void;
   submitLabel?: string;
   /** Set per-field server errors (e.g. agreement_number 409 conflict). */
-  serverFieldError?: { field: keyof ContractFormValues; message: string } | null;
+  serverFieldError?: { field: keyof FormInput; message: string } | null;
 };
 
 const labelCls = "block text-[12px] font-medium text-slate-700 mb-1";
@@ -26,8 +35,8 @@ const inputCls =
 const errCls = "mt-1 text-[11px] text-red-600";
 
 function defaultFormValues(
-  d?: Partial<ContractFormValues>,
-): Partial<ContractFormValues> {
+  d?: Partial<FormInput>,
+): Partial<FormInput> {
   return {
     gst_mode: "exclusive",
     pvc_applicable: true,
@@ -47,14 +56,22 @@ export function ContractForm({
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<ContractFormValues>({
+  } = useForm<FormInput, unknown, ContractFormValues>({
     resolver: zodResolver(contractCreateSchema),
     defaultValues: defaultFormValues(defaultValues),
   });
 
-  if (serverFieldError) {
-    setError(serverFieldError.field, { message: serverFieldError.message });
-  }
+  // REVIEW.md H-3 — `setError` is a state mutation. Calling it in the render
+  // body queues a re-render on every render where `serverFieldError` is truthy,
+  // which then re-runs the render body and re-calls setError. React-hook-form's
+  // internal guard keeps this from looping today, but the contract that
+  // setState can't run during render is broken. Run the translation as an
+  // effect keyed on the (stable) serverFieldError identity.
+  useEffect(() => {
+    if (serverFieldError) {
+      setError(serverFieldError.field, { message: serverFieldError.message });
+    }
+  }, [serverFieldError, setError]);
 
   const submit: SubmitHandler<ContractFormValues> = async (values) => {
     await onSubmit(values);
