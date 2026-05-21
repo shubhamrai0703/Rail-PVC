@@ -22,6 +22,7 @@ from services.db import get_session
 from services.errors import NotFoundProblem, ValidationProblem
 from services.pvc_service import (
     assert_bill_belongs_to_tenant,
+    assert_contract_belongs_to_tenant,
     assert_item_belongs_to_contract,
 )
 
@@ -183,3 +184,134 @@ async def create_recovery(
     ).mappings().first()
     assert row is not None
     return {"id": row["id"], "bill_id": bill_id, **body.model_dump(mode="json")}
+
+
+# ---------------------------------------------------------------------------
+# SH-P5-1..4 — GET endpoints feeding the Phase 6 bill-entry UI.
+#
+# All four use the existing tenant-gate helpers (no new helpers needed).
+# Empty list (not 404) is the contract for the *list* endpoints — the
+# caller already proved they own the parent, so an empty child set is a
+# legitimate state, not a missing entity.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/contracts/{contract_id}/bills")
+async def list_bills(
+    contract_id: str,
+    user: AuthUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[dict[str, Any]]:
+    await assert_contract_belongs_to_tenant(session, contract_id, user.tenant_id)
+
+    rows = (
+        await session.execute(
+            text("""
+                SELECT id::text AS id,
+                       contract_id::text AS contract_id,
+                       bill_number,
+                       bill_date,
+                       measurement_date,
+                       gross_amount,
+                       net_amount,
+                       status::text AS status,
+                       created_at
+                FROM running_bills
+                WHERE contract_id = :cid
+                ORDER BY bill_number
+            """),
+            {"cid": contract_id},
+        )
+    ).mappings().all()
+    return [dict(r) for r in rows]
+
+
+@router.get("/bills/{bill_id}")
+async def get_bill(
+    bill_id: str,
+    user: AuthUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    # Gate already proves existence + tenant ownership; the follow-up SELECT
+    # is for the field projection.
+    await assert_bill_belongs_to_tenant(session, bill_id, user.tenant_id)
+
+    row = (
+        await session.execute(
+            text("""
+                SELECT id::text AS id,
+                       contract_id::text AS contract_id,
+                       bill_number,
+                       bill_date,
+                       measurement_date,
+                       gross_amount,
+                       net_amount,
+                       status::text AS status,
+                       created_at
+                FROM running_bills
+                WHERE id = :bid
+            """),
+            {"bid": bill_id},
+        )
+    ).mappings().first()
+    assert row is not None
+    return dict(row)
+
+
+@router.get("/bills/{bill_id}/lines")
+async def list_bill_lines(
+    bill_id: str,
+    user: AuthUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[dict[str, Any]]:
+    await assert_bill_belongs_to_tenant(session, bill_id, user.tenant_id)
+
+    # bill_lines has no created_at column (migration 003); order by id for
+    # deterministic output.
+    rows = (
+        await session.execute(
+            text("""
+                SELECT id::text AS id,
+                       bill_id::text AS bill_id,
+                       item_id::text AS item_id,
+                       qty_up_to_last,
+                       qty_since_last,
+                       qty_up_to_date,
+                       amount_up_to_last,
+                       amount_since_last,
+                       amount_up_to_date,
+                       special_condition_amount
+                FROM bill_lines
+                WHERE bill_id = :bid
+                ORDER BY id
+            """),
+            {"bid": bill_id},
+        )
+    ).mappings().all()
+    return [dict(r) for r in rows]
+
+
+@router.get("/bills/{bill_id}/recoveries")
+async def list_recoveries(
+    bill_id: str,
+    user: AuthUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[dict[str, Any]]:
+    await assert_bill_belongs_to_tenant(session, bill_id, user.tenant_id)
+
+    rows = (
+        await session.execute(
+            text("""
+                SELECT id::text AS id,
+                       bill_id::text AS bill_id,
+                       recovery_type::text AS recovery_type,
+                       amount,
+                       affects_pvc_base
+                FROM recoveries
+                WHERE bill_id = :bid
+                ORDER BY id
+            """),
+            {"bid": bill_id},
+        )
+    ).mappings().all()
+    return [dict(r) for r in rows]
