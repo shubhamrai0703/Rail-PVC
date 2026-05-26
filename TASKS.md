@@ -146,7 +146,7 @@ Gap surface:
 
 **Why this is flagged now:** the Index Manager is a v1 product requirement (`PRODUCT.md`) but has no task ID anywhere in the workplan. Phase 7 (PVC Run UI) will exercise these series, and Phase 8 (Export UI) bills will reference them — without monthly entry, the system can't ingest new months as they're published.
 
-**Out of scope here:** no implementation, no branch, no commits. This row exists to make the gap visible so CC-S can scope and assign before Phase 7 begins.
+**Out of scope here:** docs-only flag — no code, no engine/migration changes. This row exists to make the gap visible so CC-S can scope and assign before Phase 7 begins.
 
 ### Phases 6–9 — Forward Plan
 
