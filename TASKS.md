@@ -120,8 +120,8 @@ Missing backend routes that Phase 6 UI needs:
 | SH-P5-2 | `GET /api/bills/{id}` | [CC-SH] | complete | Merged via PR #7 (2026-05-30) |
 | SH-P5-3 | `GET /api/bills/{id}/lines` | [CC-SH] | complete | Merged via PR #7 (2026-05-30) |
 | SH-P5-4 | `GET /api/bills/{id}/recoveries` | [CC-SH] | complete | Merged via PR #7 (2026-05-30) |
-| SH-P5-5 | `GET /api/pvc-runs/{id}/export/excel` | [CC-SH] | pending | G-3; calls engine export; returns `.xlsx` download; check `engine/engine/` first |
-| SH-P5-6 | `GET /api/pvc-runs/{id}/export/pdf` | [CC-SH] | pending | G-3; HTML→PDF via WeasyPrint |
+| SH-P5-5 | `GET /api/pvc-runs/{id}/export/excel` | [CC-SH] | complete | `api/exports.py` + `services/exports.py` (openpyxl). Tenant 404 → status 422 `run_not_approved` → attachment. No engine export module existed → built from run+component rows. Route count 38→40. 2026-06-02 |
+| SH-P5-6 | `GET /api/pvc-runs/{id}/export/pdf` | [CC-SH] | complete | Same gate; PDF via **fpdf2** (pure-Python) instead of WeasyPrint — GTK native deps aren't pip-installable on the Windows test env, violating "clean checkout boots from declared deps". Format parity deferred to P8-REVIEW. 9 tests in `test_sh_p5_exports.py`. 2026-06-02 |
 | SH-P5-7 | Tests for SH-P5-1…4 | [CC-SH] | complete | 12 tests in `test_sh_p5_bills_get.py`; merged PR #7 |
 
 **Acceptance criteria for SH-P5-1…4:** same tenant-check pattern as existing POST routes; empty list (not 404) for zero rows.
