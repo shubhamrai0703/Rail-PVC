@@ -67,7 +67,7 @@ export default function IndicesPage() {
           {series.map((s, i) => (
             <Link
               key={s.id}
-              href={`/indices/${s.name}`}
+              href={`/indices/${encodeURIComponent(s.name)}`}
               className={`px-5 h-12 grid grid-cols-[1fr_120px_100px] gap-4 items-center
                           text-[13px] hover:bg-slate-50 transition-colors
                           ${i < series.length - 1 ? "border-b border-slate-100" : ""}`}
