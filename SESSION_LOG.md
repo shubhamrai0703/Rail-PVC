@@ -14,9 +14,9 @@ Use it for current milestone decisions and recent sessions only.
 ## Current Project State
 
 - Phases 0–5 + all P5-FUP findings + SH-P5-1..4 + IDX-2..3 all on `main` (2026-05-30).
-- **Phase 6 C-1 + C-2 implemented on `saqlain/phase-6` (2026-05-31).** Awaiting smoke + P6-REVIEW. C-3 next.
+- **Phase 6 C-1 + C-2 + demo seed + P5-IMP frontend + two demo smoke-test fixes merged to `main` (2026-06-02).** C-3 (bill/recovery edit + computed net) next.
 - **Shubham's next task:** G-3 export endpoints (SH-P5-5..6), then IDX-4 (index UI stub).
-- Test suite: **106/106 backend** (103 prior + 3 C-1), 99/99 engine, 16/16 frontend vitest, `next build` + `npm run lint` clean. Route count 38.
+- Test suite: **106/106 backend**, 99/99 engine, **33/33 frontend vitest**, `next build` + `npm run lint` clean. Route count 38.
 - DB migrations at head (013 — `users.is_admin`). Run `013_admin_flag.py` on Supabase before entering new index months.
 - Local backend: `cd backend && source .venv/bin/activate && uvicorn main:app --reload --port 8000`
 - Local frontend: `cd frontend && npm run build && npm start` (port 3000) — always rebuild after code changes
@@ -24,6 +24,27 @@ Use it for current milestone decisions and recent sessions only.
 - Tenant provisioned for `saqlainmmomin@gmail.com` — tenant_id `bd589426-93ba-4847-b5f3-1f69b020b4c0`.
 
 ## Recent Sessions
+
+### Session 23 — 2026-06-02 (P5-IMP smart items-import — frontend on `saqlain/p5-imp`)
+
+Built a smart Excel/paste items-import flow to replace the rigid positional TSV modal. Branch `saqlain/p5-imp` off `main`. **Frontend-only for this PR**; backend pieces (LLM mapper, template CRUD, migration 014) are committed on disk as untracked-then-staged additions but not wired into `main.py` / `pyproject` / `test_p3_08`. Backend integration ships in a follow-up branch.
+
+- **What was the pain.** Session 15's positional-paste modal required the user to pre-format their xlsx into 9 columns in a fixed order with fixed tokens (TRUE/FALSE, tmt/angles/...). Real BOQs vary by zone and contractor; users were hand-massaging Excel before paste.
+
+- **New flow (`components/contracts/ImportRowsModal.tsx`).** One modal, progressive disclosure: (1) tabbed source — drop `.xlsx` or paste TSV; (2) for xlsx, pick sheet + header-row; (3) column-mapping table auto-filled by a deterministic header fuzzy matcher (Option A); (4) preview + commit. AI button ("Auto-map with AI", Option B) is rendered disabled with a tooltip — backend ships in follow-up. Template save/apply UI omitted from this PR. Existing M-2 invariant preserved: any row parse error blocks the import; no silent partial commit.
+
+- **xlsx library.** `xlsx` (SheetJS) on npm is unmaintained with known CVEs (Prototype Pollution + ReDoS). Used **`exceljs`** instead. Lazy-imported via dynamic `import()` in `lib/parseXlsx.ts` so non-import pages don't pay the bundle cost.
+
+- **Pure modules + tests.** `lib/fuzzyHeaderMap.ts` (synonym tables + token-set scoring + collision resolution + required-field detection); `lib/normalizeImportRows.ts` (mapping + raw rows → ParsedRow[], preserving the H-1 no-silent-coercion rule for `is_cement_item` / `steel_subtype`, plus value-normalization hooks for the future AI mapper). 17 new vitest cases covering railway-zone vocabulary (BOQ Item, UOM, SOR Rate, Quoted Rate, etc.), tie-breaking, thousand-separator stripping, and the H-1 invariant. **33/33 frontend vitest, `next build` + `npm run lint` clean.**
+
+- **In-render state-adjust pattern.** When source headers change, `mappingOverrides` resets to the fuzzy-matched defaults. Used React 19's "adjust state during render" with a `lastHeadersKey` guard (per the P5-FUP-L cleanup precedent) — `useEffect`+`setState` would have tripped the `react-hooks/set-state-in-effect` rule.
+
+- **Backend code on disk (not wired).** `backend/migrations/versions/014_import_templates.py` (jsonb mapping + value_normalizations, `UNIQUE(tenant_id, name)`, RLS), `backend/api/imports.py` (templates CRUD + `POST /api/imports/suggest-mapping`), `backend/services/llm.py` (Anthropic Haiku 4.5 with prompt-cached system prompt + structured-output schema). Follow-up branch lands router include, anthropic dep, `.env.example` entry, route-count bump 38→42, and backend pytest.
+
+- **Demo smoke-test fixes (folded into this merge, originated on `saqlain/phase-6`).** Two bugs surfaced in manual demo testing of the Phase 5–6 UI:
+  - **Items grid showed "Invalid Number" in every numeric column.** Root cause was AG Grid v35's `cellDataType: "number"` machinery: its built-in valueFormatter prints the literal string `Invalid Number` whenever `typeof value !== "number"`, and grid type-inference re-applies the number type even after the explicit declaration is dropped. The data path itself was clean end-to-end (Postgres `NUMERIC` → FastAPI `jsonable_encoder` serializes `Decimal`→`float` → `JSON.parse` yields JS numbers). Fix in `frontend/components/contracts/ItemsGrid.tsx`: set `cellDataType: false` on the four numeric columns (original_qty, revised_qty, base_rate, agreement_rate) and supply module-scope `numberValueParser` / `numberValueFormatter` that null-coerce blanks and tolerate string/number input. Boolean column keeps `cellDataType: "boolean"`.
+  - **No "Calculate PVC" trigger anywhere on the bill flow.** The engine endpoint (`POST /api/contracts/{id}/pvc-runs`, body `{bill_id}`) was fully built but had no caller. Added a "Price Variation (PVC)" card to `frontend/app/(app)/contracts/[id]/bills/[billId]/page.tsx`: a `useMutation` that POSTs with a fresh `crypto.randomUUID()` Idempotency-Key, renders Total PVC / negative carry-forward / quarter-used on success, shows inline errors (`silent: true`), and invalidates the `bill` + `bill-lines` queries so generated lines + recomputed amounts refresh.
+  - Verified before merge: **33/33 frontend vitest, 106/106 backend pytest, `next build` clean.**
 
 ### Session 22 — 2026-05-31 (Phase 6 C-1 + C-2)
 

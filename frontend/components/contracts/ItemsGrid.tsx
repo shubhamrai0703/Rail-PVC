@@ -13,12 +13,8 @@ import {
 } from "ag-grid-community";
 import { Button } from "@/components/ui/Button";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import {
-  parseTsvImport,
-  VALID_STEEL_SUBTYPES,
-  type ParseResult,
-  type SteelSubtype,
-} from "@/lib/parseTsvImport";
+import { type SteelSubtype } from "@/lib/parseTsvImport";
+import { ImportRowsModal } from "./ImportRowsModal";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -64,6 +60,28 @@ function emptyRow(): RowState {
   };
 }
 
+// Numeric columns are intentionally NOT typed via AG Grid's `cellDataType:
+// "number"`. That data type's value formatter prints the literal string
+// "Invalid Number" for any value it doesn't see as a JS number, and AG Grid's
+// default type *inference* will reapply it even if we drop the explicit type.
+// We set `cellDataType: false` on those columns and own parse/format here so a
+// value is always coerced to a number (or null) and never renders as the
+// scary "Invalid Number" sentinel — the API returns these as JSON numbers, but
+// the column type also tolerates numeric strings (`number | string | null`).
+function numberValueParser(p: { newValue: unknown }): number | null {
+  if (p.newValue == null) return null;
+  const s = String(p.newValue).trim();
+  if (s === "") return null;
+  const n = Number(s);
+  return Number.isNaN(n) ? null : n;
+}
+
+function numberValueFormatter(p: { value: unknown }): string {
+  if (p.value == null || p.value === "") return "";
+  const n = typeof p.value === "number" ? p.value : Number(p.value);
+  return Number.isNaN(n) ? "" : String(n);
+}
+
 function itemPayload(r: RowState) {
   return {
     item_code: r.item_code,
@@ -96,156 +114,6 @@ function TooltipHeader(
         </span>
       )}
     </span>
-  );
-}
-
-function ImportRowsModal({
-  onClose,
-  onAdd,
-}: {
-  onClose: () => void;
-  onAdd: (rows: RowState[]) => void;
-}) {
-  // The parent gates rendering on `importOpen`, so this component mounts
-  // fresh each time the modal opens — no effect-driven state reset needed.
-  const [raw, setRaw] = useState("");
-  const [parsed, setParsed] = useState<ParseResult | null>(null);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-6"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-auto p-6 space-y-4">
-        <h2 className="text-[16px] font-semibold text-slate-900">
-          Import rows from Excel
-        </h2>
-        <p className="text-[13px] text-slate-600">
-          Copy a range from Excel, then paste it here. Columns must be in this
-          order:
-        </p>
-        <pre className="text-[12px] bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 overflow-x-auto">
-{`item_code | description | unit | original_qty | revised_qty | base_rate | agreement_rate | is_cement_item (TRUE/FALSE/YES/NO/1/0, blank=false) | steel_subtype (blank, ${VALID_STEEL_SUBTYPES.join(", ")})`}
-        </pre>
-        <textarea
-          value={raw}
-          onChange={(e) => {
-            setRaw(e.target.value);
-            setParsed(null);
-          }}
-          rows={10}
-          className="w-full font-mono text-[12px] border border-slate-200 rounded-lg px-3 py-2"
-          placeholder="Paste TSV here…"
-        />
-        {parsed && parsed.errors.length > 0 && (
-          <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            <div className="font-medium mb-1">Parse errors:</div>
-            <ul className="list-disc list-inside space-y-0.5">
-              {parsed.errors.map((e, i) => (
-                <li key={i}>{e}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {parsed && parsed.rows.length > 0 && (
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <div className="px-3 py-2 text-[12px] font-medium text-slate-700 bg-slate-50 border-b border-slate-200">
-              Preview ({parsed.rows.length} row
-              {parsed.rows.length === 1 ? "" : "s"})
-            </div>
-            <div className="max-h-48 overflow-auto">
-              <table className="w-full text-[12px]">
-                <thead className="text-slate-500">
-                  <tr>
-                    <th className="px-2 py-1 text-left">Code</th>
-                    <th className="px-2 py-1 text-left">Description</th>
-                    <th className="px-2 py-1 text-left">Unit</th>
-                    <th className="px-2 py-1 text-right">Orig</th>
-                    <th className="px-2 py-1 text-right">Rev</th>
-                    <th className="px-2 py-1 text-right">Base</th>
-                    <th className="px-2 py-1 text-right">Agt</th>
-                    <th className="px-2 py-1 text-left">Cement</th>
-                    <th className="px-2 py-1 text-left">Steel</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {parsed.rows.map((r, i) => (
-                    <tr key={i} className="border-t border-slate-100">
-                      <td className="px-2 py-1 font-mono">{r.item_code}</td>
-                      <td className="px-2 py-1">{r.description}</td>
-                      <td className="px-2 py-1">{r.unit}</td>
-                      <td className="px-2 py-1 text-right">
-                        {r.original_qty ?? ""}
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        {r.revised_qty ?? ""}
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        {r.base_rate ?? ""}
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        {r.agreement_rate ?? ""}
-                      </td>
-                      <td className="px-2 py-1">
-                        {r.is_cement_item ? "yes" : ""}
-                      </td>
-                      <td className="px-2 py-1">{r.steel_subtype ?? ""}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setParsed(parseTsvImport(raw))}
-            disabled={raw.trim().length === 0}
-          >
-            Preview
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            // M-2: any parse error blocks the import. Adding only the "good"
-            // rows would silently drop the others, which for financial line
-            // items reads as "errors are non-fatal."
-            disabled={
-              !parsed ||
-              parsed.rows.length === 0 ||
-              parsed.errors.length > 0
-            }
-            onClick={() => {
-              if (!parsed || parsed.rows.length === 0) return;
-              if (parsed.errors.length > 0) return;
-              onAdd(
-                parsed.rows.map((r) => ({ ...r, _rowState: "new" as const })),
-              );
-              onClose();
-            }}
-          >
-            {parsed && parsed.rows.length > 0
-              ? `Add ${parsed.rows.length} row${parsed.rows.length === 1 ? "" : "s"}`
-              : "Add rows"}
-          </Button>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -309,7 +177,9 @@ export function ItemsGrid({ scheduleId }: { scheduleId: string }) {
         headerName: "Orig qty",
         editable: true,
         width: 110,
-        cellDataType: "number",
+        cellDataType: false,
+        valueParser: numberValueParser,
+        valueFormatter: numberValueFormatter,
         headerComponent: TooltipHeader,
         headerComponentParams: {
           tooltipText:
@@ -321,7 +191,9 @@ export function ItemsGrid({ scheduleId }: { scheduleId: string }) {
         headerName: "Rev qty",
         editable: true,
         width: 110,
-        cellDataType: "number",
+        cellDataType: false,
+        valueParser: numberValueParser,
+        valueFormatter: numberValueFormatter,
         headerComponent: TooltipHeader,
         headerComponentParams: {
           tooltipText:
@@ -333,7 +205,9 @@ export function ItemsGrid({ scheduleId }: { scheduleId: string }) {
         headerName: "Base rate",
         editable: true,
         width: 120,
-        cellDataType: "number",
+        cellDataType: false,
+        valueParser: numberValueParser,
+        valueFormatter: numberValueFormatter,
         headerComponent: TooltipHeader,
         headerComponentParams: {
           tooltipText:
@@ -345,7 +219,9 @@ export function ItemsGrid({ scheduleId }: { scheduleId: string }) {
         headerName: "Agreement rate",
         editable: true,
         width: 140,
-        cellDataType: "number",
+        cellDataType: false,
+        valueParser: numberValueParser,
+        valueFormatter: numberValueFormatter,
         headerComponent: TooltipHeader,
         headerComponentParams: {
           tooltipText:

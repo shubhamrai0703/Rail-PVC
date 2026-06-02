@@ -150,15 +150,46 @@ Gap surface:
 
 ### Phase 6 — Bill Entry UI `[CC-S]`
 
-Status: **C-1 + C-2 implemented on `saqlain/phase-6` (2026-05-31).** Awaiting smoke + P6-REVIEW. See WORKPLAN.md Phase 6 section for the route map.
+Status: **C-1 + C-2 + two demo smoke-test fixes merged to `main` (2026-06-02).** C-3 next. See WORKPLAN.md Phase 6 section for the route map.
 
 | ID | Title | Owner | Status | Notes |
 |---|---|---|---|---|
 | C-1 | `POST /api/contracts/{id}/bills` 409 hardening + bills list/create UI | [CC-S] | complete | Route already existed (P3 remediation); added `ConflictProblem` on `UNIQUE(contract_id, bill_number)`, gated via `assert_contract_belongs_to_tenant`, dropped client `net_amount`. 3 tests (`test_c1_bills_create.py`). Frontend: separate `/contracts/[id]/bills` page + `BillForm` (inline 409). Route count stays 38. |
 | C-2 | Bill detail `/contracts/[id]/bills/[billId]` | [CC-S] | complete | Frontend only — all GET routes exist (SH-P5). Header fields + read-only lines table (empty until Phase 7) + recoveries table & `RecoveryForm` (`POST /api/bills/{id}/recoveries`). |
+| C-2-FIX-A | Items grid "Invalid Number" fix | [CC-S] | complete | AG Grid v35 `cellDataType: "number"` formatter printed literal "Invalid Number" (type-inference re-applied). Data path was clean. Fix in `ItemsGrid.tsx`: `cellDataType: false` + module-scope `numberValueParser`/`numberValueFormatter` on the 4 numeric columns. |
+| C-2-FIX-B | "Calculate PVC" trigger card on bill detail | [CC-S] | complete | Engine endpoint `POST /api/contracts/{id}/pvc-runs` existed but had no caller. Added PVC card to `bills/[billId]/page.tsx`: `useMutation` with fresh `Idempotency-Key`, renders total_pvc/carry-forward/quarter, inline errors (`silent:true`), invalidates `bill` + `bill-lines`. |
 | C-3 | Bill header inline edit + recovery delete + computed net_amount | [CC-S] | pending | Needs `PUT /api/bills/{id}` + `DELETE /api/bills/{id}/recoveries/{rid}` (neither exists yet). net_amount = gross − Σ(recoveries where affects_pvc_base=FALSE), display-only. |
 
 **Resolved Phase 6 open questions:** (1) `bill_number` uniqueness — already `UNIQUE(contract_id, bill_number)` in migration 003, so **per-contract**; no migration needed. (2) Page vs tab — **separate `/contracts/[id]/bills` page** (avoids tab overload; natural parent for the `[billId]` sub-route).
+
+### DEMO — Seed Test Dataset for PVC Cycle Walk-Through `[CODEX-S → CC-S]`
+
+Status: **Codex generating the seed script.** Purpose: a realistic, idempotent demo dataset so the team can visualise the Phase 5–6 UI end-to-end and (via scripts) reconcile against pinned engine outputs. The PVC-run UI itself is Phase 7 — until then, PVC numbers are visible only through `scripts/run_engine_fixture.py`.
+
+| ID | Title | Owner | Status | Notes |
+|---|---|---|---|---|
+| DEMO-1 | `seeds/seed_demo_contract.py` — Banjara/COLABA BP 252 (BCT-24-25-252) | [CODEX-S] | in progress | Idempotent asyncpg seed (mirror `seeds/seed_indices.py` connection + `ON CONFLICT DO NOTHING` pattern). Target tenant `bd589426-93ba-4847-b5f3-1f69b020b4c0`, zone WR, `base_month` 2024-12-01. Seeds contract + `pvc_rule_set` + schedules + BOQ `contract_items` (cement/steel subtypes + ExtraNS NS-1 + carry-forward item 10.2) + two `running_bills` (8 903 877.99 / 7 250 000.00) + `bill_lines` rolling to fixture buckets + recoveries + `extra_item_decisions`. Anchored to engine fixtures `bct_2425_252_bill1_q2.json` / `bill2_q4.json` (Bill-1 total_pvc 0.00, Bill-2 76 959.55). |
+| DEMO-2 | CC-S review of Codex's `seed_demo_contract.py` before first run | [CC-S] | pending | Verify: tenant/zone/base_month constants, idempotency, FK ordering, decimal precision, and that seeded amounts reconcile to the pinned fixture outputs. **Do not run against Supabase until reviewed.** Decision: the team works with the script Codex produces in its session (not a parallel CC-S implementation). |
+
+**Why this exists:** captures the demo/test-data effort so it doesn't get lost. The seed lets Saqlain click through contract → schedules → items → bills → recoveries with real numbers, and serves as the canonical demo piece. Index coverage (Dec-2024→Dec-2025) from `seed_indices.py` already supports the Bill-1/Bill-2 measurement quarters.
+
+### P5-IMP — Smart Items Import (xlsx + fuzzy mapper) `[CC-S]`
+
+Status: **frontend complete on `saqlain/p5-imp` (2026-06-02)**. Replaces the Session-15 positional-paste flow with file upload + paste, sheet/header picker, and auto-mapping via a deterministic header fuzzy matcher (Option A). AI mapper (Option B) backend code is on disk but not wired — follow-up branch.
+
+| ID | Title | Owner | Status | Notes |
+|---|---|---|---|---|
+| P5-IMP-4 | Frontend: `lib/parseXlsx.ts` (exceljs wrapper, lazy-loaded) | [CC-S] | complete | xlsx-from-npm has open CVEs; used `exceljs` instead. Returns normalized `{sheets: [{name, rows}]}` |
+| P5-IMP-5 | Frontend: `lib/fuzzyHeaderMap.ts` (Option A synonym matcher) | [CC-S] | complete | Token-set scoring + per-target synonym tables (railway vocabulary: BOQ Item, UOM, SOR Rate, Quoted Rate, etc.); collision resolution; missing-required detection |
+| P5-IMP-6 | Frontend: `lib/normalizeImportRows.ts` | [CC-S] | complete | Mapping + raw rows → ParsedRow[]; preserves H-1 strict-token rule for cement/steel; thousand-separator stripping; value_normalizations hook for future AI mapper |
+| P5-IMP-7 | Frontend: `ImportRowsModal` v2 | [CC-S] | complete | Tabbed source (file/paste), sheet+header picker, mapping table with auto-map + manual override, AI button stubbed (disabled with tooltip), preview, commit. Replaces inline modal in `ItemsGrid.tsx`. |
+| P5-IMP-9 | Vitest tests | [CC-S] | complete | 17 new tests (fuzzy matcher + row normalizer). 33/33 total. `next build` + `npm run lint` clean. |
+| P5-IMP-10 | Docs sync | [CC-S] | complete | This entry + SESSION_LOG Session 23 |
+| P5-IMP-1 | Migration 014 — `import_templates` table | [CC-S] | code on disk | Not in head; lands with follow-up branch |
+| P5-IMP-2 | Backend: template CRUD (`/api/imports/templates`) | [CC-S] | code on disk | `backend/api/imports.py` exists; not wired into `main.py` |
+| P5-IMP-3 | Backend: AI mapper (`POST /api/imports/suggest-mapping`, Claude Haiku 4.5) | [CC-S] | code on disk | `backend/services/llm.py` exists; needs `anthropic` dep + `ANTHROPIC_API_KEY` env + route-count bump 38→42. Frontend AI button stays disabled until landed. |
+| P5-IMP-FUP-1 | Wire backend (router include, anthropic dep, env, route-count bump, pytest) | [CC-S] | pending | Separate branch off `main` once P5-IMP frontend merges |
+| P5-IMP-FUP-2 | Templates apply/save UI in `ImportRowsModal` | [CC-S] | pending | Blocked on FUP-1 |
 
 ### Phases 7–9 — Forward Plan
 

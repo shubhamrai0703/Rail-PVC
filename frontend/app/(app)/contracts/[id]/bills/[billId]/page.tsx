@@ -2,10 +2,11 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { RecoveryForm, RECOVERY_TYPES } from "@/components/contracts/RecoveryForm";
 import { formatINRWithSymbol } from "@/lib/format";
 
@@ -39,6 +40,13 @@ interface Recovery {
   recovery_type: string;
   amount: string | number;
   affects_pvc_base: boolean;
+}
+
+interface PvcRunResult {
+  id: string;
+  total_pvc: string | number;
+  negative_carry_forward: string | number;
+  quarter_used: string | number;
 }
 
 const RECOVERY_LABELS: Record<string, string> = Object.fromEntries(
@@ -76,6 +84,24 @@ export default function BillDetailPage({
   const recoveriesQuery = useQuery<Recovery[]>({
     queryKey: ["bill-recoveries", billId],
     queryFn: () => apiFetch<Recovery[]>(`/api/bills/${billId}/recoveries`),
+  });
+
+  // Calculate PVC — calls the engine synchronously (POST /pvc-runs). On success
+  // the engine writes the bill's lines and recomputes amounts, so we invalidate
+  // the bill + lines queries to pull the fresh values. `silent: true` because we
+  // render the failure inline below rather than relying on the default toast.
+  const pvcRun = useMutation<PvcRunResult, Error>({
+    mutationFn: () =>
+      apiFetch<PvcRunResult>(`/api/contracts/${id}/pvc-runs`, {
+        method: "POST",
+        body: { bill_id: billId },
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+        silent: true,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bill", billId] });
+      queryClient.invalidateQueries({ queryKey: ["bill-lines", billId] });
+    },
   });
 
   if (billQuery.isLoading) {
@@ -132,6 +158,67 @@ export default function BillDetailPage({
           }
         />
       </dl>
+
+      {/* Calculate PVC — triggers the engine run that generates this bill's lines. */}
+      <section className="border border-slate-200 rounded-xl p-5 bg-white space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-[14px] font-medium text-slate-900">
+              Price Variation (PVC)
+            </h2>
+            <p className="text-[12px] text-slate-500 mt-0.5 max-w-md">
+              Runs the PVC engine for this bill, generates its bill lines, and
+              recomputes amounts. Re-running supersedes the previous draft run.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => pvcRun.mutate()}
+            disabled={pvcRun.isPending}
+          >
+            {pvcRun.isPending ? "Calculating…" : "Calculate PVC"}
+          </Button>
+        </div>
+
+        {pvcRun.isError && (
+          <div className="text-[12px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            {pvcRun.error instanceof Error
+              ? pvcRun.error.message
+              : "PVC run failed"}
+          </div>
+        )}
+
+        {pvcRun.isSuccess && pvcRun.data && (
+          <dl className="grid grid-cols-3 gap-4 text-[13px] pt-1 border-t border-slate-100">
+            <div className="pt-3">
+              <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+                Total PVC
+              </dt>
+              <dd className="text-slate-900 mt-0.5 font-mono">
+                {formatINRWithSymbol(pvcRun.data.total_pvc)}
+              </dd>
+            </div>
+            <div className="pt-3">
+              <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+                Negative carry-forward
+              </dt>
+              <dd className="text-slate-900 mt-0.5 font-mono">
+                {formatINRWithSymbol(pvcRun.data.negative_carry_forward)}
+              </dd>
+            </div>
+            <div className="pt-3">
+              <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+                Quarter used
+              </dt>
+              <dd className="text-slate-900 mt-0.5">
+                {String(pvcRun.data.quarter_used)}
+              </dd>
+            </div>
+          </dl>
+        )}
+      </section>
 
       {/* Bill lines — read-only; engine-generated on a PVC run (Phase 7). */}
       <section className="space-y-2">
