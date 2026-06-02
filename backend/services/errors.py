@@ -72,6 +72,22 @@ class CementSteelConflictProblem(ValidationProblem):
         )
 
 
+class RunNotApprovedProblem(ValidationProblem):
+    """A PVC run can only be exported once it has been Approved. Draft and
+    superseded runs are rejected at the export boundary with a structured
+    422 (`code=run_not_approved`) so the frontend can disable/explain the
+    download rather than handing the user a half-formed report."""
+
+    code = "run_not_approved"
+
+    def __init__(self, run_id: str, status: str) -> None:
+        super().__init__(
+            f"Run must be Approved to export (current status: {status})",
+            run_id=run_id,
+            status=status,
+        )
+
+
 class EngineValidationProblem(ApiProblem):
     """Engine returned validation_errors — surface them as a structured list."""
 

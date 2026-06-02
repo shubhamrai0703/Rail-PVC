@@ -13,6 +13,7 @@ from api import (  # noqa: E402  (env must load before module-level imports)
     contract_items,
     contracts,
     documents,
+    exports,
     extra_items,
     indices,
     pvc_rules,
@@ -48,6 +49,7 @@ for router in (
     pvc_rules.router,
     pvc_runs.router,
     documents.router,
+    exports.router,
 ):
     app.include_router(router)
 

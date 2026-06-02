@@ -626,11 +626,11 @@ frontend/app/(app)/
 
 ---
 
-### G-3: Export Endpoints (Excel + PDF)
+### G-3: Export Endpoints (Excel + PDF) — ✅ COMPLETE (`shubham/sh-p5-exports`, 2026-06-02)
 
 **Goal:** Allow downloading approved PVC run results.
 
-**Context:** Check `engine/engine/` for existing export logic before writing routes. Wire it, don't rewrite.
+**Context:** Check `engine/engine/` for existing export logic before writing routes. Wire it, don't rewrite. **Outcome:** no export module existed in `engine/engine/`, so the routes build the report directly from the run + `pvc_components` rows (`services/exports.py`). Excel via `openpyxl`, PDF via `fpdf2` (both pure-Python — WeasyPrint's native GTK stack isn't pip-installable on the Windows test env). Awaiting `SH-P5-REVIEW`.
 
 **Deliverables:**
 - `GET /api/pvc-runs/{run_id}/export/excel` → `application/vnd.openxmlformats...` download
