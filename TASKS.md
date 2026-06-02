@@ -141,7 +141,7 @@ Gap surface:
 | IDX-1 | Source RBI WPI All-Commodities + series values for Apr-2022 → Nov-2024 | unassigned | pending | Data sourcing task, not code. Lower urgency — seed Dec-2024→Dec-2025 covers forward work |
 | IDX-2 | Backend: `POST /api/indices/{series}/months` + `GET /api/indices` + `GET /api/indices/{series}` | [CC-S] | complete | Migration 013 (`users.is_admin`); `require_admin` dep; 3 new routes; 10 tests; route count 35→38. 2026-05-30 |
 | IDX-3 | Backend read endpoints (list + detail) | [CC-S] | complete | Merged with IDX-2 (2026-05-30) |
-| IDX-4 | Frontend: replace `/indices` page stub with series list + monthly entry form | [CC-SH] | pending | Backend now live. Stub at `frontend/app/(app)/indices/page.tsx:17` |
+| IDX-4 | Frontend: replace `/indices` page stub with series list + monthly entry form | [CC-SH] | complete | `/indices` series list + `/indices/[series]` detail (observations table + `IndexMonthForm`). Optimistic UI — backend `require_admin` stays sole enforcement; 403/409 surfaced inline. `lib/indices.ts` + 3 vitest. Frontend-only, route count stays 38. 2026-06-02 |
 | IDX-5 | Retroactive index revision alerting (Phase 2 deferred per `PRODUCT.md`) | unassigned | pending | Post-MVP |
 
 **Why this is flagged now:** the Index Manager is a v1 product requirement (`PRODUCT.md`) but has no task ID anywhere in the workplan. Phase 7 (PVC Run UI) will exercise these series, and Phase 8 (Export UI) bills will reference them — without monthly entry, the system can't ingest new months as they're published.
