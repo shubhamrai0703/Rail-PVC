@@ -15,8 +15,9 @@ Use it for current milestone decisions and recent sessions only.
 
 - Phases 0–5 + all P5-FUP findings + SH-P5-1..4 + IDX-2..3 all on `main` (2026-05-30).
 - **Phase 6 C-1 + C-2 + demo seed + P5-IMP frontend + two demo smoke-test fixes merged to `main` (2026-06-02).** C-3 (bill/recovery edit + computed net) next.
-- **Shubham's next task:** G-3 export endpoints (SH-P5-5..6), then IDX-4 (index UI stub).
-- Test suite: **106/106 backend**, 99/99 engine, **33/33 frontend vitest**, `next build` + `npm run lint` clean. Route count 38.
+- **IDX-4 (PR #11) + SH-P5-5/6 export (PR #12) merged via merge-commits (2026-06-02).** Both Shubham tasks done.
+- **Shubham's next task:** TBD.
+- Test suite: **115/115 backend**, 99/99 engine, **36/36 frontend vitest**, `tsc` + `eslint` clean. Route count 40.
 - DB migrations at head (013 — `users.is_admin`). Run `013_admin_flag.py` on Supabase before entering new index months.
 - Local backend: `cd backend && source .venv/bin/activate && uvicorn main:app --reload --port 8000`
 - Local frontend: `cd frontend && npm run build && npm start` (port 3000) — always rebuild after code changes
@@ -24,6 +25,16 @@ Use it for current milestone decisions and recent sessions only.
 - Tenant provisioned for `saqlainmmomin@gmail.com` — tenant_id `bd589426-93ba-4847-b5f3-1f69b020b4c0`.
 
 ## Recent Sessions
+
+### Session 24 — 2026-06-02 (Review + merge of Shubham PRs #11 and #12)
+
+Reviewed and merged Shubham's two open PRs into `main` via merge-commits, with one follow-up fix folded in.
+
+- **PR #11 — IDX-4 Index Manager UI (`shubham/idx-4`, frontend-only).** `/indices` series list + `/indices/[series]` detail (observations table + `IndexMonthForm`, react-hook-form + zod). `<input type="month">` is coerced to a first-of-month date for the backend validator; `value` sent as a string to preserve `Decimal` precision. Optimistic-UI admin gate — the form renders for everyone, the backend `require_admin` stays the sole enforcement point (per P3-03), and typed 403 `forbidden` / 409 `conflict` map to inline messages. `lib/indices.ts` (`humanizeSeries`) + 3 vitest. Route count unchanged.
+- **Follow-up fix on merge.** The list page linked with a raw `s.name` while the detail page + month form used `encodeURIComponent`. Aligned them (commit `65519d3`) so non-trivial series names route correctly.
+- **PR #12 — SH-P5-5/6 export endpoints (`shubham/sh-p5-exports`).** `GET /api/pvc-runs/{id}/export/{excel,pdf}`. Shared gate: tenant-check via run→contract (404, indistinguishable per P3-06) → status must be `Approved` (else 422 `RunNotApprovedProblem`, `code=run_not_approved`) → `Content-Disposition: attachment`. `api/exports.py` is thin (gating + wiring); `services/exports.py` holds pure byte-generators built directly from the run + `pvc_components` rows — **no engine export module existed** (`engine/engine/` has none), so "wire it" had nothing to wire. Route count 38→40; `test_p3_08_clean_import.py` assertion bumped in the same diff.
+- **Library deviation accepted — fpdf2 over WeasyPrint.** WeasyPrint needs GTK/Pango/Cairo native libs that aren't pip-installable on the Windows dev/test env, which would violate "clean checkout boots from declared deps" (the export router wouldn't even import). Both `fpdf2` and `openpyxl` are pure-Python. WORKPLAN G-3 only requires an `application/pdf` download; submission-format / column-order parity is explicitly **deferred to P8-REVIEW**, so this is styling-only, not a contract change.
+- **Verification before push.** Test-merged each PR against `main` (both clean; main was still at route count 38, the P5-IMP commit was frontend-only), then verified the combined merge had no conflict despite both touching `TASKS.md`. Integrated `main`: **115/115 backend pytest**, **36/36 frontend vitest**, `tsc` + `eslint` clean. Both PRs auto-closed as MERGED after push (`0b96ec5..3158257`).
 
 ### Session 23 — 2026-06-02 (P5-IMP smart items-import — frontend on `saqlain/p5-imp`)
 
