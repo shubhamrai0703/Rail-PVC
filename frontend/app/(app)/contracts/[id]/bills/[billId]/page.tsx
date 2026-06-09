@@ -1,14 +1,16 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Trash2 } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RecoveryForm, RECOVERY_TYPES } from "@/components/contracts/RecoveryForm";
+import { BillHeaderForm } from "@/components/contracts/BillHeaderForm";
 import { formatINRWithSymbol } from "@/lib/format";
+import { describePvcRunError } from "@/lib/pvcRunError";
 
 interface Bill {
   id: string;
@@ -104,6 +106,23 @@ export default function BillDetailPage({
     },
   });
 
+  const pvcError = describePvcRunError(pvcRun.error);
+
+  const [editing, setEditing] = useState(false);
+
+  // C-3: delete a recovery. Invalidate both the recoveries list and the bill —
+  // net_amount is computed from recoveries, so it changes when one is removed.
+  const deleteRecovery = useMutation<void, Error, string>({
+    mutationFn: (recoveryId) =>
+      apiFetch<void>(`/api/bills/${billId}/recoveries/${recoveryId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bill-recoveries", billId] });
+      queryClient.invalidateQueries({ queryKey: ["bill", billId] });
+    },
+  });
+
   if (billQuery.isLoading) {
     return (
       <div className="text-[13px] text-slate-400 py-12 text-center">Loading…</div>
@@ -142,22 +161,49 @@ export default function BillDetailPage({
         </div>
       </header>
 
-      {/* Header fields */}
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-3 max-w-2xl text-[13px]">
-        <Field label="Bill number" value={bill.bill_number} />
-        <Field label="Status" value={bill.status} />
-        <Field label="Bill date" value={bill.bill_date} />
-        <Field label="Measurement date" value={bill.measurement_date} />
-        <Field label="Gross amount" value={formatINRWithSymbol(bill.gross_amount)} />
-        <Field
-          label="Net amount"
-          value={
-            bill.net_amount === null || bill.net_amount === undefined
-              ? "—"
-              : formatINRWithSymbol(bill.net_amount)
-          }
+      {/* Header fields — read-only with an inline edit toggle (C-3). */}
+      {editing ? (
+        <BillHeaderForm
+          billId={billId}
+          initial={{
+            bill_number: bill.bill_number,
+            bill_date: bill.bill_date,
+            measurement_date: bill.measurement_date,
+            gross_amount: bill.gross_amount,
+          }}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ["bill", billId] });
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
         />
-      </dl>
+      ) : (
+        <div className="space-y-3 max-w-2xl">
+          <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-[13px]">
+            <Field label="Bill number" value={bill.bill_number} />
+            <Field label="Status" value={bill.status} />
+            <Field label="Bill date" value={bill.bill_date} />
+            <Field label="Measurement date" value={bill.measurement_date} />
+            <Field label="Gross amount" value={formatINRWithSymbol(bill.gross_amount)} />
+            <Field
+              label="Net amount (net of non-PVC recoveries)"
+              value={
+                bill.net_amount === null || bill.net_amount === undefined
+                  ? "—"
+                  : formatINRWithSymbol(bill.net_amount)
+              }
+            />
+          </dl>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setEditing(true)}
+          >
+            Edit bill
+          </Button>
+        </div>
+      )}
 
       {/* Calculate PVC — triggers the engine run that generates this bill's lines. */}
       <section className="border border-slate-200 rounded-xl p-5 bg-white space-y-3">
@@ -184,9 +230,20 @@ export default function BillDetailPage({
 
         {pvcRun.isError && (
           <div className="text-[12px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-            {pvcRun.error instanceof Error
-              ? pvcRun.error.message
-              : "PVC run failed"}
+            {/* P6-M4: surface the actionable engine validation list, not just
+                the generic header, so the user knows what to fix. */}
+            {pvcError.validationErrors ? (
+              <>
+                <p className="font-medium">{pvcError.message}</p>
+                <ul className="list-disc list-inside mt-1 space-y-0.5">
+                  {pvcError.validationErrors.map((e, i) => (
+                    <li key={i}>{e}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              pvcError.message
+            )}
           </div>
         )}
 
@@ -272,13 +329,14 @@ export default function BillDetailPage({
         <h2 className="text-[14px] font-medium text-slate-900">Recoveries</h2>
         <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
           <div
-            className="px-5 py-3 grid grid-cols-[1fr_160px_160px] gap-4
+            className="px-5 py-3 grid grid-cols-[1fr_160px_160px_60px] gap-4
                        text-[11px] uppercase tracking-wider text-slate-500 font-medium
                        border-b border-slate-200 bg-slate-50"
           >
             <div>Type</div>
             <div className="text-right">Amount</div>
             <div>Affects PVC base</div>
+            <div className="sr-only">Actions</div>
           </div>
           {recoveriesQuery.isLoading && (
             <div className="px-5 py-6 text-[13px] text-slate-400">Loading…</div>
@@ -293,7 +351,7 @@ export default function BillDetailPage({
             <div
               key={r.id}
               className={
-                "px-5 h-11 grid grid-cols-[1fr_160px_160px] gap-4 items-center text-[13px] " +
+                "px-5 h-11 grid grid-cols-[1fr_160px_160px_60px] gap-4 items-center text-[13px] " +
                 (i < recoveriesQuery.data!.length - 1
                   ? "border-b border-slate-100"
                   : "")
@@ -311,6 +369,25 @@ export default function BillDetailPage({
                 ) : (
                   <span className="text-slate-400 text-[12px]">No</span>
                 )}
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  aria-label={`Delete ${RECOVERY_LABELS[r.recovery_type] ?? r.recovery_type} recovery`}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Delete this recovery? This also updates the bill's net amount.",
+                      )
+                    ) {
+                      deleteRecovery.mutate(r.id);
+                    }
+                  }}
+                  disabled={deleteRecovery.isPending}
+                  className="text-slate-400 hover:text-red-600 disabled:opacity-40"
+                >
+                  <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+                </button>
               </div>
             </div>
           ))}

@@ -158,9 +158,22 @@ Status: **C-1 + C-2 + two demo smoke-test fixes merged to `main` (2026-06-02).**
 | C-2 | Bill detail `/contracts/[id]/bills/[billId]` | [CC-S] | complete | Frontend only — all GET routes exist (SH-P5). Header fields + read-only lines table (empty until Phase 7) + recoveries table & `RecoveryForm` (`POST /api/bills/{id}/recoveries`). |
 | C-2-FIX-A | Items grid "Invalid Number" fix | [CC-S] | complete | AG Grid v35 `cellDataType: "number"` formatter printed literal "Invalid Number" (type-inference re-applied). Data path was clean. Fix in `ItemsGrid.tsx`: `cellDataType: false` + module-scope `numberValueParser`/`numberValueFormatter` on the 4 numeric columns. |
 | C-2-FIX-B | "Calculate PVC" trigger card on bill detail | [CC-S] | complete | Engine endpoint `POST /api/contracts/{id}/pvc-runs` existed but had no caller. Added PVC card to `bills/[billId]/page.tsx`: `useMutation` with fresh `Idempotency-Key`, renders total_pvc/carry-forward/quarter, inline errors (`silent:true`), invalidates `bill` + `bill-lines`. |
-| C-3 | Bill header inline edit + recovery delete + computed net_amount | [CC-S] | pending | Needs `PUT /api/bills/{id}` + `DELETE /api/bills/{id}/recoveries/{rid}` (neither exists yet). net_amount = gross − Σ(recoveries where affects_pvc_base=FALSE), display-only. |
+| C-3 | Bill header inline edit + recovery delete + computed net_amount | [CC-S] | complete | `PUT /api/bills/{id}` (partial via `model_fields_set`, NOT-NULL + positivity guards, 409 on dup bill_number) + `DELETE /api/bills/{id}/recoveries/{rid}` (two-step gate, 204). `net_amount` computed server-side on read via `_NET_AMOUNT_EXPR` (gross − Σ recoveries where `affects_pvc_base=FALSE`). FE: `BillHeaderForm` inline edit (409 inline) + per-row recovery delete + net label note. Route count 40→42. +15 backend / FE clean. |
+| C-3-FUP-NET | Validate the net_amount formula against a real submission | [CC-S] | pending | **FLAGGED decision (2026-06-08):** net = gross − Σ(`affects_pvc_base=FALSE`) treats PVC-affecting recoveries as notional (reduce W only, not net payable). Not certain to be the best model — confirm with a Railway field account; if net payable should net ALL recoveries, flip the filter in `_NET_AMOUNT_EXPR`. |
 
 **Resolved Phase 6 open questions:** (1) `bill_number` uniqueness — already `UNIQUE(contract_id, bill_number)` in migration 003, so **per-contract**; no migration needed. (2) Page vs tab — **separate `/contracts/[id]/bills` page** (avoids tab overload; natural parent for the `[billId]` sub-route).
+
+### P6-REVIEW — Codex-S adversarial findings `[CODEX-S → CC-S]`
+
+Status: **open (2026-06-04).** Codex-S pass on the merged Phase 6 Bill Entry UI. 2 HIGH, 2 MEDIUM, 0 CRITICAL/LOW. Detail + CC Responses in [REVIEW.md](REVIEW.md). Prompt archived at `REVIEW_P6_PROMPT.md`.
+
+| ID | Title | Owner | Status | Notes |
+|---|---|---|---|---|
+| P6-H1 | `affects_pvc_base=TRUE` recoveries ignored by PVC calc | [CC-S] | complete (interim A) | **Decision: A now, C later** (Saqlain 2026-06-04). `build_bill_payload` sums `affects_pvc_base=TRUE` recoveries into `technical_withheld` (named W subtraction; `on_account` not netted). +2 tests (`test_p6_h1_recoveries_in_w.py`). 125/125 backend. |
+| P6-H2 | Backend accepts non-positive bill/recovery amounts | [CC-S] | complete | `ValidationProblem` on `bill_number<=0`, `gross_amount<=0` (before tenant gate), recovery `amount<=0`. +8 tests. 125/125 backend. |
+| P6-M3 | Malformed AG Grid numeric edits silently null the cell | [CC-S] | complete | Pure `lib/parseNumericCell.ts` (strip separators, reject non-decimal); parser keeps `oldValue` + toasts on reject. +5 vitest. |
+| P6-M4 | Calculate-PVC error drops engine `validation_errors` list | [CC-S] | complete | Pure `lib/pvcRunError.ts::describePvcRunError`; PVC card renders the list. +4 vitest. |
+| P6-H1-FUP-C | Replace interim A with a dedicated `RecoveriesAffectingPVC` W bucket | [CC-S] | pending | **Agreed end-state — A is not the best shape.** Add a named W bucket in the engine `BillPayload` + formula + `w_derivation`, distinct from `technical_withheld`, so genuine technical withholding and PVC-affecting recoveries disaggregate. Touches engine + 99 engine tests + ARCHITECTURE.md W invariant + run-detail UI/export. Do before any flow that must show both deductions separately. |
 
 ### DEMO — Seed Test Dataset for PVC Cycle Walk-Through `[CODEX-S → CC-S]`
 

@@ -14,10 +14,11 @@ Use it for current milestone decisions and recent sessions only.
 ## Current Project State
 
 - Phases 0–5 + all P5-FUP findings + SH-P5-1..4 + IDX-2..3 all on `main` (2026-05-30).
-- **Phase 6 C-1 + C-2 + demo seed + P5-IMP frontend + two demo smoke-test fixes merged to `main` (2026-06-02).** C-3 (bill/recovery edit + computed net) next.
+- **Phase 6 C-1 + C-2 merged to `main` (2026-06-02).**
 - **IDX-4 (PR #11) + SH-P5-5/6 export (PR #12) merged via merge-commits (2026-06-02).** Both Shubham tasks done.
+- **P6-REVIEW (Codex-S) closed + Phase 6 C-3 done — PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13) OPEN (`saqlain/p6-review` → `main`).** P6: 2 HIGH + 2 MEDIUM fixed (H1 interim approach A → `P6-H1-FUP-C`). C-3: `PUT /api/bills/{id}` + `DELETE .../recoveries/{rid}` + computed `net_amount` (formula flagged → `C-3-FUP-NET`). No open CRITICAL/HIGH — clear to merge.
 - **Shubham's next task:** TBD.
-- Test suite: **115/115 backend**, 99/99 engine, **36/36 frontend vitest**, `tsc` + `eslint` clean. Route count 40.
+- Test suite: **140/140 backend**, 99/99 engine, **45/45 frontend vitest**, `tsc` + `eslint` clean. Route count **42**.
 - DB migrations at head (013 — `users.is_admin`). Run `013_admin_flag.py` on Supabase before entering new index months.
 - Local backend: `cd backend && source .venv/bin/activate && uvicorn main:app --reload --port 8000`
 - Local frontend: `cd frontend && npm run build && npm start` (port 3000) — always rebuild after code changes
@@ -25,6 +26,30 @@ Use it for current milestone decisions and recent sessions only.
 - Tenant provisioned for `saqlainmmomin@gmail.com` — tenant_id `bd589426-93ba-4847-b5f3-1f69b020b4c0`.
 
 ## Recent Sessions
+
+### Session 26 — 2026-06-08 (Phase 6 C-3 — bill edit + recovery delete + net_amount)
+
+Implemented Phase 6 C-3 on `saqlain/p6-review` (continuing from the P6-REVIEW work). TDD throughout.
+
+- **`PUT /api/bills/{id}`** — partial header edit via `model_fields_set` (mirrors `update_contract`). Rejects explicit-null on NOT NULL columns (`bill_number`, `measurement_date`) with `FieldNotNullableProblem`; P6-H2-parity positivity guards on `bill_number`/`gross_amount`; 409 `ConflictProblem` on `UNIQUE(contract_id, bill_number)`; empty body → current row. Returns the row with computed `net_amount`.
+- **`DELETE /api/bills/{id}/recoveries/{rid}`** — new `_assert_recovery_under_bill_for_tenant` two-step gate (bill→tenant, recovery→bill; both failures collapse to 404 per P3-06); 204, no `-> None` annotation (fastapi 0.115 PEP-563 gotcha); DELETE scoped to `(id, bill_id)`.
+- **`net_amount` computed on read** — extracted `_NET_AMOUNT_EXPR` SQL constant, used in GET list, GET detail (now via shared `_select_bill`), and the PUT re-projection. Backend owns the derived value; never persisted, so it can't drift.
+- **DECISION (Saqlain) — net_amount = gross − Σ(recoveries WHERE `affects_pvc_base=FALSE`), FLAGGED.** PVC-affecting recoveries are treated as notional (they reduce W via H1, not net payable). Explicitly not certain to be the right model — `C-3-FUP-NET` tracks validating it against a real Railway submission; flip the filter if net payable should net ALL recoveries. (Same "ship a documented interim, name the revisit" pattern as H1.)
+- **Frontend** — `BillHeaderForm` inline edit (react-hook-form + zod; 409 surfaced inline since `bill_number` uniqueness is server-owned, unlike the P5-FUP-L3 agreement_number case); per-row recovery delete (confirm → DELETE → invalidates recoveries + bill so net refreshes); net-amount label clarified to "net of non-PVC recoveries".
+- **Route count 40→42**; `test_p3_08` assertion bumped. **140/140 backend** (+15: PUT/DELETE mock tests + the net formula run against real `_NET_AMOUNT_EXPR` via aiosqlite), 99/99 engine, 45/45 vitest, tsc+eslint clean. Did not run `next build` (8 GB box); tsc covers types.
+- **Env reminder:** the repo has both a miniconda 3.13 env and `backend/.venv`; pytest + the session-installed `aiosqlite` live in miniconda — use `~/miniconda/bin/python -m pytest`.
+- **Shipped:** pushed `saqlain/p6-review` and opened **PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13)** (P6-REVIEW + C-3) → `main`. Clear to merge (no open CRITICAL/HIGH).
+
+### Session 25 — 2026-06-04 (P6-REVIEW — Codex-S adversarial pass + remediation)
+
+Opened the first adversarial review of the merged Phase 6 Bill Entry UI (C-1/C-2/fixes), which had landed without one. Drove Codex-S via the `codex` CLI; prompt archived at `REVIEW_P6_PROMPT.md`. Codex returned **2 HIGH, 2 MEDIUM, 0 CRITICAL/LOW**; CC-S code-verified all four against `main` before remediating one at a time (failing test → fix → green). Branch `saqlain/p6-review`.
+
+- **P6-H1 (HIGH) — `affects_pvc_base=TRUE` recoveries silently ignored by W derivation.** `build_bill_payload` hard-coded `technical_withheld=Decimal("0")` and never queried `recoveries`, so a recovery flagged to reduce the PVC base did nothing — a plausible-but-wrong number. **Saqlain's decision: interim approach A now, approach C later, and A is explicitly not the best shape.** A = sum `affects_pvc_base=TRUE` recoveries into the engine's existing `technical_withheld` bucket (named W subtraction per PRODUCT.md rule 1, zero engine-model change); `on_account` stays at gross (not netted — that was the rejected approach B). Known limitation: A overloads `technical_withheld`, conflating genuine technical withholding with PVC-affecting recoveries. End-state C (a dedicated `RecoveriesAffectingPVC` W bucket) is tracked as `P6-H1-FUP-C`. Fix in `pvc_service.py` + corrected the stale `bills.py` comment that described approach B. 2 tests (`test_p6_h1_recoveries_in_w.py`).
+- **P6-H2 (HIGH) — backend accepted non-positive bill/recovery amounts.** UI `>0` guard was the only one; direct API calls could create zero/negative `gross_amount` (→ `on_account`) / `bill_number` / recovery `amount`. Added `ValidationProblem` checks at the handler boundary (before the tenant gate; input shape leaks nothing). +8 parametrized tests across `test_c1_bills_create.py` + `test_p3_bf_3_recoveries.py`.
+- **P6-M3 (MEDIUM) — malformed AG Grid numeric edits silently became `null`.** Old parser coerced `"1,23,456"`/garbage → `null`, erasing rates on save. Extracted pure `lib/parseNumericCell.ts` (strips thousand separators, rejects non-decimal incl. hex/exponent/`Infinity`); the grid parser now keeps `oldValue` + `toast.error` on reject. +5 vitest.
+- **P6-M4 (MEDIUM) — Calculate-PVC card dropped the engine `validation_errors` list.** It rendered only the generic header. Extracted pure `lib/pvcRunError.ts::describePvcRunError` (guards the array shape since the `ApiProblem` union's catch-all defeats discriminant narrowing); card now lists every validation error. +4 vitest.
+- **Env note.** `aiosqlite` (declared dep, `pyproject.toml:25`) was missing from this venv — silently erroring 35 tests until installed. Reconfirms `feedback_aiosqlite_test_limits`.
+- **Verification.** 125/125 backend, 99/99 engine, 45/45 frontend vitest, `tsc` + `eslint` clean, route count unchanged at 40. UI changes (M3 toast / M4 list) covered by pure-fn tests + types/lint; not browser-clicked (8 GB box, `next dev` avoided).
 
 ### Session 24 — 2026-06-02 (Review + merge of Shubham PRs #11 and #12)
 

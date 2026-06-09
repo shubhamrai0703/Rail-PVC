@@ -17,17 +17,21 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Blockers
 
-- **None blocking Phase 6.** IDX-2..3 (index write endpoints) are on `main`; seed Jan–May 2026 index months before running PVC on 2026 bills (Phase 7 concern).
+- **None blocking Phase 6 C-3.** P6-REVIEW findings all closed. IDX-2..3 (index write endpoints) are on `main`; seed Jan–May 2026 index months before running PVC on 2026 bills (Phase 7 concern).
+- **Tech-debt (non-blocking):** `P6-H1-FUP-C` — interim approach A overloads `technical_withheld` with PVC-affecting recoveries; migrate to a dedicated W bucket (approach C) before any flow that must show both deductions separately.
 - Out-of-band: credential hygiene — DB password and JWT secret are in `backend/.env` (git-ignored). Keep `.env` out of version control.
 
 ## Active Review Cycle
 
-- **None open.** `P5-REVIEW` closed and merged 2026-05-20; all deferred L-findings closed by 2026-05-30 (PR #9). PRs #11/#12 reviewed and merged clean (2026-06-02).
-- Suite state: **115/115 backend**, **99/99 engine**, **36/36 frontend vitest**, `tsc` + `eslint` clean. Route count 40.
+- **`P6-REVIEW` closed (2026-06-04)** — Codex-S pass, 2 HIGH + 2 MEDIUM all fixed; P6-H1 via interim approach A (`P6-H1-FUP-C` tracks the C end-state). On `saqlain/p6-review`.
+- **Phase 6 C-3 complete (2026-06-08) on `saqlain/p6-review`.** `PUT /api/bills/{id}` + `DELETE /api/bills/{id}/recoveries/{rid}` + computed `net_amount` (gross − Σ non-PVC recoveries; **formula flagged for field validation — `C-3-FUP-NET`**). FE: inline bill-header edit + recovery delete. Route count 40→42.
+- `P5-REVIEW` closed and merged 2026-05-20; PRs #11/#12 merged clean (2026-06-02).
+- Suite state: **140/140 backend** (+15: C-3 PUT/DELETE + net formula), **99/99 engine**, **45/45 frontend vitest**, `tsc` + `eslint` clean. Route count **42**.
 
 ## Branch State
 
-- `main` — **fully up to date with origin (2026-06-02).** Phase 6 C-1/C-2 + demo seed + P5-IMP frontend + demo smoke-test fixes merged (fast-forward from `saqlain/phase-6`).
+- `main` — up to date with origin (2026-06-02); Phase 6 C-1/C-2 etc. merged.
+- `saqlain/p6-review` — **P6-REVIEW fixes + Phase 6 C-3. PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13) OPEN → `main`.** Commits `73bd306` (P6-REVIEW) + `3786ec1` (C-3). 140/99/45 green, route count 42. No open CRITICAL/HIGH — clear to merge.
 - `saqlain/phase-6` — merged to `main`; deletable.
 - `saqlain/p5-imp` — backend WIP stashed; P5-IMP backend wiring lands here in a follow-up branch.
 - `saqlain/phase-5` — deletable (merged).
@@ -59,8 +63,9 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Priorities
 
-1. [CC-S] Proceed to C-3 (bill/recovery edit + computed net_amount). Then P5-IMP backend wiring (LLM mapper + template CRUD + migration 014) on a follow-up branch off `saqlain/p5-imp`.
-2. [CC-SH] Next task TBD. SH-P5-5..6 (export) and IDX-4 (index UI) both merged. Export submission-format parity is deferred to P8-REVIEW.
+1. [CC-S] Push `saqlain/p6-review` + open PR (P6-REVIEW + C-3). Then **Phase 7 (PVC run + results UI)** now that C-3 is stable, or P5-IMP backend wiring (LLM mapper + template CRUD + migration 014) off `saqlain/p5-imp`.
+2. [CC-S] When a real submission is available, validate `C-3-FUP-NET` (net_amount formula) and revisit `P6-H1-FUP-C` (dedicated W bucket).
+3. [CC-SH] Next task TBD. Export submission-format parity deferred to P8-REVIEW.
 
 ## File Classification
 

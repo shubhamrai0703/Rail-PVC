@@ -23,7 +23,7 @@ from sqlalchemy.exc import IntegrityError
 
 from api.bills import BillCreate, create_bill
 from services.auth import AuthUser
-from services.errors import ConflictProblem, NotFoundProblem
+from services.errors import ConflictProblem, NotFoundProblem, ValidationProblem
 
 
 def _user() -> AuthUser:
@@ -101,6 +101,45 @@ async def test_create_bill_wrong_tenant_raises_not_found():
     assert exc.value.extra["entity"] == "contract"
     assert exc.value.extra["id"] == "contract-foreign"
     assert session.execute.await_count == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("gross", [Decimal("0"), Decimal("-1"), Decimal("-100000.00")])
+async def test_create_bill_non_positive_gross_raises_validation(gross):
+    # P6-H2: gross_amount must be > 0. Validation fires before any DB call
+    # (and before the tenant gate) so session.execute must not run.
+    session = AsyncMock()
+    session.execute = AsyncMock()
+    body = _body()
+    body.gross_amount = gross
+
+    with pytest.raises(ValidationProblem) as exc:
+        await create_bill(
+            contract_id="contract-own", body=body, user=_user(), session=session
+        )
+
+    assert exc.value.status_code == 422
+    assert exc.value.extra["field"] == "gross_amount"
+    session.execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("number", [0, -1])
+async def test_create_bill_non_positive_number_raises_validation(number):
+    # P6-H2: bill_number must be a positive integer.
+    session = AsyncMock()
+    session.execute = AsyncMock()
+    body = _body()
+    body.bill_number = number
+
+    with pytest.raises(ValidationProblem) as exc:
+        await create_bill(
+            contract_id="contract-own", body=body, user=_user(), session=session
+        )
+
+    assert exc.value.status_code == 422
+    assert exc.value.extra["field"] == "bill_number"
+    session.execute.assert_not_awaited()
 
 
 @pytest.mark.asyncio

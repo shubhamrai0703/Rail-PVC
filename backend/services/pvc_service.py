@@ -418,6 +418,25 @@ async def build_bill_payload(
         for r in cf_rows
     ]
 
+    # P6-H1 (approach A, interim): recoveries flagged affects_pvc_base reduce W.
+    # Sum them into the engine's existing technical_withheld bucket so the
+    # deduction is a NAMED W subtraction (PRODUCT.md rule 1), not silently
+    # netted off on_account. Approach C (a dedicated RecoveriesAffectingPVC
+    # bucket distinct from technical withholding) is the agreed end-state —
+    # tracked as a follow-up; this is explicitly interim, not the best shape.
+    withheld_row = (
+        await session.execute(
+            text("""
+                SELECT COALESCE(SUM(amount), 0) AS withheld
+                FROM recoveries
+                WHERE bill_id = :bid AND affects_pvc_base = TRUE
+            """),
+            {"bid": bill_id},
+        )
+    ).mappings().first()
+    assert withheld_row is not None
+    technical_withheld = Decimal(withheld_row["withheld"] or 0)
+
     on_account = Decimal(bill["gross_amount"] or 0)
     return BillPayload(
         on_account_amount=on_account,
@@ -426,7 +445,7 @@ async def build_bill_payload(
         steel_plates_amount=Decimal(bucket_rows["steel_plates"]),
         steel_tmt_amount=Decimal(bucket_rows["steel_tmt"]),
         steel_other_amount=Decimal(bucket_rows["steel_other"]),
-        technical_withheld=Decimal("0"),
+        technical_withheld=technical_withheld,
         extra_item_decisions=extra_item_decisions,
         carry_forwards=carry_forwards,
         measurement_date=bill["measurement_date"],

@@ -100,6 +100,24 @@ async def test_invalid_recovery_type_raises_validation_problem():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("amount", [Decimal("0"), Decimal("-1"), Decimal("-50.25")])
+async def test_non_positive_amount_raises_validation(amount):
+    # P6-H2: recovery amount must be > 0. Fires before any DB call.
+    session = AsyncMock()
+    session.execute = AsyncMock()
+
+    body = RecoveryCreate(recovery_type="security_deposit", amount=amount)
+    with pytest.raises(ValidationProblem) as exc:
+        await create_recovery(
+            bill_id="bill-own", body=body, user=_user(), session=session
+        )
+
+    assert exc.value.status_code == 422
+    assert exc.value.extra["field"] == "amount"
+    session.execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_wrong_tenant_bill_raises_not_found():
     # `assert_bill_belongs_to_tenant` returns None → NotFoundProblem(404).
     # The route must surface 404 (NOT 403) so callers can't probe IDs.

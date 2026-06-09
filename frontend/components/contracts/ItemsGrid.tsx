@@ -11,9 +11,11 @@ import {
   type IHeaderParams,
   type SelectionChangedEvent,
 } from "ag-grid-community";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { type SteelSubtype } from "@/lib/parseTsvImport";
+import { parseNumericCell } from "@/lib/parseNumericCell";
 import { ImportRowsModal } from "./ImportRowsModal";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -68,12 +70,18 @@ function emptyRow(): RowState {
 // value is always coerced to a number (or null) and never renders as the
 // scary "Invalid Number" sentinel — the API returns these as JSON numbers, but
 // the column type also tolerates numeric strings (`number | string | null`).
-function numberValueParser(p: { newValue: unknown }): number | null {
-  if (p.newValue == null) return null;
-  const s = String(p.newValue).trim();
-  if (s === "") return null;
-  const n = Number(s);
-  return Number.isNaN(n) ? null : n;
+// P6-M3: reject unparseable edits rather than silently coercing to null (which
+// would erase the cell). On rejection we keep the prior value and warn the user.
+function numberValueParser(
+  p: { newValue: unknown; oldValue: unknown; colDef?: { headerName?: string } },
+): number | null {
+  const parsed = parseNumericCell(p.newValue);
+  if (!parsed.ok) {
+    const col = p.colDef?.headerName ?? "value";
+    toast.error(`"${String(p.newValue)}" is not a valid ${col}; keeping the previous value.`);
+    return (p.oldValue ?? null) as number | null;
+  }
+  return parsed.value;
 }
 
 function numberValueFormatter(p: { value: unknown }): string {
