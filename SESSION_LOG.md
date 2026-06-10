@@ -16,16 +16,28 @@ Use it for current milestone decisions and recent sessions only.
 - Phases 0–5 + all P5-FUP findings + SH-P5-1..4 + IDX-2..3 all on `main` (2026-05-30).
 - **Phase 6 C-1 + C-2 merged to `main` (2026-06-02).**
 - **IDX-4 (PR #11) + SH-P5-5/6 export (PR #12) merged via merge-commits (2026-06-02).** Both Shubham tasks done.
-- **P6-REVIEW (Codex-S) closed + Phase 6 C-3 done — PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13) OPEN (`saqlain/p6-review` → `main`).** P6: 2 HIGH + 2 MEDIUM fixed (H1 interim approach A → `P6-H1-FUP-C`). C-3: `PUT /api/bills/{id}` + `DELETE .../recoveries/{rid}` + computed `net_amount` (formula flagged → `C-3-FUP-NET`). No open CRITICAL/HIGH — clear to merge.
+- **PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13) (P6-REVIEW + C-3) MERGED to `main` (2026-06-09); `main` at `a88b85e`.** Branches cleaned (local + origin).
+- **Phase 7 (PVC run + results UI) implemented on `saqlain/phase-7` (2026-06-10).** Dedicated run page + approve flow + exports + run history; migration 015 persists run result totals. Awaiting commit + `P7-REVIEW`.
 - **Shubham's next task:** TBD.
-- Test suite: **140/140 backend**, 99/99 engine, **45/45 frontend vitest**, `tsc` + `eslint` clean. Route count **42**.
-- DB migrations at head (013 — `users.is_admin`). Run `013_admin_flag.py` on Supabase before entering new index months.
+- Test suite: **145/145 backend**, 99/99 engine, **52/52 frontend vitest**, `tsc` + `eslint` + `next build` clean. Route count **43**.
+- DB migrations at head (015 — `pvc_runs` result totals). Run `alembic upgrade head` on Supabase before running PVC on real bills (`D-FUP-1`).
 - Local backend: `cd backend && source .venv/bin/activate && uvicorn main:app --reload --port 8000`
 - Local frontend: `cd frontend && npm run build && npm start` (port 3000) — always rebuild after code changes
 - DB: Supabase at `ivselmhloegjmqrjekcy.supabase.co`.
 - Tenant provisioned for `saqlainmmomin@gmail.com` — tenant_id `bd589426-93ba-4847-b5f3-1f69b020b4c0`.
 
 ## Recent Sessions
+
+### Session 27 — 2026-06-10 (Sync to main + Phase 7 PVC run + results UI)
+
+Two parts: reconciled local state to the merged PR #13, then built Phase 7 D-1…D-4 on `saqlain/phase-7`.
+
+- **Sync.** STATUS docs still called PR #13 OPEN; it was already merged. Fast-forwarded `main` to `a88b85e`, deleted all merged branches (local: `saqlain/p6-review`, `saqlain/phase-6`, `saqlain/p5-imp`, `shubham/idx-flag`; origin: `shubham/idx-flag`), and committed a STATUS sync (`0c90a72`). Verified the P5-IMP backend files (`imports.py`, `llm.py`, migration 014) are on `main` (unwired) before deleting `saqlain/p5-imp` — the "WIP stashed" note was stale.
+- **Design forks (asked Saqlain).** Dedicated run page (not inline) · full slice in one PR · defer P6-H1-FUP-C with honest W-bucket labeling · **migration 015 to persist run outputs** (the output `negative_carry_forward` was returned only in the POST body and persisted nowhere — a latent audit gap, not just a UI gap).
+- **D-1 backend.** Migration 015 adds `total_pvc`/`negative_carry_forward`/`quarter_used` (nullable) to `pvc_runs`, written at run INSERT from the engine result. `GET /pvc-runs/{id}` returns them + `superseded_by`. New `GET /contracts/{id}/pvc-runs` list (gated like `GET /contracts/{id}/bills`: 404 foreign, empty-not-404 for zero runs). Route count 42→43. `test_d1_pvc_run_results.py` (+5).
+- **D-2/D-3/D-4 frontend.** New run page `/contracts/[id]/bills/[billId]/runs/[runId]`: status badge, result summary, W-derivation panel (pure `lib/pvcWDerivation.ts` — named steps, honest `technical_withheld` label per deferred approach C), component breakdown, engine-generated bill lines. Approve button (409 `immutable_approved_run` inline) + Excel/PDF export buttons gated on `Approved`. New `apiDownload` helper (auth blob download honoring `Content-Disposition`) since `apiFetch` is JSON-only. Calculate card links to the run page; run-history list on bill detail. `lib/pvcRunStatus.ts` dedupes `statusVariant` from the bill page (+7 vitest).
+- **Verification.** 145/145 backend, 99/99 engine, 52/52 vitest, `tsc` + `eslint` + `next build` clean, route count 43. Migration 015 validated offline via `alembic upgrade 014:015 --sql`. **`D-FUP-1`:** apply migration 015 to Supabase before running PVC on real bills.
+- **Env note.** Backend tests run from `backend/.venv` (`uv`); engine tests need `hypothesis` → run via `uv run` from `engine/` (its own `.venv`).
 
 ### Session 26 — 2026-06-08 (Phase 6 C-3 — bill edit + recovery delete + net_amount)
 

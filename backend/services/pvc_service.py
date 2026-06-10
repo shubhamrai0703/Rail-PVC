@@ -603,12 +603,14 @@ async def persist_run_result(
                         INSERT INTO pvc_runs (
                             contract_id, bill_id, rule_set_id,
                             index_snapshot, bill_snapshot, w_derivation,
-                            status, idempotency_key
+                            status, idempotency_key,
+                            total_pvc, negative_carry_forward, quarter_used
                         )
                         VALUES (
                             :cid, :bid, :rsid,
                             CAST(:idx AS JSONB), CAST(:bsnap AS JSONB),
-                            CAST(:wd AS JSONB), 'Calculated', :key
+                            CAST(:wd AS JSONB), 'Calculated', :key,
+                            :total_pvc, :ncf, :quarter
                         )
                         RETURNING id::text AS id
                     """),
@@ -620,6 +622,13 @@ async def persist_run_result(
                         "bsnap": bill_payload.model_dump_json(),
                         "wd": result.w_derivation.model_dump_json(),
                         "key": idempotency_key,
+                        "total_pvc": (
+                            str(result.total_pvc)
+                            if result.total_pvc is not None
+                            else None
+                        ),
+                        "ncf": str(result.negative_carry_forward),
+                        "quarter": result.quarter_used,
                     },
                 )
             ).mappings().first()

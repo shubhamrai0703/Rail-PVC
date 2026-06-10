@@ -6,7 +6,8 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Phase
 
-- **Phase 6 COMPLETE — PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13) (P6-REVIEW + C-3) merged to `main` (2026-06-09).** `main` at `a88b85e`. Next: **Phase 7 (PVC run + results UI)**.
+- **Phase 7 (PVC run + results UI) — D-1…D-4 implemented on `saqlain/phase-7` (2026-06-10).** Dedicated run page `/contracts/[id]/bills/[billId]/runs/[runId]` (status, result totals, W-derivation, component breakdown, generated bill lines), approve flow, Excel/PDF export buttons, run-history list. **Migration 015** persists `total_pvc`/`negative_carry_forward`/`quarter_used` on `pvc_runs` (closed a latent audit gap — output carry-forward was previously unretrievable). New `GET /contracts/{id}/pvc-runs` list route (count 42→43). Awaiting commit + `P7-REVIEW`.
+- **Phase 6 COMPLETE — PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13) (P6-REVIEW + C-3) merged to `main` (2026-06-09).** `main` at `a88b85e`.
 - **Phase 5 + SH-P5-1..4 + P5-FUP + IDX-2..3 all on `main` (2026-05-30).** PRs #7/#8/#9 merged.
 - **Phase 6 C-1 + C-2 + demo seed + P5-IMP frontend + two demo smoke-test fixes merged to `main` (2026-06-02).**
 - **IDX-4 (PR #11) + SH-P5-5/6 export (PR #12) merged to `main` via merge-commits (2026-06-02).** Route count 38→40 (2 export routes; IDX-4 is frontend-only).
@@ -26,14 +27,14 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 - **No open review cycle.** `P6-REVIEW` closed (2026-06-04) and merged via PR #13 (2026-06-09) — Codex-S pass, 2 HIGH + 2 MEDIUM all fixed; P6-H1 via interim approach A (`P6-H1-FUP-C` tracks the C end-state).
 - **Phase 6 C-3 merged via PR #13.** `PUT /api/bills/{id}` + `DELETE /api/bills/{id}/recoveries/{rid}` + computed `net_amount` (gross − Σ non-PVC recoveries; **formula flagged for field validation — `C-3-FUP-NET`**). FE: inline bill-header edit + recovery delete. Route count 40→42.
-- `P5-REVIEW` closed and merged 2026-05-20; PRs #11/#12 merged clean (2026-06-02). Next checkpoint: `P7-REVIEW` after Phase 7 lands.
-- Suite state: **140/140 backend** (+15: C-3 PUT/DELETE + net formula), **99/99 engine**, **45/45 frontend vitest**, `tsc` + `eslint` clean. Route count **42**.
+- `P5-REVIEW` closed and merged 2026-05-20; PRs #11/#12 merged clean (2026-06-02). **Next checkpoint: `P7-REVIEW` (Codex-S) on `saqlain/phase-7` before merge.**
+- Suite state: **145/145 backend** (+5: D-1 run-results + run-list), **99/99 engine**, **52/52 frontend vitest** (+7: pvcWDerivation + pvcRunStatus), `tsc` + `eslint` + `next build` clean. Route count **43**.
 
 ## Branch State
 
 - `main` — up to date with origin at `a88b85e` (2026-06-09); PR #13 (Phase 6 P6-REVIEW + C-3) merged. **Only branch — local + origin cleaned 2026-06-09.**
+- `saqlain/phase-7` — **Phase 7 D-1…D-4. Not yet pushed / no PR.** Off `main` `a88b85e`. 145/99/52 green, route count 43. Ready for commit + `P7-REVIEW`.
 - All prior feature branches deleted after merge (`saqlain/p6-review`, `saqlain/phase-6`, `saqlain/p5-imp`, `shubham/idx-flag`, and earlier phase/test branches). P5-IMP backend code (`backend/api/imports.py`, `services/llm.py`, migration 014) is on `main` but **not wired into `main.py`** — see `P5-IMP-FUP-1`.
-- Phase 7 work starts on a fresh branch off `main`.
 
 ## What To Read
 
@@ -56,7 +57,7 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Priorities
 
-1. [CC-S] **Phase 7 (PVC run + results UI)** — D-1…D-4, off a fresh branch from `main`. C-3 stable, gate cleared. Alternatively P5-IMP backend wiring (LLM mapper + template CRUD + migration 014, already on `main` but unwired) as a parallel track.
+1. [CC-S] **Push `saqlain/phase-7` + open PR; run `P7-REVIEW` (Codex-S) before merge.** Then Phase 8 (Export UI) — D-4 done, SH-P5-5/6 export routes already merged. P5-IMP backend wiring remains a parallel track.
 2. [CC-S] When a real submission is available, validate `C-3-FUP-NET` (net_amount formula) and revisit `P6-H1-FUP-C` (dedicated W bucket).
 3. [CC-SH] Next task TBD. Export submission-format parity deferred to P8-REVIEW.
 

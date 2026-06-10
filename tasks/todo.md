@@ -1,34 +1,61 @@
-# C-3 — Bill header edit + recovery delete + computed net_amount
+# Phase 7 — PVC Run + Results UI (D-1…D-4)
 
-Branch: `saqlain/p6-review` (continues from P6-REVIEW). TDD per item.
+Branch: `saqlain/phase-7` off `main` (a88b85e + 0c90a72 docs).
+Owner: [CC-S]. Gate: C-3 stable ✅. Review: `P7-REVIEW` (Codex-S) after it lands.
 
-## Decision log
-- **net_amount formula = gross − Σ(recoveries WHERE affects_pvc_base=FALSE)** (Saqlain 2026-06-08,
-  option 1). FLAGGED for revisit — PVC-affecting recoveries treated as notional (reduce W via H1,
-  not net payable). If field reconciliation disagrees, switch to "net of ALL recoveries". Track as
-  `C-3-FUP-NET`. Computed server-side on read (backend owns derived financial values).
+## Decisions locked (2026-06-09)
 
-## Backend
-- [x] B1. `_NET_AMOUNT_EXPR` SQL constant in bills.py; use in GET list, GET detail, PUT-return SELECT.
-- [x] B2. `PUT /api/bills/{id}` — `BillUpdate` partial (model_fields_set). Tenant gate. Reject explicit
-      null on NOT NULL (bill_number, measurement_date); reject bill_number<=0 / gross_amount<=0/null;
-      409 on UNIQUE(contract_id, bill_number); empty body → current row. Returns computed net.
-- [x] B3. `DELETE /api/bills/{id}/recoveries/{rid}` — `_assert_recovery_under_bill_for_tenant`
-      two-step gate; 204; scope DELETE to (id, bill_id).
-- [x] B4. Route count 40 → 42; bump `test_p3_08` assertion.
+1. **Dedicated run page** — `/contracts/[id]/bills/[billId]/runs/[runId]`. Calculate card links to it.
+2. **Full slice** in one PR: results view + breakdown + bill lines + approve + run history + export buttons.
+3. **Defer W-bucket (P6-H1-FUP-C)** — keep interim approach A; label the conflated bucket honestly in the
+   W-derivation display ("Technical withheld (incl. PVC-affecting recoveries)"). Real C migration is its
+   own engine-touching PR.
 
-## Backend tests
-- [x] T1. PUT: valid update, empty-body noop, wrong-tenant 404, dup bill_number 409,
-      bill_number<=0 422, gross_amount<=0 422, null measurement_date FieldNotNullable.
-- [x] T2. DELETE: valid, wrong-tenant 404, recovery-not-under-bill 404.
-- [x] T3. net_amount formula via aiosqlite running the exported `_NET_AMOUNT_EXPR`
-      (gross 100000, FALSE recovery 10000, TRUE recovery 5000 → net 90000).
+## Backend state (already on main — reuse, don't rebuild)
 
-## Frontend
-- [x] F1. Bill header inline edit (Edit→form→PUT, 409 inline, invalidate `bill`).
-- [x] F2. Recovery delete button per row (confirm → DELETE → invalidate recoveries + bill).
-- [x] F3. net_amount label note ("net of non-PVC recoveries"); shows computed value.
+- `POST /contracts/{id}/pvc-runs` → `{id, total_pvc, negative_carry_forward, quarter_used}` (idempotent)
+- `POST /pvc-runs/{id}/approve` → 409 `ImmutableApprovedRun` if already approved
+- `GET /pvc-runs/{id}` → `{id, contract_id, bill_id, status, w_derivation, approved_by, approved_at,
+  created_at, components[]}` — **missing total/carry/quarter**
+- `GET /pvc-runs/{id}/export/{excel,pdf}` → approved-only, 422 `run_not_approved` otherwise
+- **Missing:** list-runs endpoint for history.
 
-## Verify + ship
-- [x] V1. backend pytest, engine, vitest, tsc, eslint all green.
-- [x] V2. Update REVIEW/STATUS/TASKS/SESSION_LOG + vault. Commit. Push branch.
+## Tasks
+
+### D-1 — Backend: results completeness + run list
+- [x] D-1a: **Migration 015** — add `total_pvc NUMERIC(15,4)`, `negative_carry_forward NUMERIC(15,4)`,
+      `quarter_used TEXT` (all nullable) to `pvc_runs`. Decision 2026-06-09: output carry-forward was
+      persisted nowhere (latent audit gap). Write them at run INSERT from the engine result.
+      Extend `GET /pvc-runs/{id}` to return them (additive keys). Backfill: leave existing rows NULL
+      (dev-only data; `total_pvc` still derivable as Σ components if needed).
+- [x] D-1b: New `GET /contracts/{id}/pvc-runs` — list runs (id, bill_id, bill_number, status, total_pvc,
+      created_at, approved_at), newest first. Tenant gate via contract→tenant. Empty list (not 404).
+      Route count 42→43.
+- [x] D-1c: Tests — totals in GET detail; list endpoint (happy, empty, wrong-tenant 404). Bump route-count
+      assertion in `test_p3_08_clean_import.py`.
+
+### D-2 — Frontend: run results page
+- [x] D-2a: Route `/contracts/[id]/bills/[billId]/runs/[runId]/page.tsx`. TanStack Query on `GET /pvc-runs/{runId}`.
+- [x] D-2b: Header — status Badge (Draft/Approved/Superseded), total PVC, carry-forward, quarter, created/approved meta.
+- [x] D-2c: Component breakdown table — category, eligible_amount, base_index, current_avg_index, weight, pvc_value.
+- [x] D-2d: W-derivation panel — render JSONB as named subtraction steps (PRODUCT.md rule 1). Honest bucket label (decision 3).
+- [x] D-2e: Generated bill-lines table — populated post-run; reuse the read-only lines table (`GET /bills/{id}/lines`).
+
+### D-3 — Frontend: approve flow + exports
+- [x] D-3a: Approve button (Draft only) → `POST /pvc-runs/{id}/approve`; status flip + invalidate. 409 inline (silent toast).
+- [x] D-3b: Export buttons (Excel/PDF) — enabled only when status=Approved; disabled + tooltip otherwise (mirror 422).
+- [x] D-3c: Wire Calculate-PVC card (bill detail) to link to the new run page via returned `id` ("View full results →").
+
+### D-4 — Frontend: run history + tests
+- [x] D-4a: Run-history list on bill detail from `GET /contracts/{id}/pvc-runs` filtered to this bill; link each to its run page.
+- [x] D-4b: Pure helpers + vitest: w_derivation → display steps, export-enablement gate, status→badge mapping.
+- [x] D-4c: `npm run build` + `tsc` + `eslint` + `vitest` clean.
+
+### Wrap
+- [ ] Full backend suite green, engine 99/99 unchanged, vitest green, route count 43.
+- [x] Docs sync: STATUS (Phase 7 done), TASKS (D-1…D-4 rows), SESSION_LOG entry.
+- [ ] Open PR → `main`, request `P7-REVIEW`.
+
+## Open verifications during impl
+- Where the engine persists `negative_carry_forward` + `quarter_used` (w_derivation vs bill_snapshot) — drives D-1a.
+- Superseded runs: `superseded_by` column exists — show "Superseded" badge when non-null.

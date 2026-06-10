@@ -204,17 +204,29 @@ Status: **frontend complete on `saqlain/p5-imp` (2026-06-02)**. Replaces the Ses
 | P5-IMP-FUP-1 | Wire backend (router include, anthropic dep, env, route-count bump, pytest) | [CC-S] | pending | Separate branch off `main` once P5-IMP frontend merges |
 | P5-IMP-FUP-2 | Templates apply/save UI in `ImportRowsModal` | [CC-S] | pending | Blocked on FUP-1 |
 
-### Phases 7–9 — Forward Plan
+### Phase 7 — PVC Run + Results UI `[CC-S]`
+
+Status: **implemented on `saqlain/phase-7` (2026-06-10).** 145/145 backend, 99/99 engine, 52/52 vitest, tsc/eslint/next-build clean, route count 43. Awaiting commit + `P7-REVIEW`.
+
+| ID | Title | Owner | Status | Notes |
+|---|---|---|---|---|
+| D-1a | Migration 015 + persist/return run result totals | [CC-S] | complete | `pvc_runs` gains `total_pvc`/`negative_carry_forward`/`quarter_used` (nullable), written at run INSERT from the engine result; `GET /pvc-runs/{id}` returns them + `superseded_by`. Closes a latent audit gap — the **output** carry-forward was previously returned only in the POST body and persisted nowhere. |
+| D-1b | `GET /api/contracts/{id}/pvc-runs` run-history list | [CC-S] | complete | Gated by `assert_contract_belongs_to_tenant` (404 foreign contract, empty list for zero runs — mirrors `GET /contracts/{id}/bills`). Newest first. Route count 42→43. |
+| D-1c | Backend tests | [CC-S] | complete | `test_d1_pvc_run_results.py` (5): GET-detail totals + components, wrong-tenant 404, list happy/empty/wrong-tenant. Route-count assertion bumped to 43. |
+| D-2 | Run results page | [CC-S] | complete | `/contracts/[id]/bills/[billId]/runs/[runId]`. Status badge, result summary, W-derivation panel (named steps; honest `technical_withheld` label per deferred P6-H1-FUP-C), component breakdown, engine-generated bill lines. |
+| D-3 | Approve flow + exports | [CC-S] | complete | Approve button (409 `immutable_approved_run` inline) + Excel/PDF buttons gated on `Approved` (mirrors 422 `run_not_approved`). New `apiDownload` helper in `lib/api/client.ts` (auth blob download honoring `Content-Disposition`). Calculate card links to run page via returned `id`. |
+| D-4 | Run history + tests | [CC-S] | complete | Run-history list on bill detail filtered to the bill. Pure `lib/pvcWDerivation.ts` + `lib/pvcRunStatus.ts` (statusVariant deduped from bill page) with 7 vitest. |
+| D-FUP-1 | Apply migration 015 to Supabase before running PVC on real bills | [CC-S] | pending | Dev DB needs `alembic upgrade head`; existing rows keep NULL totals (acceptable — pre-Phase-7). |
+
+### Phases 8–9 — Forward Plan
 
 | Phase | Owner | Dependency |
 |---|---|---|
-| Phase 7 — PVC run + results UI (D-1…D-4) | [CC-S] | C-3 stable |
-| Phase 8 — Export UI (E-1, E-2) | [CC-S] | D-4 + SH-P5-5…6 merged |
+| Phase 8 — Export UI (E-1, E-2) | [CC-S] | Phase 7 merged + SH-P5-5…6 merged ✅ |
 | Phase 9 — E2E + integration (F-1…F-3) | [CC-S]+[CC-SH] | Phase 8 stable |
 
 ## Next Review Checkpoints
 
-- `P5-REVIEW` — Codex-S adversarial pass after Phase 5 UI (B-1…B-5) lands
-- `SH-P5-REVIEW` — CC-S review of Shubham's GET endpoints + exports before merge
+- `P7-REVIEW` — Codex-S adversarial pass on `saqlain/phase-7` before merge
 - `P8-REVIEW` — export format parity review
 - `P9-DEBUG` — second-pass debugging and edge-case hunt
