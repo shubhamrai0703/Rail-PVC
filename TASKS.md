@@ -206,7 +206,7 @@ Status: **frontend complete on `saqlain/p5-imp` (2026-06-02)**. Replaces the Ses
 
 ### Phase 7 — PVC Run + Results UI `[CC-S]`
 
-Status: **implemented on `saqlain/phase-7` (2026-06-10).** 145/145 backend, 99/99 engine, 52/52 vitest, tsc/eslint/next-build clean, route count 43. Awaiting commit + `P7-REVIEW`.
+Status: **implemented + P7-REVIEW remediated on `saqlain/phase-7` (2026-06-11).** 153/153 backend, 99/99 engine, 52/52 vitest, tsc/eslint/next-build clean, route count 43. All HIGH/MEDIUM findings closed (see [REVIEW.md](REVIEW.md)); awaiting merge of PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14).
 
 | ID | Title | Owner | Status | Notes |
 |---|---|---|---|---|
@@ -216,7 +216,9 @@ Status: **implemented on `saqlain/phase-7` (2026-06-10).** 145/145 backend, 99/9
 | D-2 | Run results page | [CC-S] | complete | `/contracts/[id]/bills/[billId]/runs/[runId]`. Status badge, result summary, W-derivation panel (named steps; honest `technical_withheld` label per deferred P6-H1-FUP-C), component breakdown, engine-generated bill lines. |
 | D-3 | Approve flow + exports | [CC-S] | complete | Approve button (409 `immutable_approved_run` inline) + Excel/PDF buttons gated on `Approved` (mirrors 422 `run_not_approved`). New `apiDownload` helper in `lib/api/client.ts` (auth blob download honoring `Content-Disposition`). Calculate card links to run page via returned `id`. |
 | D-4 | Run history + tests | [CC-S] | complete | Run-history list on bill detail filtered to the bill. Pure `lib/pvcWDerivation.ts` + `lib/pvcRunStatus.ts` (statusVariant deduped from bill page) with 7 vitest. |
-| D-FUP-1 | Apply migration 015 to Supabase before running PVC on real bills | [CC-S] | pending | Dev DB needs `alembic upgrade head`; existing rows keep NULL totals (acceptable — pre-Phase-7). |
+| D-FUP-1 | Apply migration 015 to Supabase before running PVC on real bills | [CC-S] | complete | Done 2026-06-11 via `alembic upgrade head` (DB now at 016; stamped 013 — `is_admin` pre-existed out-of-band; created `get_tenant_id()` so 014's RLS policies could apply). Existing rows keep NULL totals (acceptable — pre-Phase-7). |
+| P7-FUP-L1 | Extract shared `authedFetch` from `apiFetch`/`apiDownload` | [CC-S] | pending | P7-REVIEW L1 deferral. The two error pipelines have already drifted (string-`detail` fallback + network logging differ); `silent` option on `apiDownload` has zero callers. Refactor only — no behavior change. |
+| P7-FUP-L2 | `describeWDerivation` arithmetic guard | [CC-S] | pending | P7-REVIEW L2 deferral. Assert `base − Σ subtractions === w`; render a warning row on non-zero residual. **Must land with/before P6-H1-FUP-C approach C** — a new W bucket would otherwise be silently dropped from the audit display. |
 
 ### Phases 8–9 — Forward Plan
 

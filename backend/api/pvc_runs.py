@@ -102,20 +102,30 @@ async def approve_run(
         # for a clean structured error rather than relying on the trigger
         # exception bubbling up.
         raise ImmutableApprovedRun(run_id)
+    if row["status"] not in {"Draft", "Calculated"}:
+        # P7-H1: Superseded/ExceptionFlagged/Exported runs are not approvable —
+        # only the current Calculated (or legacy Draft) run may become official.
+        raise ValidationProblem(
+            f"Run with status {row['status']} cannot be approved — "
+            "only a Calculated run can become the official run for a bill",
+            run_id=run_id,
+            status=row["status"],
+        )
 
     updated = (
         await session.execute(
             text("""
                 UPDATE pvc_runs
                 SET status = 'Approved', approved_by = :by, approved_at = NOW()
-                WHERE id = :rid AND status <> 'Approved'
+                WHERE id = :rid AND status IN ('Draft', 'Calculated')
                 RETURNING id::text AS id, approved_at
             """),
             {"rid": run_id, "by": user.display_name},
         )
     ).mappings().first()
     if updated is None:
-        # Race: another caller just approved it.
+        # Race: another caller approved it, or a concurrent calculate
+        # superseded it, between our gate SELECT and this UPDATE.
         raise ImmutableApprovedRun(run_id)
     return {"id": updated["id"], "status": "Approved", "approved_at": updated["approved_at"]}
 
@@ -133,7 +143,8 @@ async def get_run(
                        r.bill_id::text AS bill_id, r.status::text AS status,
                        r.total_pvc, r.negative_carry_forward, r.quarter_used,
                        r.superseded_by::text AS superseded_by,
-                       r.w_derivation, r.approved_by, r.approved_at, r.created_at
+                       r.w_derivation, r.lines_snapshot,
+                       r.approved_by, r.approved_at, r.created_at
                 FROM pvc_runs r
                 JOIN contracts c ON c.id = r.contract_id
                 WHERE r.id = :rid AND c.tenant_id = :tid

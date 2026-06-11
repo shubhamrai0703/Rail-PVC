@@ -19,14 +19,22 @@ Use it for current milestone decisions and recent sessions only.
 - **PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13) (P6-REVIEW + C-3) MERGED to `main` (2026-06-09); `main` at `a88b85e`.** Branches cleaned (local + origin).
 - **Phase 7 (PVC run + results UI) implemented on `saqlain/phase-7` (2026-06-10).** Dedicated run page + approve flow + exports + run history; migration 015 persists run result totals. Awaiting commit + `P7-REVIEW`.
 - **Shubham's next task:** TBD.
-- Test suite: **145/145 backend**, 99/99 engine, **52/52 frontend vitest**, `tsc` + `eslint` + `next build` clean. Route count **43**.
-- DB migrations at head (015 — `pvc_runs` result totals). Run `alembic upgrade head` on Supabase before running PVC on real bills (`D-FUP-1`).
+- **P7-REVIEW remediated on `saqlain/phase-7` (2026-06-11) — PR #14 merge unblocked.** **PR [#15](https://github.com/saqlainmmomin/Rail-PVC/pull/15) (IDX-1 RBI backfill, [CC-SH]) merged to `main` (2026-06-11).**
+- Test suite: **153/153 backend**, 99/99 engine, **52/52 frontend vitest**, `tsc` + `eslint` + `next build` clean. Route count **43**.
+- **Supabase DB at migration head (016).** Applied 2026-06-11: stamped 013 (`is_admin` pre-existed), 014 (`import_templates`), 015 (run result totals), 016 (`lines_snapshot`). RLS helper note: DB function is `current_tenant_id()`; `get_tenant_id()` (referenced by migrations 009/014) was created with the identical body to unblock 014.
 - Local backend: `cd backend && source .venv/bin/activate && uvicorn main:app --reload --port 8000`
 - Local frontend: `cd frontend && npm run build && npm start` (port 3000) — always rebuild after code changes
 - DB: Supabase at `ivselmhloegjmqrjekcy.supabase.co`.
 - Tenant provisioned for `saqlainmmomin@gmail.com` — tenant_id `bd589426-93ba-4847-b5f3-1f69b020b4c0`.
 
 ## Recent Sessions
+
+### Session 28 — 2026-06-11 (P7-REVIEW remediation + PR #15 RBI backfill merge)
+
+- **PR #15 (IDX-1, [CC-SH]) reviewed + merged to `main`.** Verified before merge: the claimed +70 workbook error on `plant_machinery`/`fuel` confirmed to the penny at Dec-2024 (160.0→90.0, 160.48→90.48 vs WPI/PPAC sources); `labour`/`cement`/`other_materials` match the workbook exactly; per-run `revision_snapshots` make existing runs immune to the `ON CONFLICT DO UPDATE`. DB already carried the corrected data (246 RBI rows since 2022-04) — Shubham ran the seed pre-PR.
+- **P7-REVIEW: all HIGH/MEDIUM closed** (CC Responses in REVIEW.md). H1: approve gated to Draft/Calculated at both layers (422 otherwise + race-guard WHERE) **and** supersede-at-INSERT in `persist_run_result` (prior Calculated runs → `Superseded` with `superseded_by`); run page shows a superseded banner linking forward. H2: **reviewer premise was wrong** — `bill_snapshot` is the engine input (aggregates), lines were never persisted per run; fixed at root with migration 016 `lines_snapshot` JSONB captured at INSERT, returned by `GET /pvc-runs/{id}`, rendered on the run page (pre-016 runs say "not captured"); live-lines fetch removed, which also closes M3. M2: `apiDownload` blob-failure + `URIError` paths now surface. M4: case-insensitive bill_id filter. L1/L2 → `P7-FUP-L1/L2`.
+- **M1/D-FUP-1: Supabase migrated to head (016).** Found `alembic_version` stale at 012 with `is_admin` already in the DB → stamped 013. Migration 014 failed on missing `get_tenant_id()` — DB's RLS helper is named `current_tenant_id()`; created `get_tenant_id()` (identical body, per migration 009) and upgraded 014→016 clean.
+- **Verification.** 153/153 backend (+8 pins in `test_p7_review_h1_h2.py`), 99/99 engine implied unchanged (no engine edits), 52/52 vitest, `tsc` + `eslint` + `next build` clean.
 
 ### Session 27 — 2026-06-10 (Sync to main + Phase 7 PVC run + results UI)
 

@@ -20,6 +20,15 @@ interface PvcComponent {
   pvc_value: string | number;
 }
 
+interface SnapshotLine {
+  id: string;
+  item_id: string;
+  qty_up_to_date: string | number;
+  amount_since_last: string | number;
+  amount_up_to_date: string | number;
+  special_condition_amount: string | number;
+}
+
 interface PvcRun {
   id: string;
   contract_id: string;
@@ -30,19 +39,13 @@ interface PvcRun {
   quarter_used: string | null;
   superseded_by: string | null;
   w_derivation: WDerivation | null;
+  /** Bill lines as they stood when this run was calculated (P7-H2).
+   *  null on runs that pre-date migration 016. */
+  lines_snapshot: SnapshotLine[] | null;
   approved_by: string | null;
   approved_at: string | null;
   created_at: string;
   components: PvcComponent[];
-}
-
-interface BillLine {
-  id: string;
-  item_id: string;
-  qty_up_to_date: string | number;
-  amount_since_last: string | number;
-  amount_up_to_date: string | number;
-  special_condition_amount: string | number;
 }
 
 export default function PvcRunPage({
@@ -56,11 +59,6 @@ export default function PvcRunPage({
   const runQuery = useQuery<PvcRun>({
     queryKey: ["pvc-run", runId],
     queryFn: () => apiFetch<PvcRun>(`/api/pvc-runs/${runId}`),
-  });
-
-  const linesQuery = useQuery<BillLine[]>({
-    queryKey: ["bill-lines", billId],
-    queryFn: () => apiFetch<BillLine[]>(`/api/bills/${billId}/lines`),
   });
 
   // Approve — flips Draft/Calculated → Approved. 409 (immutable_approved_run)
@@ -136,7 +134,7 @@ export default function PvcRunPage({
             <Badge variant={statusVariant(run.status)}>{run.status}</Badge>
           </div>
           <div className="flex items-center gap-2">
-            {run.status !== "Approved" && (
+            {run.status === "Calculated" && (
               <Button
                 type="button"
                 variant="primary"
@@ -176,6 +174,21 @@ export default function PvcRunPage({
           </div>
         </div>
       </header>
+
+      {run.status === "Superseded" && (
+        <div className="text-[12px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+          This run was superseded by a newer calculation and can no longer be
+          approved.{" "}
+          {run.superseded_by && (
+            <Link
+              href={`/contracts/${id}/bills/${billId}/runs/${run.superseded_by}`}
+              className="text-slate-900 underline underline-offset-2"
+            >
+              View the current run
+            </Link>
+          )}
+        </div>
+      )}
 
       {approveError && (
         <div className="text-[12px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
@@ -309,51 +322,58 @@ export default function PvcRunPage({
         </div>
       </section>
 
-      {/* Engine-generated bill lines for this bill. */}
+      {/* Bill lines as of this run (P7-H2). Live lines can change after a
+          recalculate, so the run renders only its own snapshot. */}
       <section className="space-y-2">
-        <h2 className="text-[14px] font-medium text-slate-900">Bill lines</h2>
-        <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
-          <div
-            className="px-5 py-3 grid grid-cols-[1fr_repeat(4,minmax(0,1fr))] gap-4
-                       text-[11px] uppercase tracking-wider text-slate-500 font-medium
-                       border-b border-slate-200 bg-slate-50"
-          >
-            <div>Item</div>
-            <div className="text-right">Qty to date</div>
-            <div className="text-right">Amt since last</div>
-            <div className="text-right">Amt to date</div>
-            <div className="text-right">Special cond.</div>
+        <h2 className="text-[14px] font-medium text-slate-900">
+          Bill lines at calculation
+        </h2>
+        {run.lines_snapshot === null ? (
+          <div className="text-[13px] text-slate-400 border border-slate-200 rounded-xl bg-white px-5 py-6">
+            Bill lines were not captured for this run — it pre-dates line
+            snapshots. The bill page shows the current lines.
           </div>
-          {linesQuery.isLoading && (
-            <div className="px-5 py-6 text-[13px] text-slate-400">Loading…</div>
-          )}
-          {!linesQuery.isLoading && (linesQuery.data?.length ?? 0) === 0 && (
-            <div className="px-5 py-6 text-[13px] text-slate-400">
-              No lines generated for this bill.
-            </div>
-          )}
-          {linesQuery.data?.map((l, i) => (
+        ) : (
+          <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
             <div
-              key={l.id}
-              className={
-                "px-5 h-11 grid grid-cols-[1fr_repeat(4,minmax(0,1fr))] gap-4 items-center text-[12px] font-mono text-slate-700 " +
-                (i < linesQuery.data!.length - 1 ? "border-b border-slate-100" : "")
-              }
+              className="px-5 py-3 grid grid-cols-[1fr_repeat(4,minmax(0,1fr))] gap-4
+                         text-[11px] uppercase tracking-wider text-slate-500 font-medium
+                         border-b border-slate-200 bg-slate-50"
             >
-              <div className="truncate">{l.item_id}</div>
-              <div className="text-right">{String(l.qty_up_to_date)}</div>
-              <div className="text-right">
-                {formatINRWithSymbol(l.amount_since_last)}
-              </div>
-              <div className="text-right">
-                {formatINRWithSymbol(l.amount_up_to_date)}
-              </div>
-              <div className="text-right">
-                {formatINRWithSymbol(l.special_condition_amount)}
-              </div>
+              <div>Item</div>
+              <div className="text-right">Qty to date</div>
+              <div className="text-right">Amt since last</div>
+              <div className="text-right">Amt to date</div>
+              <div className="text-right">Special cond.</div>
             </div>
-          ))}
-        </div>
+            {run.lines_snapshot.length === 0 && (
+              <div className="px-5 py-6 text-[13px] text-slate-400">
+                The bill had no lines when this run was calculated.
+              </div>
+            )}
+            {run.lines_snapshot.map((l, i) => (
+              <div
+                key={l.id}
+                className={
+                  "px-5 h-11 grid grid-cols-[1fr_repeat(4,minmax(0,1fr))] gap-4 items-center text-[12px] font-mono text-slate-700 " +
+                  (i < run.lines_snapshot!.length - 1 ? "border-b border-slate-100" : "")
+                }
+              >
+                <div className="truncate">{l.item_id}</div>
+                <div className="text-right">{String(l.qty_up_to_date)}</div>
+                <div className="text-right">
+                  {formatINRWithSymbol(l.amount_since_last)}
+                </div>
+                <div className="text-right">
+                  {formatINRWithSymbol(l.amount_up_to_date)}
+                </div>
+                <div className="text-right">
+                  {formatINRWithSymbol(l.special_condition_amount)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

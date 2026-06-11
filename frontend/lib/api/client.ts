@@ -140,7 +140,16 @@ export async function apiDownload(
     throw err;
   }
 
-  const blob = await res.blob();
+  let blob: Blob;
+  try {
+    blob = await res.blob();
+  } catch (cause) {
+    // P7-M2: connection dropped mid-body after 200 headers — without this
+    // the click ends with no file and no feedback.
+    const err = new ApiError(0, "Download interrupted — connection lost", { cause });
+    if (!silent) toast.error("Download failed", { description: `GET ${path}` });
+    throw err;
+  }
   const filename = filenameFromDisposition(
     res.headers.get("content-disposition"),
     fallbackFilename,
@@ -162,7 +171,15 @@ function filenameFromDisposition(
   if (!disposition) return fallback;
   // Handles both `filename="x.pdf"` and RFC 5987 `filename*=UTF-8''x.pdf`.
   const star = /filename\*=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
-  if (star?.[1]) return decodeURIComponent(star[1]);
+  if (star?.[1]) {
+    // P7-M2: a malformed % sequence in the header must not abort the
+    // download — fall back to the caller's filename.
+    try {
+      return decodeURIComponent(star[1]);
+    } catch {
+      return fallback;
+    }
+  }
   const plain = /filename="?([^";]+)"?/i.exec(disposition);
   return plain?.[1] ?? fallback;
 }

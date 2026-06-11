@@ -97,7 +97,11 @@ export default function BillDetailPage({
     queryKey: ["contract-runs", id],
     queryFn: () => apiFetch<RunSummary[]>(`/api/contracts/${id}/pvc-runs`),
   });
-  const billRuns = (runsQuery.data ?? []).filter((r) => r.bill_id === billId);
+  // P7-M4: the backend emits lowercase UUIDs but the URL segment may carry an
+  // uppercase one (bookmark/manual entry) — compare case-insensitively.
+  const billRuns = (runsQuery.data ?? []).filter(
+    (r) => r.bill_id.toLowerCase() === billId.toLowerCase(),
+  );
 
   // Calculate PVC — calls the engine synchronously (POST /pvc-runs). On success
   // the engine writes the bill's lines and recomputes amounts, so we invalidate
