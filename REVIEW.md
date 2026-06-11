@@ -11,62 +11,95 @@ Use this file for the current live review state only.
 
 ## Active Cycle
 
-**P6-REVIEW** — opened 2026-06-04. Adversarial pass by **Codex-S** on the merged Phase 6 Bill Entry UI (C-1, C-2, C-2-FIX-A, C-2-FIX-B). This work merged to `main` without a prior adversarial review; this cycle closes that gap before Phase 7.
+**P7-REVIEW** — opened 2026-06-10. Adversarial pass by **CC-S** (Fable 5) on `saqlain/phase-7` (PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14)) implementing Phase 7 D-1…D-4: PVC run results UI, approve flow, export buttons, run-history list, migration 015.
 
-**Scope (already on `main`):**
-- C-1 / C-2 core — PR #10 (`0ccd765`), diff `ba1324e..0ccd765`
-- C-2-FIX-A / C-2-FIX-B — folded into `0b96ec5`
+**Scope (on `saqlain/phase-7`):**
+- `backend/api/pvc_runs.py` (new `GET /contracts/{id}/pvc-runs`; extended `GET /pvc-runs/{id}` with result totals)
+- `backend/services/pvc_service.py` (persist_run_result — writes total_pvc/negative_carry_forward/quarter_used at INSERT)
+- `backend/migrations/versions/015_pvc_run_outputs.py` (adds 3 nullable NUMERIC/TEXT cols to pvc_runs)
+- `backend/tests/test_d1_pvc_run_results.py` (5 new tests)
+- `frontend/app/(app)/contracts/[id]/bills/[billId]/page.tsx` (run-history list, Calculate-card link)
+- `frontend/app/(app)/contracts/[id]/bills/[billId]/runs/[runId]/page.tsx` (new run results page)
+- `frontend/lib/api/client.ts` (new `apiDownload` helper)
+- `frontend/lib/pvcRunStatus.ts` + `pvcWDerivation.ts` (pure helpers + 7 vitest)
 
-**Files in scope:**
-- `backend/api/bills.py` (C-1: `ConflictProblem` on `UNIQUE(contract_id, bill_number)`, tenant gate, dropped client `net_amount`)
-- `backend/tests/test_c1_bills_create.py`
-- `frontend/app/(app)/contracts/[id]/bills/page.tsx` (bills list + create)
-- `frontend/app/(app)/contracts/[id]/bills/[billId]/page.tsx` (bill detail + Calculate PVC card)
-- `frontend/components/contracts/BillForm.tsx`
-- `frontend/components/contracts/RecoveryForm.tsx`
-- `frontend/app/(app)/contracts/[id]/page.tsx` (bills link)
-- `frontend/components/contracts/ItemsGrid.tsx` (C-2-FIX-A number parser/formatter)
+**Status (2026-06-11): ALL HIGH + MEDIUM CLOSED — merge unblocked.** H1/H2/M2/M3/M4 fixed in code (CC Responses below); M1 closed operationally (migrations applied to Supabase). 2 LOW deferred to TASKS.md (`P7-FUP-L1`, `P7-FUP-L2`). Suite after remediation: **153/153 backend** (+8 pins), 99/99 engine, 52/52 vitest, `tsc` + `eslint` + `next build` clean.
 
-**Out of scope:** C-3 (not yet implemented), IDX-4, SH-P5 exports, P5-IMP (separately reviewed/merged). Demo seed (`seeds/seed_demo_contract.py`) is tracked under DEMO-2, not here.
+---
 
-**Status (2026-06-04):** Codex returned 2 HIGH, 2 MEDIUM, 0 CRITICAL/LOW. All four code-verified by CC-S. **All four closed** — P6-H1 via interim approach A (recoveries → `technical_withheld`), per Saqlain's A-now/C-later decision (see H1 below; C tracked as P6-H1-FUP-C). Suite: **125/125 backend, 45/45 vitest, tsc + eslint clean**, route count 40. Cycle ready to collapse to a closure pointer once changes are committed/merged.
+### [HIGH] P7-H1 — Approve button shown for all non-Approved statuses; bill can end up with multiple Approved runs
 
-### [HIGH] P6-H1 — `affects_pvc_base` recoveries are ignored by PVC calculation
+- **Files:** `frontend/app/(app)/contracts/[id]/bills/[billId]/runs/[runId]/page.tsx:139` + `backend/api/pvc_runs.py:99`
+- **Verified:** Run page shows Approve button when `run.status !== "Approved"` — includes Superseded, ExceptionFlagged, Exported. The backend `approve_run` gate only rejects `status == "Approved"` — no other check. Compounding it: **nothing in the backend ever writes `superseded_by` or status `Superseded`** — `POST /pvc-runs` (calculate) always INSERTs a new `Calculated` row with no supersede logic. So the run-history list on the bill page shows two `Calculated` runs with different totals and no "current" marker; both can be independently approved; both then pass `canExportRun` and produce conflicting official Excel/PDFs for the same bill. TASKS.md D-3a specified "Approve button (Draft only)"; the implementation gates on `!== Approved` instead.
+- **Proposed fix:** Restrict approve at both layers to `Calculated` (the only status produced at INSERT). Backend: add `if row["status"] not in {"Calculated", "Draft"}: raise ValidationProblem(...)`. Frontend: gate button on `run.status === "Calculated"`. Additionally, implement supersede at INSERT time in `persist_run_result` — mark prior `Calculated` runs for the same bill as `Superseded` before writing the new one — or track it as `P7-H1-FUP-SUPERSEDE` with an explicit acceptance note.
+- **Test that would catch it:** assert `POST /pvc-runs/{id}/approve` returns 422 when status is `Superseded`; assert the run page does not render Approve for a Superseded run.
+- **CC Response (2026-06-11): CLOSED.** Both layers gated and supersede implemented at INSERT (not deferred). Backend: `approve_run` now 422s (`ValidationProblem` with `status` extra) for any status outside `{Draft, Calculated}`; the UPDATE's WHERE re-checks `status IN ('Draft','Calculated')` so the supersede/approve race can't slip through. `persist_run_result` marks prior `Draft`/`Calculated` runs for the bill as `Superseded` with `superseded_by = <new run id>` inside the same savepoint as the INSERT — Approved rows are never touched (migration-011 trigger would forbid it anyway). Frontend: Approve renders only for `status === "Calculated"`; a Superseded run shows an explanatory banner linking to the superseding run. Pinned by `test_p7_review_h1_h2.py`: parametrized 422 for Superseded/ExceptionFlagged/Exported, 409 retained for Approved, success path asserts the race-guard WHERE, and the supersede UPDATE is asserted to scope `bill_id` + exclude the new run + touch only Draft/Calculated.
 
-- **File:** `backend/services/pvc_service.py:429` (`build_bill_payload`)
-- **Verified:** `build_bill_payload` sets `on_account_amount` from `running_bills.gross_amount` and hard-codes `technical_withheld=Decimal("0")`. It never queries the `recoveries` table. Meanwhile `backend/api/bills.py:33-35` documents the *intended* behavior: "`affects_pvc_base` … drives whether the recovery is subtracted from the engine's on_account amount during W derivation." So the invariant is documented but unimplemented — a recovery with `affects_pvc_base=TRUE` is silently dropped from W. Confirmed plausible-but-wrong-number per W formula in `PRODUCT.md:60-67` (`W = OnAccount − … − TechnicalWithheld − …`).
-- **Proposed fix (pending domain confirmation):** in `build_bill_payload`, sum `recoveries.amount WHERE affects_pvc_base = TRUE` for the bill and feed it into the engine as a **named** W subtraction. Per `PRODUCT.md` rule 1 ("every subtraction is a named, confirmed step"), `TechnicalWithheld` is the only existing W bucket that fits — so route it there rather than silently netting `on_account`. **Open decision for Saqlain:** confirm the bucket + that `affects_pvc_base=TRUE` == "reduces W". **Risk:** changes pinned demo-fixture PVC outputs (`bct_2425_252_*`) if those bills carry such recoveries — must re-reconcile DEMO fixtures.
-- **Test that would catch it:** payload-construction test — bill `gross=100000`, one recovery `amount=10000, affects_pvc_base=TRUE` → assert W derives from `90000` (i.e. `technical_withheld=10000`), and a second recovery with `affects_pvc_base=FALSE` does **not** move W.
-- **DECISION (Saqlain, 2026-06-04): approach A now, approach C later — and A is explicitly NOT our best long-term bet.** Interim: sum `affects_pvc_base = TRUE` recoveries into the engine's existing `technical_withheld` bucket. Rationale: zero engine/model change, and the deduction stays a *named* W subtraction (PRODUCT.md rule 1) — superior to approach B (netting `on_account`), which was rejected for hiding the subtraction. **Known limitation of A:** it overloads `technical_withheld`, conflating genuine technical withholding with PVC-affecting recoveries; they can't be disaggregated in `w_derivation`. **Agreed end-state is approach C** — a dedicated `RecoveriesAffectingPVC` W bucket distinct from `technical_withheld` — tracked as a follow-up (see TASKS.md P6-H1-FUP-C). Migrate A→C before any context where the two deductions must show separately.
-- **CC Response:** **Closed (interim A).** `build_bill_payload` (`backend/services/pvc_service.py`) now runs `SELECT COALESCE(SUM(amount),0) FROM recoveries WHERE bill_id=:bid AND affects_pvc_base = TRUE` and feeds the sum into `technical_withheld`; `on_account_amount` stays at gross (not netted). Comment in `backend/api/bills.py` corrected to match (it previously described approach B). Pinned by `test_p6_h1_recoveries_in_w.py` (2 tests): a TRUE recovery → `technical_withheld=10000` with `on_account` unchanged at `100000`; the filtered-zero case keeps `technical_withheld=0`. 125/125 backend. **Fixture note:** no in-tree fixture/seed currently carries affects_pvc_base recoveries, so no pinned engine output shifted; re-reconcile `bct_2425_252_*` if the demo seed later adds such a recovery.
+### [HIGH] P7-H2 — Run page shows live bill lines instead of the run's own snapshot
 
-### [HIGH] P6-H2 — Backend accepts non-positive bill/recovery amounts (frontend-only guard)
+- **File:** `frontend/app/(app)/contracts/[id]/bills/[billId]/runs/[runId]/page.tsx:61`
+- **Verified:** The Bill lines section calls `GET /api/bills/{billId}/lines` with queryKey `["bill-lines", billId]`. But bill lines are rewritten by the engine on every PVC run for that bill — so a historical run page shows the current (newest) run's lines alongside the old run's totals, components, and W-derivation. The run's own `bill_snapshot` JSONB is persisted in the DB for exactly this purpose but `GET /pvc-runs/{id}` does not return it and the frontend does not use it. PRODUCT.md states "Immutable PVC run snapshots — revisions create superseding runs, never overwrites."
+- **Proposed fix (right altitude):** Expose snapshot-derived lines on `GET /pvc-runs/{id}` (either return `bill_snapshot` and parse client-side, or add a `/lines` sub-resource derived from the snapshot). Until then, drop the bill lines section from the run page with a note that it is deferred — rendering inconsistent audit data is worse than rendering nothing.
+- **Test that would catch it:** integration test — run PVC twice with different qty; open first run; assert lines shown are from the first run, not the second.
+- **CC Response (2026-06-11): CLOSED — with a premise correction.** `bill_snapshot` does *not* contain bill lines: it is the engine input (`BillPayload` — aggregate amounts only), so there was nothing snapshot-derived to expose. Fixed at the root instead: **migration 016** adds nullable `lines_snapshot` JSONB to `pvc_runs`; `persist_run_result` captures the bill's lines at INSERT (same shape as `GET /bills/{id}/lines`, numerics as text for Decimal exactness); `GET /pvc-runs/{id}` returns it; the run page renders `lines_snapshot` and the live `GET /bills/{id}/lines` query is removed. Runs that pre-date the column render an honest "lines were not captured for this run" notice instead of live (wrong) data. Pinned by `test_p7_review_h1_h2.py`: persist test asserts the captured rows land in the INSERT's `lines` param; get_run test asserts passthrough.
 
-- **File:** `backend/api/bills.py:41` (`BillCreate`), `:145` (`RecoveryCreate`)
-- **Verified:** `BillCreate` accepts any `bill_number: int` and `gross_amount: Decimal`; `RecoveryCreate` accepts any `amount: Decimal`. Tenant gates are present (`assert_contract_belongs_to_tenant` / `assert_bill_belongs_to_tenant`) — isolation is fine — but the UI's `> 0` checks are the *only* positivity guard. A direct API call can create a zero/negative gross bill, which becomes `on_account_amount` and feeds a plausible-but-wrong PVC run.
-- **Proposed fix:** Pydantic boundary constraints — `bill_number` positive, `gross_amount`/recovery `amount` `Decimal > 0` (`condecimal(gt=0)` or field validator). Return structured 422 (`ValidationProblem`), consistent with existing error contract.
-- **Test that would catch it:** assert `POST /contracts/{id}/bills` rejects `bill_number=0`, `gross_amount=0`, `gross_amount=-1`; assert recovery rejects `amount=0` and `amount=-1`.
-- **CC Response:** **Closed.** `create_bill` now raises `ValidationProblem(field="bill_number")` for `<= 0` and `ValidationProblem(field="gross_amount")` for `<= 0`, both *before* the tenant gate (input shape leaks nothing tenant-specific). `create_recovery` raises `ValidationProblem(field="amount")` for `<= 0` after the existing `recovery_type` check. Matches the inline-`ValidationProblem` convention already used for `recovery_type`. Pinned by parametrized tests in `test_c1_bills_create.py` (gross `0/-1/-100000`, bill_number `0/-1`) and `test_p3_bf_3_recoveries.py` (amount `0/-1/-50.25`), each asserting `session.execute` is never awaited. 123/123 backend.
+---
 
-### [MEDIUM] P6-M3 — Malformed AG Grid numeric edits silently persist as `null`
+### [MEDIUM] P7-M1 — Deploy-order regression: new SELECTs reference migration-015 columns not yet applied to Supabase
 
-- **File:** `frontend/components/contracts/ItemsGrid.tsx:71` (`numberValueParser`)
-- **Verified:** `numberValueParser` returns `null` for any value `Number()` can't parse — including thousand-separated `"1,23,456"`. `saveAll()` sends that `null` through `itemPayload` (`:85`) and the backend accepts nullable rates/qtys, so a bad paste can silently erase `base_rate`/`agreement_rate`, changing downstream bill/PVC economics.
-- **Proposed fix:** on unparseable input, reject the edit (keep old value) and surface a cell/form error instead of coercing to `null`; require finite decimals. Reuse the import parser's reject-with-errors behavior for consistency.
-- **Test that would catch it:** parser/save test — malformed numeric input blocks save and does not emit a payload with `agreement_rate: null`.
-- **CC Response:** **Closed.** Extracted a pure `lib/parseNumericCell.ts`: blank/null → explicit clear (`null`), strips thousand separators/spaces (`"1,23,456"` → `123456`), and **rejects** any remaining non-decimal input (`{ ok: false }`) — hex/exponent/`Infinity`/garbage included. `ItemsGrid.numberValueParser` now returns the prior `oldValue` and fires a `toast.error` on rejection instead of writing `null`. Pinned by `lib/parseNumericCell.test.ts` (5 cases incl. the null-erasure and non-decimal-notation paths). 45/45 vitest.
+- **Files:** `backend/api/pvc_runs.py:135` (`get_run` + `list_runs`); bill page always fetches `GET /contracts/{id}/pvc-runs` on load
+- **Verified:** STATUS.md/D-FUP-1 explicitly confirms migration 015 has not been applied to Supabase. Both new queries SELECT `total_pvc`, `negative_carry_forward`, `quarter_used` — columns that don't exist. Deploying the code first turns the **previously working** `GET /pvc-runs/{id}` endpoint into a 500 regression.
+- **Proposed fix:** Make D-FUP-1 (`alembic upgrade head` on Supabase) a hard gate that must complete before any commit on this branch is deployed. Document it explicitly in the PR description and the merge checklist.
+- **CC Response (2026-06-11): CLOSED operationally.** `alembic upgrade head` run against Supabase — DB now at **016**. Two surprises fixed en route: (1) `alembic_version` was stale at 012 while migration 013's `is_admin` column already existed in the DB (applied out-of-band) — stamped 013; (2) the DB's RLS helper is named `current_tenant_id()` but migrations 009/014 reference `get_tenant_id()` — created `get_tenant_id()` per migration 009's definition (identical body) so 014's policies could apply. D-FUP-1 is therefore also done; no deploy-order regression remains. PR #14 description updated with the migration gate note.
 
-### [MEDIUM] P6-M4 — Calculate-PVC inline error drops engine validation detail
+### [MEDIUM] P7-M2 — Export failures can be fully silent (res.blob() / URIError paths)
 
-- **File:** `frontend/app/(app)/contracts/[id]/bills/[billId]/page.tsx:185`
-- **Verified:** the PVC mutation runs `silent: true` then renders only `pvcRun.error.message`. For a structured `engine_validation_error`, that message is the generic header and the actionable `validation_errors` list is dropped — violates "blocking errors must be actionable" (`ENGINEERING_GUIDELINES`).
-- **Proposed fix:** when `pvcRun.error instanceof ApiError && detail.code === "engine_validation_error"`, render the `validation_errors` list inline in the PVC card.
-- **Test that would catch it:** simulate a 422 `engine_validation_error` with two validation errors → assert both strings render in the card.
-- **CC Response:** **Closed.** Extracted pure `lib/pvcRunError.ts::describePvcRunError(error)` returning `{ validationErrors, message }`; for `engine_validation_error` it surfaces the full `validation_errors` list (guarding the array shape since the `ApiProblem` union's catch-all member defeats discriminant narrowing). The PVC card renders the list as `<ul>` under the header. Tested in `lib/pvcRunError.test.ts` (two-error list visible; non-validation ApiError + plain Error + non-Error fallbacks). 45/45 vitest.
+- **Files:** `frontend/lib/api/client.ts:137` (`filenameFromDisposition`); `frontend/app/(app)/contracts/[id]/bills/[billId]/runs/[runId]/page.tsx:96` (`handleExport` bare `catch {}`)
+- **Verified:** Two paths in `apiDownload` reject *after* the toast branches: (1) `res.blob()` throws on a mid-body connection drop (network failure after 200 headers); (2) `decodeURIComponent(star[1])` throws `URIError` on a malformed `%` sequence in the server's `Content-Disposition`. `handleExport` swallows both with `// apiDownload already surfaced a toast` — but it didn't. User clicks Excel, spinner ends, nothing downloads, no error.
+- **Proposed fix:** (1) Wrap `res.blob()` in a try/catch that fires a toast on failure. (2) Wrap `decodeURIComponent` in a try/catch that falls back to the fallback filename. Both are 2-line fixes.
+- **CC Response (2026-06-11): CLOSED.** Both paths fixed in `frontend/lib/api/client.ts`: `res.blob()` failure now toasts "Download failed" and throws `ApiError(0)`; a `URIError` from `decodeURIComponent` falls back to the caller's filename instead of aborting the download.
 
-## Most Recent Closed Cycle
+### [MEDIUM] P7-M3 — Lines query error renders as a factual "no lines" claim
 
-**P5-REVIEW** — closed 2026-05-20. Adversarial pass by CC-S (Codex-S unavailable) on `saqlain/phase-5` (commits `29352a9` P5-001…P5-008 + `0e3b31f` P5-F1…F5). 14 findings: 1 CRITICAL, 3 HIGH, 6 MEDIUM, 4 LOW. All CRITICAL/HIGH/MEDIUM closed, L-4 closed inline, L-1/L-2/L-3 deferred to TASKS.md (P5-FUP-L1…L3). Pre-existing lint dirt on the branch resolved in the same chain.
+- **File:** `frontend/app/(app)/contracts/[id]/bills/[billId]/runs/[runId]/page.tsx:330`
+- **Verified:** Empty-state check `!linesQuery.isLoading && (linesQuery.data?.length ?? 0) === 0` is also true when `linesQuery.isError` (data is undefined). A 500/404 on `GET /bills/{billId}/lines` displays "No lines generated for this bill." — a claim about engine output — instead of an error state.
+- **Proposed fix:** Add `linesQuery.isError` check first: render a brief error message for the failed-fetch case, reserve the "no lines" empty state for `!isError && data.length === 0`.
+- **CC Response (2026-06-11): CLOSED by the H2 fix.** The run page no longer fetches live lines at all — it renders `run.lines_snapshot` from the (already error-handled) run query. Empty array → "the bill had no lines when this run was calculated"; `null` (pre-016 run) → "lines were not captured". No fetch, no misattributed empty state.
+
+### [MEDIUM] P7-M4 — Run-history bill_id filter is case-sensitive; uppercase UUID in URL yields silent empty history
+
+- **File:** `frontend/app/(app)/contracts/[id]/bills/[billId]/page.tsx:100`
+- **Verified:** `billRuns = (runsQuery.data ?? []).filter((r) => r.bill_id === billId)`. Backend returns `bill_id::text` — always lowercase Postgres UUID. URL segment `billId` is whatever was in the href/link, but a bookmarked or manually typed uppercase UUID is valid (Postgres accepts it on the bill lookup, so the bill page renders fine) and the strict-equality filter drops all runs silently.
+- **Proposed fix:** `r.bill_id.toLowerCase() === billId.toLowerCase()` — one change.
+- **CC Response (2026-06-11): CLOSED.** Filter compares both sides lowercased, with a comment noting the backend emits lowercase UUIDs while the URL segment may not be.
+
+---
+
+### [LOW] P7-L1 — `apiDownload` copy-pastes `apiFetch`'s error pipeline; already drifted
+
+- **File:** `frontend/lib/api/client.ts:112`
+- **Cost:** Network-catch branch and `!res.ok` branch (safeJSON → extractApiProblem → ApiError → toast) duplicated. The two copies differ already (`apiFetch` falls back to string `detail` and logs on network failure; `apiDownload` does neither). The `silent` option has zero callers. Extract a shared `authedFetch` helper; leave `apiDownload` owning only the blob/filename/anchor logic.
+- **Deferral acceptable:** refactor only, no user-visible behavior change.
+
+### [LOW] P7-L2 — `describeWDerivation` silently drops unknown W keys; no arithmetic guard
+
+- **File:** `frontend/lib/pvcWDerivation.ts:33`
+- **Cost:** When P6-H1-FUP-C approach C adds a dedicated W bucket, the frontend's fixed `SUBTRACTIONS` list silently drops it — displayed subtractions stop summing to the displayed W on the audit screen, and every existing test still passes. A cheap guard: assert `base − Σ subtractions === w` and render a warning row if the residual is non-zero (catches both unknown keys and future engine rounding changes).
+- **Deferral acceptable:** implement before P6-H1-FUP-C approach C ships.
+
+---
+
+## Closed Cycles
+
+### P6-REVIEW — CLOSED (2026-06-09, PR #13)
+
+Adversarial pass by **Codex-S** on Phase 6 Bill Entry UI (C-1, C-2, C-2-FIX-A/B) + C-3. 2 HIGH + 2 MEDIUM found; all four closed. P6-H1 via interim approach A (recoveries → `technical_withheld`); end-state approach C tracked as `P6-H1-FUP-C`. Suite on close: **140/140 backend, 45/45 vitest, tsc + eslint clean**, route count 42. Full per-finding detail in git at `a88b85e`:
+
+```
+git show a88b85e -- REVIEW.md
+```
+
+### P5-REVIEW — closed 2026-05-20. Adversarial pass by CC-S (Codex-S unavailable) on `saqlain/phase-5` (commits `29352a9` P5-001…P5-008 + `0e3b31f` P5-F1…F5). 14 findings: 1 CRITICAL, 3 HIGH, 6 MEDIUM, 4 LOW. All CRITICAL/HIGH/MEDIUM closed, L-4 closed inline, L-1/L-2/L-3 deferred to TASKS.md (P5-FUP-L1…L3). Pre-existing lint dirt on the branch resolved in the same chain.
 
 Verification on clean Python 3.11 venv built from `backend/pyproject.toml` against the declared dep range floor (`fastapi==0.115.12`, `pytest-asyncio==1.3.0`): **82/82 backend** (up from 67; 15 new regression pins), **99/99 engine**, **16/16 frontend vitest** (new infra: `vitest@2.1.9`), **`next build` clean**, **`npm run lint` clean** (0 errors, 0 warnings).
 

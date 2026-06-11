@@ -102,6 +102,88 @@ export async function apiFetch<T = unknown>(
   return json as T;
 }
 
+/**
+ * Authenticated file download (Phase 7, D-3b). `apiFetch` is JSON-only — it
+ * reads the body as text — so binary exports need their own path: fetch as a
+ * blob, honour the server's `Content-Disposition` filename, and trigger a
+ * browser save. Errors surface a structured `ApiError` (so a 422
+ * `run_not_approved` is catchable) and a toast unless `silent`.
+ */
+export async function apiDownload(
+  path: string,
+  fallbackFilename: string,
+  { silent }: { silent?: boolean } = {},
+): Promise<void> {
+  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const authHeader = await getAuthHeader();
+
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: { ...authHeader } });
+  } catch (cause) {
+    const err = new ApiError(0, "Network error — is the API reachable?", { cause });
+    if (!silent) toast.error("Network error", { description: `GET ${path}` });
+    throw err;
+  }
+
+  if (!res.ok) {
+    const text = await res.text();
+    const json = text ? safeJSON(text) : null;
+    const structured = extractApiProblem(json);
+    const message = structured?.message ?? res.statusText ?? "Download failed";
+    const err = new ApiError(res.status, message, json, structured ?? undefined);
+    if (!silent) {
+      toast.error(`${res.status} · ${friendly(res.status)}`, {
+        description: toastDescription(structured, message),
+      });
+    }
+    throw err;
+  }
+
+  let blob: Blob;
+  try {
+    blob = await res.blob();
+  } catch (cause) {
+    // P7-M2: connection dropped mid-body after 200 headers — without this
+    // the click ends with no file and no feedback.
+    const err = new ApiError(0, "Download interrupted — connection lost", { cause });
+    if (!silent) toast.error("Download failed", { description: `GET ${path}` });
+    throw err;
+  }
+  const filename = filenameFromDisposition(
+    res.headers.get("content-disposition"),
+    fallbackFilename,
+  );
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(href);
+}
+
+function filenameFromDisposition(
+  disposition: string | null,
+  fallback: string,
+): string {
+  if (!disposition) return fallback;
+  // Handles both `filename="x.pdf"` and RFC 5987 `filename*=UTF-8''x.pdf`.
+  const star = /filename\*=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  if (star?.[1]) {
+    // P7-M2: a malformed % sequence in the header must not abort the
+    // download — fall back to the caller's filename.
+    try {
+      return decodeURIComponent(star[1]);
+    } catch {
+      return fallback;
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(disposition);
+  return plain?.[1] ?? fallback;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async function getAuthHeader(): Promise<Record<string, string>> {

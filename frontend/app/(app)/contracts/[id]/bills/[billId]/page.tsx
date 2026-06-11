@@ -11,6 +11,7 @@ import { RecoveryForm, RECOVERY_TYPES } from "@/components/contracts/RecoveryFor
 import { BillHeaderForm } from "@/components/contracts/BillHeaderForm";
 import { formatINRWithSymbol } from "@/lib/format";
 import { describePvcRunError } from "@/lib/pvcRunError";
+import { statusVariant } from "@/lib/pvcRunStatus";
 
 interface Bill {
   id: string;
@@ -55,14 +56,16 @@ const RECOVERY_LABELS: Record<string, string> = Object.fromEntries(
   RECOVERY_TYPES.map((t) => [t.value, t.label]),
 );
 
-function statusVariant(
-  s: string,
-): "draft" | "approved" | "superseded" | "blocked" | "neutral" {
-  if (s === "Approved") return "approved";
-  if (s === "Superseded") return "superseded";
-  if (s === "ExceptionFlagged") return "blocked";
-  if (s === "Draft") return "draft";
-  return "neutral";
+interface RunSummary {
+  id: string;
+  bill_id: string;
+  bill_number: number;
+  status: string;
+  total_pvc: string | number | null;
+  negative_carry_forward: string | number | null;
+  quarter_used: string | null;
+  approved_at: string | null;
+  created_at: string;
 }
 
 export default function BillDetailPage({
@@ -88,6 +91,18 @@ export default function BillDetailPage({
     queryFn: () => apiFetch<Recovery[]>(`/api/bills/${billId}/recoveries`),
   });
 
+  // Run history for this contract, narrowed to this bill (D-4a). Re-fetched
+  // after a new run so the freshly created run appears immediately.
+  const runsQuery = useQuery<RunSummary[]>({
+    queryKey: ["contract-runs", id],
+    queryFn: () => apiFetch<RunSummary[]>(`/api/contracts/${id}/pvc-runs`),
+  });
+  // P7-M4: the backend emits lowercase UUIDs but the URL segment may carry an
+  // uppercase one (bookmark/manual entry) — compare case-insensitively.
+  const billRuns = (runsQuery.data ?? []).filter(
+    (r) => r.bill_id.toLowerCase() === billId.toLowerCase(),
+  );
+
   // Calculate PVC — calls the engine synchronously (POST /pvc-runs). On success
   // the engine writes the bill's lines and recomputes amounts, so we invalidate
   // the bill + lines queries to pull the fresh values. `silent: true` because we
@@ -103,6 +118,7 @@ export default function BillDetailPage({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bill", billId] });
       queryClient.invalidateQueries({ queryKey: ["bill-lines", billId] });
+      queryClient.invalidateQueries({ queryKey: ["contract-runs", id] });
     },
   });
 
@@ -275,7 +291,56 @@ export default function BillDetailPage({
             </div>
           </dl>
         )}
+
+        {pvcRun.isSuccess && pvcRun.data && (
+          <Link
+            href={`/contracts/${id}/bills/${billId}/runs/${pvcRun.data.id}`}
+            className="inline-flex items-center gap-1 text-[12px] font-medium text-slate-700 hover:text-slate-900"
+          >
+            View full results →
+          </Link>
+        )}
       </section>
+
+      {/* Run history (D-4a) — every run for this bill, newest first. */}
+      {billRuns.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-[14px] font-medium text-slate-900">Run history</h2>
+          <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
+            <div
+              className="px-5 py-3 grid grid-cols-[1fr_140px_120px_100px] gap-4
+                         text-[11px] uppercase tracking-wider text-slate-500 font-medium
+                         border-b border-slate-200 bg-slate-50"
+            >
+              <div>Created</div>
+              <div className="text-right">Total PVC</div>
+              <div>Status</div>
+              <div className="sr-only">View</div>
+            </div>
+            {billRuns.map((r, i) => (
+              <Link
+                key={r.id}
+                href={`/contracts/${id}/bills/${billId}/runs/${r.id}`}
+                className={
+                  "px-5 h-11 grid grid-cols-[1fr_140px_120px_100px] gap-4 items-center text-[13px] hover:bg-slate-50 " +
+                  (i < billRuns.length - 1 ? "border-b border-slate-100" : "")
+                }
+              >
+                <div className="text-slate-700">
+                  {new Date(r.created_at).toLocaleString()}
+                </div>
+                <div className="text-right font-mono text-[12px] text-slate-900">
+                  {r.total_pvc === null ? "—" : formatINRWithSymbol(r.total_pvc)}
+                </div>
+                <div>
+                  <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
+                </div>
+                <div className="text-right text-[12px] text-slate-400">View →</div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Bill lines — read-only; engine-generated on a PVC run (Phase 7). */}
       <section className="space-y-2">

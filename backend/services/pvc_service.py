@@ -595,6 +595,31 @@ async def persist_run_result(
     The savepoint protects the API from leaving an orphan run if the
     component insert fails (e.g. a bad enum value during refactor).
     """
+    # P7-H2: bill lines are mutable after a run (edit + recalculate), so the
+    # run must carry its own copy. Same shape as GET /bills/{id}/lines, with
+    # numerics as text to keep Decimal exactness through JSONB.
+    line_rows = (
+        await session.execute(
+            text("""
+                SELECT id::text AS id,
+                       bill_id::text AS bill_id,
+                       item_id::text AS item_id,
+                       qty_up_to_last::text AS qty_up_to_last,
+                       qty_since_last::text AS qty_since_last,
+                       qty_up_to_date::text AS qty_up_to_date,
+                       amount_up_to_last::text AS amount_up_to_last,
+                       amount_since_last::text AS amount_since_last,
+                       amount_up_to_date::text AS amount_up_to_date,
+                       special_condition_amount::text AS special_condition_amount
+                FROM bill_lines
+                WHERE bill_id = :bid
+                ORDER BY id
+            """),
+            {"bid": bill_id},
+        )
+    ).mappings().all()
+    lines_snapshot = _json_dumps([dict(r) for r in line_rows])
+
     try:
         async with session.begin_nested():
             run_row = (
@@ -602,13 +627,16 @@ async def persist_run_result(
                     text("""
                         INSERT INTO pvc_runs (
                             contract_id, bill_id, rule_set_id,
-                            index_snapshot, bill_snapshot, w_derivation,
-                            status, idempotency_key
+                            index_snapshot, bill_snapshot, lines_snapshot,
+                            w_derivation, status, idempotency_key,
+                            total_pvc, negative_carry_forward, quarter_used
                         )
                         VALUES (
                             :cid, :bid, :rsid,
                             CAST(:idx AS JSONB), CAST(:bsnap AS JSONB),
-                            CAST(:wd AS JSONB), 'Calculated', :key
+                            CAST(:lines AS JSONB),
+                            CAST(:wd AS JSONB), 'Calculated', :key,
+                            :total_pvc, :ncf, :quarter
                         )
                         RETURNING id::text AS id
                     """),
@@ -618,13 +646,35 @@ async def persist_run_result(
                         "rsid": rule_set_id,
                         "idx": snapshot.model_dump_json(),
                         "bsnap": bill_payload.model_dump_json(),
+                        "lines": lines_snapshot,
                         "wd": result.w_derivation.model_dump_json(),
                         "key": idempotency_key,
+                        "total_pvc": (
+                            str(result.total_pvc)
+                            if result.total_pvc is not None
+                            else None
+                        ),
+                        "ncf": str(result.negative_carry_forward),
+                        "quarter": result.quarter_used,
                     },
                 )
             ).mappings().first()
             assert run_row is not None
             run_id = run_row["id"]
+
+            # P7-H1: a bill has exactly one current run. Recalculating
+            # supersedes any prior Calculated run so only the new one can be
+            # approved/exported. Approved runs are untouched (migration-011
+            # trigger makes them immutable anyway).
+            await session.execute(
+                text("""
+                    UPDATE pvc_runs
+                    SET status = 'Superseded', superseded_by = :rid
+                    WHERE bill_id = :bid AND id <> :rid
+                      AND status IN ('Draft', 'Calculated')
+                """),
+                {"rid": run_id, "bid": bill_id},
+            )
 
             for c in result.components:
                 await session.execute(

@@ -6,7 +6,9 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Phase
 
-- **Phase 6 COMPLETE — PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13) (P6-REVIEW + C-3) merged to `main` (2026-06-09).** `main` at `a88b85e`. Next: **Phase 7 (PVC run + results UI)**.
+- **Phase 7 (PVC run + results UI) — D-1…D-4 + P7-REVIEW remediation on `saqlain/phase-7` (2026-06-11). PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) OPEN — all HIGH/MEDIUM closed, merge unblocked.** Dedicated run page `/contracts/[id]/bills/[billId]/runs/[runId]` (status, result totals, W-derivation, component breakdown, approve flow, export buttons, run-history list). **Migration 015** persists run result totals; **migration 016** persists `lines_snapshot` (per-run bill lines, P7-H2). Supersede-at-INSERT: recalculating marks prior Calculated runs `Superseded` (P7-H1). Route count 42→43.
+- **IDX-1 RBI backfill — PR [#15](https://github.com/saqlainmmomin/Rail-PVC/pull/15) merged to `main` (2026-06-11) [CC-SH].** 5 non-steel series sourced from official publications (CPI-IW/WPI/PPAC derived CSVs) Apr-2022 onward; corrects the workbook's systematic +70 error on `plant_machinery`/`fuel` via `ON CONFLICT DO UPDATE`. Data already applied to Supabase (246 rows verified). Workbook loop now seeds JPC steel only.
+- **Phase 6 COMPLETE — PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13) (P6-REVIEW + C-3) merged to `main` (2026-06-09).** `main` at `a88b85e`.
 - **Phase 5 + SH-P5-1..4 + P5-FUP + IDX-2..3 all on `main` (2026-05-30).** PRs #7/#8/#9 merged.
 - **Phase 6 C-1 + C-2 + demo seed + P5-IMP frontend + two demo smoke-test fixes merged to `main` (2026-06-02).**
 - **IDX-4 (PR #11) + SH-P5-5/6 export (PR #12) merged to `main` via merge-commits (2026-06-02).** Route count 38→40 (2 export routes; IDX-4 is frontend-only).
@@ -18,22 +20,20 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Blockers
 
-- **None blocking Phase 7.** Phase 6 fully merged; P6-REVIEW findings all closed. IDX-2..3 (index write endpoints) are on `main`; seed Jan–May 2026 index months before running PVC on 2026 bills (Phase 7 concern).
-- **Tech-debt (non-blocking):** `P6-H1-FUP-C` — interim approach A overloads `technical_withheld` with PVC-affecting recoveries; migrate to a dedicated W bucket (approach C) before any flow that must show both deductions separately.
+- None for PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) — P7-REVIEW HIGH/MEDIUM all closed (2026-06-11); awaiting merge.
+- **Tech-debt (non-blocking):** `P6-H1-FUP-C` — interim approach A overloads `technical_withheld`; migrate to a dedicated W bucket (approach C) before disaggregation is needed. `P7-FUP-L2` (W-derivation arithmetic guard) must land with/before it.
 - Out-of-band: credential hygiene — DB password and JWT secret are in `backend/.env` (git-ignored). Keep `.env` out of version control.
 
 ## Active Review Cycle
 
-- **No open review cycle.** `P6-REVIEW` closed (2026-06-04) and merged via PR #13 (2026-06-09) — Codex-S pass, 2 HIGH + 2 MEDIUM all fixed; P6-H1 via interim approach A (`P6-H1-FUP-C` tracks the C end-state).
-- **Phase 6 C-3 merged via PR #13.** `PUT /api/bills/{id}` + `DELETE /api/bills/{id}/recoveries/{rid}` + computed `net_amount` (gross − Σ non-PVC recoveries; **formula flagged for field validation — `C-3-FUP-NET`**). FE: inline bill-header edit + recovery delete. Route count 40→42.
-- `P5-REVIEW` closed and merged 2026-05-20; PRs #11/#12 merged clean (2026-06-02). Next checkpoint: `P7-REVIEW` after Phase 7 lands.
-- Suite state: **140/140 backend** (+15: C-3 PUT/DELETE + net formula), **99/99 engine**, **45/45 frontend vitest**, `tsc` + `eslint` clean. Route count **42**.
+- **`P7-REVIEW` REMEDIATED (2026-06-11) — PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) merge unblocked.** H1 (approve gate both layers + supersede-at-INSERT), H2 (migration 016 `lines_snapshot` — `bill_snapshot` never contained lines; reviewer premise corrected), M1 (migrations 013-stamped/014/015/016 applied to Supabase, DB at head), M2 (apiDownload blob/URIError paths toast), M3 (closed by H2 — no live lines fetch), M4 (case-insensitive UUID filter). L1/L2 → `P7-FUP-L1`/`P7-FUP-L2` in [TASKS.md](TASKS.md). CC Responses in [REVIEW.md](REVIEW.md).
+- Suite state (on `saqlain/phase-7`): **153/153 backend** (+8 P7-REVIEW pins), **99/99 engine**, **52/52 frontend vitest**, `tsc` + `eslint` + `next build` clean. Route count **43**.
 
 ## Branch State
 
-- `main` — up to date with origin at `a88b85e` (2026-06-09); PR #13 (Phase 6 P6-REVIEW + C-3) merged. **Only branch — local + origin cleaned 2026-06-09.**
+- `main` — PR #15 (IDX-1 RBI backfill) merged 2026-06-11. Local `main` checkout may lag origin.
+- `saqlain/phase-7` — **Phase 7 D-1…D-4 + P7-REVIEW remediation. PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) open, merge unblocked.** 153/99/52 green, route count 43.
 - All prior feature branches deleted after merge (`saqlain/p6-review`, `saqlain/phase-6`, `saqlain/p5-imp`, `shubham/idx-flag`, and earlier phase/test branches). P5-IMP backend code (`backend/api/imports.py`, `services/llm.py`, migration 014) is on `main` but **not wired into `main.py`** — see `P5-IMP-FUP-1`.
-- Phase 7 work starts on a fresh branch off `main`.
 
 ## What To Read
 
@@ -56,7 +56,7 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Priorities
 
-1. [CC-S] **Phase 7 (PVC run + results UI)** — D-1…D-4, off a fresh branch from `main`. C-3 stable, gate cleared. Alternatively P5-IMP backend wiring (LLM mapper + template CRUD + migration 014, already on `main` but unwired) as a parallel track.
+1. [Saqlain] **Merge PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14)** — P7-REVIEW fully remediated; smoke the run page (calculate → supersede badge → approve → export) first if desired.
 2. [CC-S] When a real submission is available, validate `C-3-FUP-NET` (net_amount formula) and revisit `P6-H1-FUP-C` (dedicated W bucket).
 3. [CC-SH] Next task TBD. Export submission-format parity deferred to P8-REVIEW.
 

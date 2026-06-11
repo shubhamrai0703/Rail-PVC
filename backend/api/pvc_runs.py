@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from services.auth import AuthUser, get_current_user
 from services.db import get_session
 from services.errors import ImmutableApprovedRun, NotFoundProblem, ValidationProblem
-from services.pvc_service import execute_pvc_run
+from services.pvc_service import assert_contract_belongs_to_tenant, execute_pvc_run
 
 router = APIRouter(prefix="/api", tags=["pvc_runs"])
 
@@ -102,20 +102,30 @@ async def approve_run(
         # for a clean structured error rather than relying on the trigger
         # exception bubbling up.
         raise ImmutableApprovedRun(run_id)
+    if row["status"] not in {"Draft", "Calculated"}:
+        # P7-H1: Superseded/ExceptionFlagged/Exported runs are not approvable —
+        # only the current Calculated (or legacy Draft) run may become official.
+        raise ValidationProblem(
+            f"Run with status {row['status']} cannot be approved — "
+            "only a Calculated run can become the official run for a bill",
+            run_id=run_id,
+            status=row["status"],
+        )
 
     updated = (
         await session.execute(
             text("""
                 UPDATE pvc_runs
                 SET status = 'Approved', approved_by = :by, approved_at = NOW()
-                WHERE id = :rid AND status <> 'Approved'
+                WHERE id = :rid AND status IN ('Draft', 'Calculated')
                 RETURNING id::text AS id, approved_at
             """),
             {"rid": run_id, "by": user.display_name},
         )
     ).mappings().first()
     if updated is None:
-        # Race: another caller just approved it.
+        # Race: another caller approved it, or a concurrent calculate
+        # superseded it, between our gate SELECT and this UPDATE.
         raise ImmutableApprovedRun(run_id)
     return {"id": updated["id"], "status": "Approved", "approved_at": updated["approved_at"]}
 
@@ -131,7 +141,10 @@ async def get_run(
             text("""
                 SELECT r.id::text AS id, r.contract_id::text AS contract_id,
                        r.bill_id::text AS bill_id, r.status::text AS status,
-                       r.w_derivation, r.approved_by, r.approved_at, r.created_at
+                       r.total_pvc, r.negative_carry_forward, r.quarter_used,
+                       r.superseded_by::text AS superseded_by,
+                       r.w_derivation, r.lines_snapshot,
+                       r.approved_by, r.approved_at, r.created_at
                 FROM pvc_runs r
                 JOIN contracts c ON c.id = r.contract_id
                 WHERE r.id = :rid AND c.tenant_id = :tid
@@ -154,3 +167,33 @@ async def get_run(
         )
     ).mappings().all()
     return {**dict(row), "components": [dict(c) for c in components]}
+
+
+@router.get("/contracts/{contract_id}/pvc-runs")
+async def list_runs(
+    contract_id: str,
+    user: AuthUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[dict[str, Any]]:
+    """Run history for a contract, newest first. Mirrors the sibling
+    `GET /contracts/{id}/bills`: an explicit contract gate 404s an unknown
+    or cross-tenant contract (no-distinguish probe protection), while an
+    owned contract with zero runs returns an empty list, not 404."""
+    await assert_contract_belongs_to_tenant(session, contract_id, user.tenant_id)
+    rows = (
+        await session.execute(
+            text("""
+                SELECT r.id::text AS id, r.bill_id::text AS bill_id,
+                       b.bill_number AS bill_number, r.status::text AS status,
+                       r.total_pvc, r.negative_carry_forward, r.quarter_used,
+                       r.superseded_by::text AS superseded_by,
+                       r.approved_at, r.created_at
+                FROM pvc_runs r
+                JOIN running_bills b ON b.id = r.bill_id
+                WHERE r.contract_id = :cid
+                ORDER BY r.created_at DESC
+            """),
+            {"cid": contract_id},
+        )
+    ).mappings().all()
+    return [dict(r) for r in rows]
