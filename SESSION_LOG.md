@@ -17,10 +17,9 @@ Use it for current milestone decisions and recent sessions only.
 - **Phase 6 C-1 + C-2 merged to `main` (2026-06-02).**
 - **IDX-4 (PR #11) + SH-P5-5/6 export (PR #12) merged via merge-commits (2026-06-02).** Both Shubham tasks done.
 - **PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13) (P6-REVIEW + C-3) MERGED to `main` (2026-06-09); `main` at `a88b85e`.** Branches cleaned (local + origin).
-- **Phase 7 (PVC run + results UI) implemented on `saqlain/phase-7` (2026-06-10).** Dedicated run page + approve flow + exports + run history; migration 015 persists run result totals. Awaiting commit + `P7-REVIEW`.
-- **Shubham's next task:** TBD.
-- **P7-REVIEW remediated on `saqlain/phase-7` (2026-06-11) — PR #14 merge unblocked.** **PR [#15](https://github.com/saqlainmmomin/Rail-PVC/pull/15) (IDX-1 RBI backfill, [CC-SH]) merged to `main` (2026-06-11).**
-- Test suite: **153/153 backend**, 99/99 engine, **52/52 frontend vitest**, `tsc` + `eslint` + `next build` clean. Route count **43**.
+- **Phase 7 (PVC run + results UI) — PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) OPEN, merge unblocked.** All HIGH/MEDIUM closed. 153/153 backend, 99/99 engine, 52/52 vitest.
+- **FUP backlog — PR [#17](https://github.com/saqlainmmomin/Rail-PVC/pull/17) OPEN (2026-07-02).** P6-H1-FUP-C + P7-FUP-L1/L2 + P5-IMP-FUP-1. 3 feature commits + lock file. Suite: **103/103 engine, 164/164 backend, 54/54 vitest**. Route count **47**.
+- **PR [#15](https://github.com/saqlainmmomin/Rail-PVC/pull/15) (IDX-1 RBI backfill, [CC-SH]) merged to `main` (2026-06-11).**
 - **Supabase DB at migration head (016).** Applied 2026-06-11: stamped 013 (`is_admin` pre-existed), 014 (`import_templates`), 015 (run result totals), 016 (`lines_snapshot`). RLS helper note: DB function is `current_tenant_id()`; `get_tenant_id()` (referenced by migrations 009/014) was created with the identical body to unblock 014.
 - Local backend: `cd backend && source .venv/bin/activate && uvicorn main:app --reload --port 8000`
 - Local frontend: `cd frontend && npm run build && npm start` (port 3000) — always rebuild after code changes
@@ -28,6 +27,16 @@ Use it for current milestone decisions and recent sessions only.
 - Tenant provisioned for `saqlainmmomin@gmail.com` — tenant_id `bd589426-93ba-4847-b5f3-1f69b020b4c0`.
 
 ## Recent Sessions
+
+### Session 29 — 2026-07-02 (FUP backlog: P6-H1-FUP-C, P7-FUP-L1/L2, P5-IMP-FUP-1 — PR #17)
+
+Three independent backlog tickets, one commit each, on `saqlain/fup-backlog` off `main`. All green; PR [#17](https://github.com/saqlainmmomin/Rail-PVC/pull/17) opened.
+
+- **P6-H1-FUP-C + P7-FUP-L2 (`cea08cd`)** — Replaced the interim approach-A overload of `technical_withheld` with a dedicated `recoveries_affecting_pvc` W-subtraction bucket. Engine: added the field to `BillPayload` / `WDerivation` (default `Decimal("0")` so existing tests don't need touching), subtracted in `derive_w()`, traced in `calculator.py`. Backend: `build_bill_payload` now assigns `affects_pvc_base=TRUE` sum to `recoveries_affecting_pvc`; `technical_withheld` is genuinely 0. Frontend `pvcWDerivation.ts`: added `recoveries_affecting_pvc` to `SUBTRACTIONS`, reverted the interim honest-label workaround on `technical_withheld`, added the **P7-FUP-L2 arithmetic guard** — `describeWDerivation` now pushes a `⚠ Residual (unaccounted)` warning step when `|on_account − Σsubtractions − w| > 0.01`. Engine/backend/frontend tests updated. +2 vitest (guard fires / guard silent). 103/103 engine, 153/153 backend, 54/54 vitest.
+
+- **P7-FUP-L1 (`d8590dc`)** — Unified the two fetch pipelines in `frontend/lib/api/client.ts`. Extracted `authedFetch(url, init, {silent, method, path})` — private core used by both `apiFetch` and `apiDownload`: auth header injection, `fetch()` try/catch with `console.error` + Sonner toast, returns raw `Response`. Extracted `resolveErrorMessage(json, structured, statusText)` — shared two-tier resolution (structured `ApiProblem` → string `detail` fallback → statusText). Fixed two real drift bugs flagged in P7-REVIEW L1: `apiDownload` was missing `console.error` on network failure, and its error path was missing the string-`detail` fallback. No caller signature changes. No test file existed for `client.ts`; none added per plan.
+
+- **P5-IMP-FUP-1 (`6ea0c07`)** — Wired the Smart Items Import backend that has been on `main` since Session 23 but not included in the app. `backend/main.py`: added `imports` to the from-api import block (alphabetical, before `indices`) and `imports.router` to the router loop. `backend/pyproject.toml`: added `anthropic>=0.40` (uv sync installed `anthropic==0.115.1`). `backend/.env.example`: documented `ANTHROPIC_API_KEY=` — only needed for `POST /api/imports/suggest-mapping`; all other routes are unaffected when absent. Route-count assertion bumped 43→47. 11 new tests in `test_p5_imp_imports.py` covering template CRUD (list empty/rows/filter, create 201, duplicate 409, delete 204/404/wrong-tenant) and suggest-mapping (happy path with LLM mock + passthrough assertions, 503 from mocked `LLMUnavailableProblem`, 503 from real `_client()` with env cleared via monkeypatch). Final suite: **164/164 backend, 103/103 engine, 54/54 vitest**. `backend/uv.lock` committed in a separate chore commit.
 
 ### Session 28 — 2026-06-11 (P7-REVIEW remediation + PR #15 RBI backfill merge)
 
@@ -250,7 +259,8 @@ Detailed notes moved to git history and [archive/SESSION_LOG_ARCHIVE.md](archive
 
 ## Next Actions
 
-1. [Saqlain] Run the WORKPLAN smoke table tomorrow against the merged `main` (Create, Edit + clear optional field, Validation, Schedules, Items + bad-row TSV paste, Mutual-exclusion, Extra-items + mid-flight toggle, 409 inline error). Confirm `main` is push-ready.
-2. [Saqlain] Push `main` to origin once smokes pass.
-3. [CC-S] Address `P5-FUP-L1/L2/L3` (deferred LOW findings) post-merge.
-4. [CC-SH] Continue SH-P5 (G-1 → G-2 → G-3); request `SH-P5-REVIEW` before merge.
+1. [Saqlain] **Review + merge PR [#17](https://github.com/saqlainmmomin/Rail-PVC/pull/17)** (FUP backlog) — 3 feature commits + lock file, all tests green.
+2. [Saqlain] **Review + merge PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14)** (Phase 7) — P7-REVIEW fully remediated.
+3. [CC-S] After PRs land: validate `C-3-FUP-NET` (net_amount formula) against a real Railway submission; flip the `affects_pvc_base` filter in `_NET_AMOUNT_EXPR` if net payable should net all recoveries.
+4. [CC-S] After PRs land: Phase 8 (Export UI — E-1/E-2) is next.
+5. [CC-SH] Next task TBD. Export submission-format parity deferred to P8-REVIEW.
