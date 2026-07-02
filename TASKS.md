@@ -201,7 +201,7 @@ Status: **frontend complete on `saqlain/p5-imp` (2026-06-02)**. Replaces the Ses
 | P5-IMP-1 | Migration 014 — `import_templates` table | [CC-S] | code on disk | Not in head; lands with follow-up branch |
 | P5-IMP-2 | Backend: template CRUD (`/api/imports/templates`) | [CC-S] | code on disk | `backend/api/imports.py` exists; not wired into `main.py` |
 | P5-IMP-3 | Backend: AI mapper (`POST /api/imports/suggest-mapping`, Claude Haiku 4.5) | [CC-S] | code on disk | `backend/services/llm.py` exists; needs `anthropic` dep + `ANTHROPIC_API_KEY` env + route-count bump 38→42. Frontend AI button stays disabled until landed. |
-| P5-IMP-FUP-1 | Wire backend (router include, anthropic dep, env, route-count bump, pytest) | [CC-S] | pending | Separate branch off `main` once P5-IMP frontend merges |
+| P5-IMP-FUP-1 | Wire backend (router include, anthropic dep, env, route-count bump, pytest) | [CC-S] | complete | 2026-07-02. `imports.router` wired in `main.py`; `anthropic>=0.40` added to `pyproject.toml`; `ANTHROPIC_API_KEY=` added to `.env.example`; route count bumped 43→47; 11 new tests in `test_p5_imp_imports.py`. 164/164 backend. |
 | P5-IMP-FUP-2 | Templates apply/save UI in `ImportRowsModal` | [CC-S] | pending | Blocked on FUP-1 |
 
 ### Phase 7 — PVC Run + Results UI `[CC-S]`
