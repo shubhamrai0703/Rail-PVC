@@ -251,8 +251,10 @@ export default function PvcRunPage({
                   "px-5 h-11 flex items-center justify-between text-[13px] " +
                   (step.kind === "total"
                     ? "bg-slate-50 font-medium text-slate-900 border-t border-slate-200"
-                    : "text-slate-700 " +
-                      (i < wSteps.length - 1 ? "border-b border-slate-100" : ""))
+                    : step.kind === "warning"
+                      ? "bg-amber-50 font-medium text-amber-800 border-t border-amber-200"
+                      : "text-slate-700 " +
+                        (i < wSteps.length - 1 ? "border-b border-slate-100" : ""))
                 }
               >
                 <span>

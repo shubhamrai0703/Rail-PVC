@@ -69,6 +69,7 @@ def _bill(
     tmt: str = "0",
     steel_other: str = "0",
     tech_withheld: str = "0",
+    recoveries_affecting_pvc: str = "0",
     extra_decisions: list[ExtraItemDecision] | None = None,
     carry_forwards: list[CarryForwardPayload] | None = None,
     measurement_date: date = date(2025, 6, 18),
@@ -82,6 +83,7 @@ def _bill(
         steel_tmt_amount=Decimal(tmt),
         steel_other_amount=Decimal(steel_other),
         technical_withheld=Decimal(tech_withheld),
+        recoveries_affecting_pvc=Decimal(recoveries_affecting_pvc),
         extra_item_decisions=extra_decisions or [],
         carry_forwards=carry_forwards or [],
         measurement_date=measurement_date,
@@ -283,6 +285,16 @@ class TestTrace:
         assert wt.inputs["cement"].input_field == "BillPayload.cement_amount"
         assert "carry_forwards(subtype=tmt)" in wt.inputs["steel_tmt"].input_field
         assert wt.w == result.w
+
+    def test_trace_recoveries_affecting_pvc_is_distinct_from_technical_withheld(self):
+        snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
+        bill = _bill(on_account="1000000", tech_withheld="5000", recoveries_affecting_pvc="10000")
+        result = calculate_pvc(bill, snap, _standard_rules())
+        wt = result.trace.w_derivation
+        assert wt is not None
+        assert wt.inputs["technical_withheld"].value == Decimal("5000")
+        assert wt.inputs["recoveries_affecting_pvc"].value == Decimal("10000")
+        assert wt.inputs["recoveries_affecting_pvc"].input_field == "BillPayload.recoveries_affecting_pvc"
 
     def test_trace_w_derivation_is_none_when_run_blocked_pre_w(self):
         snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)

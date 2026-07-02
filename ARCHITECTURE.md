@@ -283,6 +283,7 @@ class BillPayload(BaseModel):
     steel_plates_amount: Decimal
     steel_other_amount: Decimal
     technical_withheld: Decimal
+    recoveries_affecting_pvc: Decimal = 0  # P6-H1-FUP-C — distinct from technical_withheld
     extra_item_amount: Decimal   # sum of non-eligible extra items (0 if all eligible)
     carry_forwards: list[CarryForwardPayload]
     measurement_date: date
@@ -323,7 +324,7 @@ def calculate_pvc(
 ```
 
 **Invariants enforced by the engine (not the API layer):**
-- `w == on_account_amount - cement - steel_angles - steel_plates - steel_other - technical_withheld - extra_items`
+- `w == on_account_amount - cement - steel_angles - steel_plates - steel_other - technical_withheld - recoveries_affecting_pvc - extra_items`
 - All required index values for base month + current quarter must be present, or validation error
 - If any carry-forward `paid_ratio` is outside `[0, 1]`, validation error
 - Negative PVC handling per `negative_pvc_policy`

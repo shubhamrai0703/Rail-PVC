@@ -38,7 +38,8 @@ _CENT = Decimal("0.01")
 _THREE = Decimal("3")
 _W_FORMULA = (
     "W = on_account_amount - cement - steel_angles - steel_plates "
-    "- steel_tmt - steel_other - technical_withheld - extra_items_excluded"
+    "- steel_tmt - steel_other - technical_withheld - recoveries_affecting_pvc "
+    "- extra_items_excluded"
 )
 
 
@@ -220,6 +221,10 @@ def _build_w_derivation_trace(
         "technical_withheld": WDerivationLine(
             value=w_derivation.technical_withheld,
             input_field="BillPayload.technical_withheld",
+        ),
+        "recoveries_affecting_pvc": WDerivationLine(
+            value=w_derivation.recoveries_affecting_pvc,
+            input_field="BillPayload.recoveries_affecting_pvc",
         ),
         "extra_items_excluded": WDerivationLine(
             value=w_derivation.extra_items,

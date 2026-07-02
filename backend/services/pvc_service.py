@@ -418,12 +418,13 @@ async def build_bill_payload(
         for r in cf_rows
     ]
 
-    # P6-H1 (approach A, interim): recoveries flagged affects_pvc_base reduce W.
-    # Sum them into the engine's existing technical_withheld bucket so the
-    # deduction is a NAMED W subtraction (PRODUCT.md rule 1), not silently
-    # netted off on_account. Approach C (a dedicated RecoveriesAffectingPVC
-    # bucket distinct from technical withholding) is the agreed end-state —
-    # tracked as a follow-up; this is explicitly interim, not the best shape.
+    # P6-H1-FUP-C: recoveries flagged affects_pvc_base reduce W through their
+    # own dedicated bucket (recoveries_affecting_pvc), a NAMED W subtraction
+    # (PRODUCT.md rule 1) distinct from genuine technical withholding — not
+    # silently netted off on_account, and not conflated with technical_withheld
+    # (that was interim approach A; this is the agreed end-state, approach C).
+    # technical_withheld has no producer yet — there is no product-level input
+    # for genuine technical withholding, so it stays 0 until one exists.
     withheld_row = (
         await session.execute(
             text("""
@@ -435,7 +436,7 @@ async def build_bill_payload(
         )
     ).mappings().first()
     assert withheld_row is not None
-    technical_withheld = Decimal(withheld_row["withheld"] or 0)
+    recoveries_affecting_pvc = Decimal(withheld_row["withheld"] or 0)
 
     on_account = Decimal(bill["gross_amount"] or 0)
     return BillPayload(
@@ -445,7 +446,8 @@ async def build_bill_payload(
         steel_plates_amount=Decimal(bucket_rows["steel_plates"]),
         steel_tmt_amount=Decimal(bucket_rows["steel_tmt"]),
         steel_other_amount=Decimal(bucket_rows["steel_other"]),
-        technical_withheld=technical_withheld,
+        technical_withheld=Decimal("0"),
+        recoveries_affecting_pvc=recoveries_affecting_pvc,
         extra_item_decisions=extra_item_decisions,
         carry_forwards=carry_forwards,
         measurement_date=bill["measurement_date"],

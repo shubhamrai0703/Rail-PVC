@@ -173,7 +173,7 @@ Status: **open (2026-06-04).** Codex-S pass on the merged Phase 6 Bill Entry UI.
 | P6-H2 | Backend accepts non-positive bill/recovery amounts | [CC-S] | complete | `ValidationProblem` on `bill_number<=0`, `gross_amount<=0` (before tenant gate), recovery `amount<=0`. +8 tests. 125/125 backend. |
 | P6-M3 | Malformed AG Grid numeric edits silently null the cell | [CC-S] | complete | Pure `lib/parseNumericCell.ts` (strip separators, reject non-decimal); parser keeps `oldValue` + toasts on reject. +5 vitest. |
 | P6-M4 | Calculate-PVC error drops engine `validation_errors` list | [CC-S] | complete | Pure `lib/pvcRunError.ts::describePvcRunError`; PVC card renders the list. +4 vitest. |
-| P6-H1-FUP-C | Replace interim A with a dedicated `RecoveriesAffectingPVC` W bucket | [CC-S] | pending | **Agreed end-state — A is not the best shape.** Add a named W bucket in the engine `BillPayload` + formula + `w_derivation`, distinct from `technical_withheld`, so genuine technical withholding and PVC-affecting recoveries disaggregate. Touches engine + 99 engine tests + ARCHITECTURE.md W invariant + run-detail UI/export. Do before any flow that must show both deductions separately. |
+| P6-H1-FUP-C | Replace interim A with a dedicated `RecoveriesAffectingPVC` W bucket | [CC-S] | complete | 2026-07-02. `recoveries_affecting_pvc: Decimal = 0` added to engine `BillPayload`/`WDerivation`, subtracted in `derive_w()`, traced in `calculator.py`. `technical_withheld` now genuinely empty (no producer yet) — recoveries flow into the new bucket. Backend/frontend/ARCHITECTURE.md updated. 103/103 engine, 153/153 backend, 54/54 vitest green. |
 
 ### DEMO — Seed Test Dataset for PVC Cycle Walk-Through `[CODEX-S → CC-S]`
 
@@ -218,7 +218,7 @@ Status: **implemented + P7-REVIEW remediated on `saqlain/phase-7` (2026-06-11).*
 | D-4 | Run history + tests | [CC-S] | complete | Run-history list on bill detail filtered to the bill. Pure `lib/pvcWDerivation.ts` + `lib/pvcRunStatus.ts` (statusVariant deduped from bill page) with 7 vitest. |
 | D-FUP-1 | Apply migration 015 to Supabase before running PVC on real bills | [CC-S] | complete | Done 2026-06-11 via `alembic upgrade head` (DB now at 016; stamped 013 — `is_admin` pre-existed out-of-band; created `get_tenant_id()` so 014's RLS policies could apply). Existing rows keep NULL totals (acceptable — pre-Phase-7). |
 | P7-FUP-L1 | Extract shared `authedFetch` from `apiFetch`/`apiDownload` | [CC-S] | pending | P7-REVIEW L1 deferral. The two error pipelines have already drifted (string-`detail` fallback + network logging differ); `silent` option on `apiDownload` has zero callers. Refactor only — no behavior change. |
-| P7-FUP-L2 | `describeWDerivation` arithmetic guard | [CC-S] | pending | P7-REVIEW L2 deferral. Assert `base − Σ subtractions === w`; render a warning row on non-zero residual. **Must land with/before P6-H1-FUP-C approach C** — a new W bucket would otherwise be silently dropped from the audit display. |
+| P7-FUP-L2 | `describeWDerivation` arithmetic guard | [CC-S] | complete | 2026-07-02, landed with P6-H1-FUP-C. `describeWDerivation` now computes `on_account - Σ subtractions - w`; pushes an amber "⚠ Residual (unaccounted)" warning row when `|residual| > 0.01`. 2 new vitest (consistent / inconsistent cases). |
 
 ### Phases 8–9 — Forward Plan
 
