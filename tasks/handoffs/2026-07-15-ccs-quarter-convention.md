@@ -1,6 +1,6 @@
 # Brief for CC-S: KU-001 quarter convention is wrong — evidence + design question
 
-Audience: CC-S (engine-semantics owner). Assume zero context from other sessions. Status: **evidence complete, blocked on one domain confirmation from Saqlain** — do not implement until he confirms with his railway contact.
+Audience: CC-S (engine-semantics owner). Assume zero context from other sessions. Status: **UNBLOCKED (2026-07-15)** — Saqlain's railway contact confirmed: quarters are **rolling** (not calendar), anchored to the contract's start date, which is **input by the contractor**. See "Domain confirmation" below. Implementation may proceed.
 
 ## The claim
 
@@ -40,6 +40,18 @@ So W-derivation, general components, cement, steel buckets incl. derived SL4 are
 4. Edge cases to spec: measurement date inside the base month itself; contract extensions (COP has one: 2024-11-04 → 2025-10-30, "with PVC YES"); bills whose date falls in a quarter with no index data yet.
 5. Regression harness is being built in parallel (see fixtures handoff above): 5 contracts / ~14 bills with per-fixture xfail markers carrying reason `KU-001` — they flip to passing when the fix lands, which is the acceptance test.
 
+## Domain confirmation (2026-07-15, railway contact via Saqlain)
+
+Verbatim answer to "rolling from contract start vs fixed calendar quarters under Apr-2022 GCC": **"rolling quarter, start date will be input by contractor."**
+
+Consequences for the design questions above:
+
+1. **Q1 answered: rolling-only.** No real Apr-2022-GCC contract uses calendar quarters — 252/183 were coincidences. Therefore take the Q2 path, NOT the Q3 path: change `resolve_quarter` to `resolve_quarter(measurement_date, base_month)` with ordinal labels ("Q3") and rolling windows. Do **not** add a `quarter_convention` rule-set flag — there is no second convention to configure (YAGNI).
+2. **Anchor source:** "start date input by contractor" maps to the existing contract-level `base_month` field (migration 002; entered on the contract form, already carried on `IndexSnapshot.base_month`). No schema change needed. Per all five workbooks, Quarter 1 = the three months **immediately after** the base month (base Jul-23 → Q1 = Aug–Oct-23); the day-of-month of the start date is irrelevant to window boundaries.
+3. **Label migration story:** `pvc_runs.quarter_used` is nullable TEXT with dev-only data — leave old `Q2-FY2025-26`-style rows as-is; new runs write ordinal labels. Exports render whatever the run row carries.
+4. **Acceptance test:** the 14 KU-001 xfails in `engine/tests/test_real_tender_fixtures.py` (see fixtures handoff Results). Note the pinned-outcome mechanism: each xfail pins the current engine total, so the resolver change requires deliberately refreshing those pins. Post-fix expectations: ordinary COP/296/JRH bills flip to passing; COP Bills 3–4, 183 Bill 2, 252 Bill 2 remain xfail (workbook-internal divergences, not quarter bugs); COP Bill 4 + JRH Bill 5 previously requested a calendar Oct–Dec-2025 horizon the fixtures lack — rolling windows should eliminate that, verify.
+5. **Edge cases still to spec during implementation** (contact answer doesn't cover them): measurement date falling inside the base month itself (before Q1 starts); contract extensions (COP: extended 2024-11-04 → 2025-10-30 "with PVC YES" — quarters keep counting past the original completion date); quarters with missing index months (existing validation-error path should stand).
+
 ## Results
 
-(CC-S: append design decision + implementation notes here.)
+(Implementer: append design decision + implementation notes here.)

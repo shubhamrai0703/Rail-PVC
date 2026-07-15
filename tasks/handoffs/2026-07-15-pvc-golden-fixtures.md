@@ -79,3 +79,109 @@ CC ran the engine against the COP & Seating workbook using the workbook's own qu
 3. **COP Bill 4 same problem, different line:** W subtracts steel-other 665094.334275 but the steel-other bucket runs on 1978547.683065 (adds items 10.28 SS-plate 405809.35 + 10.16.1 MS-tubes 907644.00). Workbook total −130259.32 is the hybrid. Engine-consistent totals: −60034.59 (other=665094 everywhere) or −156249.28 (other=1978547 everywhere). Same fixture treatment as Bill 3; use steel_other_amount=1978547.683065 in the payload and document the hybrid.
 4. **Index-sheet inconsistencies inside COP:** Table 10 (Q7) uses angles avg 59820 (implies Apr-25 angles 61133.33, matching the 252 workbook) while COP's own Table 3 says 59806.22 (Apr-25 = 61092). When quarter-calc sheets and index sheets disagree, extract BOTH into notes and use the quarter-calc value for expected reproduction.
 5. Watch for the same double-count patterns in the other four workbooks — check every bill: does the general-components base amount equal the W column in the W-derivation sheet, and does each steel bucket amount equal the amount subtracted from W? Flag mismatches in `notes.workbook_divergence`.
+
+## Results
+
+Implemented a deterministic `openpyxl` extractor at `engine/scripts/extract_pvc_fixtures.py`, a tolerance-aware single-fixture runner at `engine/scripts/run_engine_fixture.py`, and exact-outcome xfail support in `engine/tests/test_real_tender_fixtures.py`. `openpyxl` and `types-openpyxl` are engine dev dependencies. No engine calculation or quarter-resolution code was changed.
+
+The workbook count was 16 bills rather than the handoff estimate of ~14. The two existing partially synthetic 252 fixtures remain because the workbook-derived fixtures do not supersede them exactly; the new pair uses `_golden_` filenames.
+
+### Fixtures created
+
+| Fixture | Workbook `expected.total_pvc` | Current engine result | Verdict |
+|---|---:|---:|---|
+| `engine/tests/fixtures/real_tenders/bct_2324_296_bill1_q3.json` | 82102.8542722159 | 45470.44 | XFAIL (`KU-001`) |
+| `engine/tests/fixtures/real_tenders/bct_2324_296_bill2_q4.json` | 94049.84532663942 | 102623.70 | XFAIL (`KU-001`) |
+| `engine/tests/fixtures/real_tenders/bct_2324_296_bill3_q4.json` | 314.11519395299547 | 337.75 | XFAIL (`KU-001`; Q4/Q5 workbook-label divergence) |
+| `engine/tests/fixtures/real_tenders/bct_2425_183_bill1_q2.json` | 76077.18923203675 | 76077.19 | PASS (tolerance 0.01) |
+| `engine/tests/fixtures/real_tenders/bct_2425_183_bill2_q3.json` | 74597.56141311392 | 73710.18 | XFAIL (`KU-001` follow-up; workbook divergence) |
+| `engine/tests/fixtures/real_tenders/bct_2425_252_golden_bill1_q2.json` | 34616.033473397874 | 34616.03 | PASS (tolerance 0.01) |
+| `engine/tests/fixtures/real_tenders/bct_2425_252_golden_bill2_q4.json` | 23412.999679941502 | 80905.45 | XFAIL (`KU-001` follow-up; workbook divergence) |
+| `engine/tests/fixtures/real_tenders/jrh_bct_2324_48_bill1_q4.json` | -23233.53675297954 | -28863.63 | XFAIL (`KU-001`) |
+| `engine/tests/fixtures/real_tenders/jrh_bct_2324_48_bill2_q6.json` | 166826.18143382607 | 182912.11 | XFAIL (`KU-001`) |
+| `engine/tests/fixtures/real_tenders/jrh_bct_2324_48_bill3_q7.json` | 168361.02010390558 | 177255.16 | XFAIL (`KU-001`) |
+| `engine/tests/fixtures/real_tenders/jrh_bct_2324_48_bill4_q9.json` | 181237.4255617806 | 189521.14 | XFAIL (`KU-001`) |
+| `engine/tests/fixtures/real_tenders/jrh_bct_2324_48_bill5_q10.json` | 101021.42952644259 | blocked: Oct-Dec 2025 indices absent | XFAIL (`KU-001`; exact validation errors pinned) |
+| `engine/tests/fixtures/real_tenders/stc_cop_bill1_q3.json` | -120623.44 | -117866.41 | XFAIL (`KU-001`; tolerance 0.15 retained for post-fix rounding) |
+| `engine/tests/fixtures/real_tenders/stc_cop_bill2_q4.json` | -54035.63 | -26388.88 | XFAIL (`KU-001`; tolerance 0.15 retained for post-fix rounding) |
+| `engine/tests/fixtures/real_tenders/stc_cop_bill3_q7.json` | 8588.242160840233 | -20134.82 | XFAIL (`KU-001`; workbook divergence) |
+| `engine/tests/fixtures/real_tenders/stc_cop_bill4_q9.json` | -130259.32482108506 | blocked: Oct-Dec 2025 indices absent | XFAIL (`KU-001`; workbook divergence and exact validation errors pinned) |
+
+Every calculation-sheet expected value is cross-checked against a configured cached result on the workbook summary sheet. Every xfail also pins either the exact current engine total or the exact ordered validation-error list; an unrelated engine or fixture regression therefore fails rather than being hidden by a broad xfail.
+
+### 183 verification
+
+The prediction that both 183 bills would pass was only half correct:
+
+- Bill 1 genuinely passes: engine 76077.19 versus workbook 76077.18923203675 (difference 0.00076796325).
+- Bill 2 does not reconcile despite calendar alignment. `Second page!L6` derives general W without subtracting cement, while `Bill 2` also calculates a separate cement component from the 69458.06889156601 amount. The engine's single `cement_amount` field cannot represent that double treatment. This is recorded as a workbook divergence and explicitly says `quarter.py` alone will not fix it.
+
+### Workbook ambiguities and divergences
+
+- **252:** `Front Page !C7` links `Bill-2!L25` while labelled first bill/Q2, and `C8` links `Bill- 1!L25` while labelled second bill/Q4. The fixture mapping follows the calculation-sheet precedents and `Second Page` rows, while recording both summary cells. Bill 2 is labelled/measured Q4 but its calculation formulas reference Q2 average row 9 instead of Q4 row 16. The Index sheet also has no populated Jan-Mar or Jul-Sep rows; no values were invented.
+- **183:** Bill 2 has the cement/general-W double treatment described above.
+- **296:** the third bill is labelled Q5 in `Second page!C8`, but the front page, calculation sheet, and formulas identify/use Q4.
+- **JRH:** the authoritative base indices are the May-23 row used by calculations, despite a conflicting Jul-23 label and stray Apr-23 row. Bill 5 says Q9 on its calculation heading but the summary, W row, and formulas identify/use Q10.
+- **COP Bill 3:** general W double-counts TMT. The fixture uses the calculation-sheet-implied Apr-25 angles value 61133.33 (average 59820) and records the Index-sheet alternative 61092 (average 59806.22).
+- **COP Bill 4:** the W sheet subtracts steel-other 665094.334275, while the calculation bucket uses 1978547.683065. Per the addendum, the payload uses `Table 11!B25` = 1978547.683065 and documents both values.
+
+Required cached numeric cells now fail extraction when blank; only explicitly optional deductions normalize blank/`-` cells to zero. Non-blank cached formulas can still be stale because `openpyxl` cannot force Excel recalculation, so the saved workbook caches remain the evidence boundary.
+
+### Verification
+
+Fixture suite:
+
+```text
+======================== 7 passed, 14 xfailed in 0.28s =========================
+```
+
+The 21 items comprise 18 fixture cases (16 new workbook-derived plus 2 retained synthetic 252 fixtures) and 3 fixture-metadata tests.
+
+Full engine suite, including 7 extractor parsing tests:
+
+```text
+======================= 113 passed, 14 xfailed in 3.31s ========================
+```
+
+Deterministic source check:
+
+```text
+Checked 16 fixtures
+```
+
+Scoped type check:
+
+```text
+Success: no issues found in 2 source files
+```
+
+Passing single-fixture smoke check:
+
+```json
+{
+  "fixture": "tests/fixtures/real_tenders/bct_2425_183_bill1_q2.json",
+  "quarter_used": "Q1-FY2024-25",
+  "quarter_months": [
+    "2025-01",
+    "2025-02",
+    "2025-03"
+  ],
+  "validation_errors": [],
+  "comparison": {
+    "matches_total_pvc": true,
+    "actual_total_pvc": "76077.19",
+    "expected_total_pvc": "76077.18923203675",
+    "difference": "0.00076796325",
+    "tolerance": "0.01"
+  }
+}
+```
+
+`git diff --check` also completed cleanly. Independent correctness, adversarial, testing, maintainability, and project-standards re-review found no remaining findings at confidence 75 or higher.
+
+### Notes for the `quarter.py` owner
+
+- A rolling-quarter fix should move the ordinary COP, 296, and JRH bills toward their workbook totals, but the pinned xfail outcomes must be deliberately refreshed when resolver behavior changes.
+- COP Bills 3 and 4 will still require workbook-divergence decisions after KU-001. COP Bill 4 and JRH Bill 5 also lack the calendar Oct-Dec 2025 source horizon currently requested by the engine.
+- The calendar-aligned 183 Bill 2 and 252 Bill 2 failures are not fixed by rolling-quarter resolution: they expose workbook formula inconsistencies described above.
+- The change is test/extraction tooling only, so there is no operational deployment or monitoring step.
