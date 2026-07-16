@@ -136,6 +136,11 @@ function normalize(s: string): string {
     .trim();
 }
 
+/** Header normalization shared with the import-template signature (P5-IMP-FUP-2). */
+export function normalizeHeader(s: string): string {
+  return normalize(s);
+}
+
 function tokens(s: string): string[] {
   return normalize(s).split(" ").filter((t) => t.length > 0);
 }

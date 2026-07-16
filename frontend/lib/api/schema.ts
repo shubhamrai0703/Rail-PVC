@@ -31,9 +31,64 @@ export interface paths {
         };
         /** Get Contract */
         get: operations["get_contract_api_contracts__contract_id__get"];
-        put?: never;
+        /** Update Contract */
+        put: operations["update_contract_api_contracts__contract_id__put"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/contracts/{contract_id}/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Schedules */
+        get: operations["list_schedules_api_contracts__contract_id__schedules_get"];
+        put?: never;
+        /** Create Schedule */
+        post: operations["create_schedule_api_contracts__contract_id__schedules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/schedules/{schedule_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contract Items */
+        get: operations["list_contract_items_api_schedules__schedule_id__items_get"];
+        put?: never;
+        /** Create Contract Item */
+        post: operations["create_contract_item_api_schedules__schedule_id__items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/schedules/{schedule_id}/items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Contract Item */
+        put: operations["update_contract_item_api_schedules__schedule_id__items__item_id__put"];
+        post?: never;
+        /** Delete Contract Item */
+        delete: operations["delete_contract_item_api_schedules__schedule_id__items__item_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -46,10 +101,29 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List Bills */
+        get: operations["list_bills_api_contracts__contract_id__bills_get"];
         put?: never;
         /** Create Bill */
         post: operations["create_bill_api_contracts__contract_id__bills_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bills/{bill_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Bill */
+        get: operations["get_bill_api_bills__bill_id__get"];
+        /** Update Bill */
+        put: operations["update_bill_api_bills__bill_id__put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -63,11 +137,47 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List Bill Lines */
+        get: operations["list_bill_lines_api_bills__bill_id__lines_get"];
         put?: never;
         /** Create Bill Line */
         post: operations["create_bill_line_api_bills__bill_id__lines_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bills/{bill_id}/recoveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Recoveries */
+        get: operations["list_recoveries_api_bills__bill_id__recoveries_get"];
+        put?: never;
+        /** Create Recovery */
+        post: operations["create_recovery_api_bills__bill_id__recoveries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bills/{bill_id}/recoveries/{recovery_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Recovery */
+        delete: operations["delete_recovery_api_bills__bill_id__recoveries__recovery_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -125,6 +235,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/imports/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Templates */
+        get: operations["list_templates_api_imports_templates_get"];
+        put?: never;
+        /** Create Template */
+        post: operations["create_template_api_imports_templates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Template */
+        delete: operations["delete_template_api_imports_templates__template_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/suggest-mapping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggest Mapping
+         * @description Propose a column mapping using Claude Haiku 4.5.
+         *
+         *     Returns:
+         *         {
+         *           "mapping": { source_header: target_field | null, ... },
+         *           "value_normalizations": { target_field: { source_value: canonical_value } },
+         *           "confidence": 0..1,
+         *           "unmapped": [source_header, ...],
+         *           "notes": str | null,
+         *         }
+         *
+         *     The endpoint is read-only and does not persist anything. Errors from
+         *     the LLM provider surface as 503 (`llm_unavailable`) so the frontend
+         *     can fall back to the manual mapper.
+         */
+        post: operations["suggest_mapping_api_imports_suggest_mapping_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/index-series": {
         parameters: {
             query?: never;
@@ -159,6 +337,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/indices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Index Series */
+        get: operations["list_index_series_api_indices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/indices/{series_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Index Series */
+        get: operations["get_index_series_api_indices__series_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/indices/{series_name}/months": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Index Month */
+        post: operations["add_index_month_api_indices__series_name__months_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/contracts/{contract_id}/pvc-rule-set": {
         parameters: {
             query?: never;
@@ -184,7 +413,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Runs
+         * @description Run history for a contract, newest first. Mirrors the sibling
+         *     `GET /contracts/{id}/bills`: an explicit contract gate 404s an unknown
+         *     or cross-tenant contract (no-distinguish probe protection), while an
+         *     owned contract with zero runs returns an empty list, not 404.
+         */
+        get: operations["list_runs_api_contracts__contract_id__pvc_runs_get"];
         put?: never;
         /** Create Pvc Run */
         post: operations["create_pvc_run_api_contracts__contract_id__pvc_runs_post"];
@@ -228,6 +464,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/contracts/{contract_id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contract Documents */
+        get: operations["list_contract_documents_api_contracts__contract_id__documents_get"];
+        put?: never;
+        /** Upload Contract Document */
+        post: operations["upload_contract_document_api_contracts__contract_id__documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pvc-runs/{run_id}/export/excel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Run Excel */
+        get: operations["export_run_excel_api_pvc_runs__run_id__export_excel_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pvc-runs/{run_id}/export/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Run Pdf */
+        get: operations["export_run_pdf_api_pvc_runs__run_id__export_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -253,17 +541,18 @@ export interface components {
         BillCreate: {
             /** Bill Number */
             bill_number: number;
-            /** Bill Date */
-            bill_date?: string | null;
+            /**
+             * Bill Date
+             * Format: date
+             */
+            bill_date: string;
             /**
              * Measurement Date
              * Format: date
              */
             measurement_date: string;
             /** Gross Amount */
-            gross_amount?: number | string | null;
-            /** Net Amount */
-            net_amount?: number | string | null;
+            gross_amount: number | string;
         };
         /** BillLineCreate */
         BillLineCreate: {
@@ -304,6 +593,24 @@ export interface components {
              * @default 0
              */
             special_condition_amount: number | string;
+        };
+        /** BillUpdate */
+        BillUpdate: {
+            /** Bill Number */
+            bill_number?: number | null;
+            /** Bill Date */
+            bill_date?: string | null;
+            /** Measurement Date */
+            measurement_date?: string | null;
+            /** Gross Amount */
+            gross_amount?: number | string | null;
+        };
+        /** Body_upload_contract_document_api_contracts__contract_id__documents_post */
+        Body_upload_contract_document_api_contracts__contract_id__documents_post: {
+            /** File Type */
+            file_type: string;
+            /** File */
+            file: string;
         };
         /** CarryForwardUpdate */
         CarryForwardUpdate: {
@@ -355,6 +662,89 @@ export interface components {
             /** Railway Zone */
             railway_zone: string;
         };
+        /** ContractItemCreate */
+        ContractItemCreate: {
+            /** Item Code */
+            item_code: string;
+            /** Description */
+            description?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Original Qty */
+            original_qty?: number | string | null;
+            /** Revised Qty */
+            revised_qty?: number | string | null;
+            /** Base Rate */
+            base_rate?: number | string | null;
+            /** Agreement Rate */
+            agreement_rate?: number | string | null;
+            /**
+             * Is Cement Item
+             * @default false
+             */
+            is_cement_item: boolean;
+            /** Steel Subtype */
+            steel_subtype?: string | null;
+        };
+        /** ContractItemUpdate */
+        ContractItemUpdate: {
+            /** Item Code */
+            item_code?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Original Qty */
+            original_qty?: number | string | null;
+            /** Revised Qty */
+            revised_qty?: number | string | null;
+            /** Base Rate */
+            base_rate?: number | string | null;
+            /** Agreement Rate */
+            agreement_rate?: number | string | null;
+            /** Is Cement Item */
+            is_cement_item?: boolean | null;
+            /** Steel Subtype */
+            steel_subtype?: string | null;
+        };
+        /**
+         * ContractUpdate
+         * @description Partial update — only fields actually present in the request body are
+         *     written. We use `model_fields_set` in the handler to build the SET clause
+         *     so unset Optional fields do not overwrite existing values with NULL.
+         */
+        ContractUpdate: {
+            /** Tender Number */
+            tender_number?: string | null;
+            /** Agreement Number */
+            agreement_number?: string | null;
+            /** Loa Number */
+            loa_number?: string | null;
+            /** Loa Date */
+            loa_date?: string | null;
+            /** Contractor Name */
+            contractor_name?: string | null;
+            /** Work Description */
+            work_description?: string | null;
+            /** Contract Value */
+            contract_value?: number | string | null;
+            /** Bid Amount */
+            bid_amount?: number | string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Completion Date */
+            completion_date?: string | null;
+            /** Base Month */
+            base_month?: string | null;
+            /** Gst Mode */
+            gst_mode?: string | null;
+            /** Pvc Applicable */
+            pvc_applicable?: boolean | null;
+            /** Overall Rebate */
+            overall_rebate?: number | string | null;
+            /** Railway Zone */
+            railway_zone?: string | null;
+        };
         /** ExtraItemDecisionUpsert */
         ExtraItemDecisionUpsert: {
             /** Item Id */
@@ -369,10 +759,34 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** IndexMonthBody */
+        IndexMonthBody: {
+            /**
+             * Month
+             * Format: date
+             */
+            month: string;
+            /** Value */
+            value: number | string;
+            /** Source Ref */
+            source_ref?: string | null;
+        };
         /** PVCRunCreate */
         PVCRunCreate: {
             /** Bill Id */
             bill_id: string;
+        };
+        /** RecoveryCreate */
+        RecoveryCreate: {
+            /** Recovery Type */
+            recovery_type: string;
+            /** Amount */
+            amount: number | string;
+            /**
+             * Affects Pvc Base
+             * @default false
+             */
+            affects_pvc_base: boolean;
         };
         /** RuleSetUpdate */
         RuleSetUpdate: {
@@ -386,6 +800,42 @@ export interface components {
             rounding_mode: string;
             /** Negative Pvc Policy */
             negative_pvc_policy: string;
+        };
+        /** ScheduleCreate */
+        ScheduleCreate: {
+            /** Name */
+            name: string;
+            /** Schedule Type */
+            schedule_type: string;
+            /**
+             * Bid Discount Pct
+             * @default 0
+             */
+            bid_discount_pct: number | string;
+        };
+        /** SuggestMappingBody */
+        SuggestMappingBody: {
+            /** Headers */
+            headers: string[];
+            /** Sample Rows */
+            sample_rows?: string[][];
+        };
+        /** TemplateCreate */
+        TemplateCreate: {
+            /** Name */
+            name: string;
+            /** Source Signature */
+            source_signature: string;
+            /** Mapping */
+            mapping: {
+                [key: string]: string | null;
+            };
+            /** Value Normalizations */
+            value_normalizations?: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
         };
         /** ValidationError */
         ValidationError: {
@@ -499,6 +949,284 @@ export interface operations {
             };
         };
     };
+    update_contract_api_contracts__contract_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContractUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_schedules_api_contracts__contract_id__schedules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_schedule_api_contracts__contract_id__schedules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contract_items_api_schedules__schedule_id__items_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_contract_item_api_schedules__schedule_id__items_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContractItemCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_contract_item_api_schedules__schedule_id__items__item_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContractItemUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contract_item_api_schedules__schedule_id__items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_bills_api_contracts__contract_id__bills_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_bill_api_contracts__contract_id__bills_post: {
         parameters: {
             query?: never;
@@ -523,6 +1251,109 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bill_api_bills__bill_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_bill_api_bills__bill_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_bill_lines_api_bills__bill_id__lines_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
                 };
             };
             /** @description Validation Error */
@@ -561,6 +1392,106 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_recoveries_api_bills__bill_id__recoveries_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_recovery_api_bills__bill_id__recoveries_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_recovery_api_bills__bill_id__recoveries__recovery_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bill_id: string;
+                recovery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -713,6 +1644,138 @@ export interface operations {
             };
         };
     };
+    list_templates_api_imports_templates_get: {
+        parameters: {
+            query?: {
+                source_signature?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_template_api_imports_templates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_template_api_imports_templates__template_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_mapping_api_imports_suggest_mapping_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuggestMappingBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_series_api_index_series_get: {
         parameters: {
             query?: never;
@@ -757,6 +1820,98 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_index_series_api_indices_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+        };
+    };
+    get_index_series_api_indices__series_name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                series_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_index_month_api_indices__series_name__months_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                series_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndexMonthBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -827,6 +1982,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_runs_api_contracts__contract_id__pvc_runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
                 };
             };
             /** @description Validation Error */
@@ -932,6 +2120,138 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contract_documents_api_contracts__contract_id__documents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_contract_document_api_contracts__contract_id__documents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_contract_document_api_contracts__contract_id__documents_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_run_excel_api_pvc_runs__run_id__export_excel_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_run_pdf_api_pvc_runs__run_id__export_pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

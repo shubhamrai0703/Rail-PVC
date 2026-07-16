@@ -14,6 +14,7 @@ import {
   type Mapping,
 } from "@/lib/normalizeImportRows";
 import type { XlsxWorkbook } from "@/lib/parseXlsx";
+import { ImportTemplateControls } from "./ImportTemplateControls";
 
 type ImportedRow = ParsedRow & { _rowState: "new" };
 
@@ -241,6 +242,13 @@ export function ImportRowsModal({ onClose, onAdd }: Props) {
         )}
 
         {/* Step 2 — mapping */}
+        {source !== null && source.headers.length > 0 && (
+          <ImportTemplateControls
+            headers={source.headers}
+            effectiveMapping={effectiveMapping}
+            onApply={setMappingOverrides}
+          />
+        )}
         {source !== null && source.headers.length > 0 && (
           <MappingTable
             source={source}
