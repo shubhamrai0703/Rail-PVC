@@ -51,46 +51,23 @@ export async function apiFetch<T = unknown>(
 ): Promise<T> {
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
 
-  const authHeader = await getAuthHeader();
-
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      ...init,
-      headers: {
-        "content-type": "application/json",
-        accept: "application/json",
-        ...authHeader,
-        ...headers, // caller-supplied headers win (e.g. explicit Authorization override)
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  } catch (cause) {
-    console.error("[apiFetch] fetch() threw:", cause);
-    const err = new ApiError(0, "Network error — is the API reachable?", { cause });
-    if (!silent) {
-      toast.error("Network error", {
-        description: `${init.method ?? "GET"} ${path}`,
-      });
-    }
-    throw err;
-  }
+  const res = await authedFetch(url, {
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+      ...headers, // caller-supplied headers win (e.g. explicit Authorization override)
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  }, { silent, method: init.method ?? "GET", path });
 
   const text = await res.text();
   const json = text ? safeJSON(text) : null;
 
   if (!res.ok) {
     const structured = extractApiProblem(json);
-
-    const message = structured?.message
-      ?? (typeof json === "object" && json && "detail" in json && typeof (json as Record<string, unknown>).detail === "string"
-          ? (json as Record<string, unknown>).detail as string
-          : null)
-      ?? res.statusText
-      ?? "Request failed";
-
+    const message = resolveErrorMessage(json, structured, res.statusText);
     const err = new ApiError(res.status, message, json, structured ?? undefined);
-
     if (!silent) {
       toast.error(`${res.status} · ${friendly(res.status)}`, {
         description: toastDescription(structured, message),
@@ -115,22 +92,14 @@ export async function apiDownload(
   { silent }: { silent?: boolean } = {},
 ): Promise<void> {
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
-  const authHeader = await getAuthHeader();
 
-  let res: Response;
-  try {
-    res = await fetch(url, { headers: { ...authHeader } });
-  } catch (cause) {
-    const err = new ApiError(0, "Network error — is the API reachable?", { cause });
-    if (!silent) toast.error("Network error", { description: `GET ${path}` });
-    throw err;
-  }
+  const res = await authedFetch(url, {}, { silent, method: "GET", path });
 
   if (!res.ok) {
     const text = await res.text();
     const json = text ? safeJSON(text) : null;
     const structured = extractApiProblem(json);
-    const message = structured?.message ?? res.statusText ?? "Download failed";
+    const message = resolveErrorMessage(json, structured, res.statusText);
     const err = new ApiError(res.status, message, json, structured ?? undefined);
     if (!silent) {
       toast.error(`${res.status} · ${friendly(res.status)}`, {
@@ -162,6 +131,32 @@ export async function apiDownload(
   a.click();
   a.remove();
   URL.revokeObjectURL(href);
+}
+
+/**
+ * Shared fetch core: injects auth header, runs fetch() with network-failure
+ * logging + optional toast, returns the raw Response. Both `apiFetch` and
+ * `apiDownload` delegate here so their error paths stay in sync.
+ */
+async function authedFetch(
+  url: string,
+  init: RequestInit,
+  { silent = false, method = "GET", path }: { silent?: boolean; method?: string; path: string },
+): Promise<Response> {
+  const authHeader = await getAuthHeader();
+  try {
+    return await fetch(url, {
+      ...init,
+      headers: { ...authHeader, ...(init.headers as Record<string, string> | undefined) },
+    });
+  } catch (cause) {
+    console.error("[apiFetch] fetch() threw:", cause);
+    const err = new ApiError(0, "Network error — is the API reachable?", { cause });
+    if (!silent) {
+      toast.error("Network error", { description: `${method} ${path}` });
+    }
+    throw err;
+  }
 }
 
 function filenameFromDisposition(
@@ -214,6 +209,25 @@ function extractApiProblem(json: unknown): ApiProblem | null {
   const d = (json as Record<string, unknown>).detail as Record<string, unknown>;
   if (typeof d.code !== "string" || typeof d.message !== "string") return null;
   return d as ApiProblem;
+}
+
+/** Resolves the best error message from a failed response body. */
+function resolveErrorMessage(
+  json: unknown,
+  structured: ApiProblem | null,
+  statusText: string,
+): string {
+  return (
+    structured?.message
+    ?? (typeof json === "object" &&
+        json !== null &&
+        "detail" in json &&
+        typeof (json as Record<string, unknown>).detail === "string"
+      ? ((json as Record<string, unknown>).detail as string)
+      : null)
+    ?? statusText
+    ?? "Request failed"
+  );
 }
 
 function toastDescription(problem: ApiProblem | null, fallback: string): string {

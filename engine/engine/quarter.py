@@ -1,34 +1,36 @@
-"""P2-006: Quarter resolver — measurement_date → quarter label + month list.
+"""P2-006: Resolve rolling contract quarters for a measurement date.
 
-Quarter convention (confirmed KU-001, WR zone):
-  - Anchor: the "To" date of the measurement period, passed as measurement_date
-  - Calendar quarters: Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec
-  - FY label: Indian FY (Apr Y → Mar Y+1), e.g. FY2025-26
-  - Format: "Q2-FY2025-26"
+Under GCC April 2022, Quarter 1 is the three months immediately after the
+contract base month. Later quarters continue in three-month windows for the
+life of the contract and use plain ordinal labels (``Q1``, ``Q5``, ...).
 """
 from __future__ import annotations
 
 from datetime import date
 
 
-def resolve_quarter(measurement_date: date) -> tuple[str, list[str]]:
+def resolve_quarter(measurement_date: date, base_month: date) -> tuple[str, list[str]]:
     """
     Return (quarter_label, quarter_months).
 
-    quarter_label: e.g. "Q2-FY2025-26"
-    quarter_months: e.g. ["2025-04", "2025-05", "2025-06"]
+    Dates in or before the base month have no PVC quarter and return an empty
+    label and month list so the calculator can surface a validation error.
     """
-    q = (measurement_date.month - 1) // 3 + 1  # 1–4
-    q_start_month = (q - 1) * 3 + 1
+    months_since_base = (
+        (measurement_date.year - base_month.year) * 12
+        + measurement_date.month
+        - base_month.month
+    )
+    if months_since_base <= 0:
+        return "", []
 
-    # Indian FY: starts April. Months Apr-Dec belong to fy_start year;
-    # Jan-Mar belong to fy_start = year - 1.
-    fy_start = measurement_date.year if measurement_date.month >= 4 else measurement_date.year - 1
-    fy_end_short = str(fy_start + 1)[2:]
-    quarter_label = f"Q{q}-FY{fy_start}-{fy_end_short}"
+    quarter_number = ((months_since_base - 1) // 3) + 1
+    quarter_start_offset = (quarter_number - 1) * 3 + 1
+    base_month_index = base_month.year * 12 + base_month.month - 1
 
-    quarter_months = [
-        f"{measurement_date.year}-{q_start_month + i:02d}" for i in range(3)
-    ]
+    quarter_months: list[str] = []
+    for offset in range(quarter_start_offset, quarter_start_offset + 3):
+        year, zero_based_month = divmod(base_month_index + offset, 12)
+        quarter_months.append(f"{year}-{zero_based_month + 1:02d}")
 
-    return quarter_label, quarter_months
+    return f"Q{quarter_number}", quarter_months

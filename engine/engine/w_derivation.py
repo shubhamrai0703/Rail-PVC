@@ -40,7 +40,8 @@ def prorate_carry_forwards(
 
 def derive_w(bill: BillPayload) -> tuple[WDerivation, list[str]]:
     """
-    P2-002/003/004/005: Derive W = OnAccount - Cement - Steel - TechWithheld - ExcludedExtraItems.
+    P2-002/003/004/005: Derive W = OnAccount - Cement - Steel - TechWithheld
+    - RecoveriesAffectingPVC - ExcludedExtraItems.
     P2-004: blocks if any extra_item_decision has eligible=None.
     P2-005: carry-forward steel amounts are prorated before subtraction.
     Returns (WDerivation, validation_errors); non-empty errors block the run.
@@ -59,6 +60,7 @@ def derive_w(bill: BillPayload) -> tuple[WDerivation, list[str]]:
             steel_tmt=Decimal("0"),
             steel_other=Decimal("0"),
             technical_withheld=Decimal("0"),
+            recoveries_affecting_pvc=Decimal("0"),
             extra_items=Decimal("0"),
             w=Decimal("0"),
         ), errors
@@ -84,6 +86,7 @@ def derive_w(bill: BillPayload) -> tuple[WDerivation, list[str]]:
         - steel_tmt
         - steel_other
         - bill.technical_withheld
+        - bill.recoveries_affecting_pvc
         - excluded_extra
     )
 
@@ -95,6 +98,7 @@ def derive_w(bill: BillPayload) -> tuple[WDerivation, list[str]]:
         steel_tmt=steel_tmt,
         steel_other=steel_other,
         technical_withheld=bill.technical_withheld,
+        recoveries_affecting_pvc=bill.recoveries_affecting_pvc,
         extra_items=excluded_extra,
         w=w,
     ), []

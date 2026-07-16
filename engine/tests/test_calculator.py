@@ -69,6 +69,7 @@ def _bill(
     tmt: str = "0",
     steel_other: str = "0",
     tech_withheld: str = "0",
+    recoveries_affecting_pvc: str = "0",
     extra_decisions: list[ExtraItemDecision] | None = None,
     carry_forwards: list[CarryForwardPayload] | None = None,
     measurement_date: date = date(2025, 6, 18),
@@ -82,6 +83,7 @@ def _bill(
         steel_tmt_amount=Decimal(tmt),
         steel_other_amount=Decimal(steel_other),
         technical_withheld=Decimal(tech_withheld),
+        recoveries_affecting_pvc=Decimal(recoveries_affecting_pvc),
         extra_item_decisions=extra_decisions or [],
         carry_forwards=carry_forwards or [],
         measurement_date=measurement_date,
@@ -94,6 +96,20 @@ def _bill(
 # ---------------------------------------------------------------------------
 
 class TestValidationBlocking:
+    def test_measurement_in_base_month_blocks_before_index_validation(self):
+        snap = IndexSnapshot(base_month=_BASE, series={})
+        bill = _bill(on_account="1000000", measurement_date=date(2024, 12, 15))
+
+        result = calculate_pvc(bill, snap, _standard_rules())
+
+        assert result.total_pvc is None
+        assert result.quarter_used == ""
+        assert result.quarter_months == []
+        assert result.validation_errors == [
+            "measurement_date 2024-12-15 falls in or before the contract base "
+            "month 2024-12 — no PVC quarter exists yet"
+        ]
+
     def test_undecided_extra_item_blocks_run(self):
         snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
         bill = _bill(
@@ -136,11 +152,11 @@ class TestValidationBlocking:
 # ---------------------------------------------------------------------------
 
 class TestQuarterAssignment:
-    def test_bill1_measurement_date_assigns_q2_fy2025_26(self):
+    def test_bill1_measurement_date_assigns_q2(self):
         snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
         bill = _bill(on_account="8903877.99", measurement_date=date(2025, 6, 18))
         result = calculate_pvc(bill, snap, _standard_rules())
-        assert result.quarter_used == "Q2-FY2025-26"
+        assert result.quarter_used == "Q2"
         assert result.quarter_months == ["2025-04", "2025-05", "2025-06"]
 
     def test_quarter_stored_even_when_validation_fails(self):
@@ -148,7 +164,7 @@ class TestQuarterAssignment:
         snap = IndexSnapshot(base_month=_BASE, series={})
         bill = _bill(on_account="1000000", measurement_date=date(2025, 11, 4))
         result = calculate_pvc(bill, snap, _standard_rules())
-        assert result.quarter_used == "Q4-FY2025-26"
+        assert result.quarter_used == "Q4"
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +251,7 @@ class TestTrace:
         snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
         bill = _bill(on_account="1000000")
         result = calculate_pvc(bill, snap, _standard_rules())
-        assert result.trace.quarter_used == "Q2-FY2025-26"
+        assert result.trace.quarter_used == "Q2"
         assert result.trace.quarter_months == _Q2_MONTHS
 
     def test_trace_contains_component_detail(self):
@@ -252,7 +268,7 @@ class TestTrace:
         snap = IndexSnapshot(base_month=_BASE, series={})
         bill = _bill(on_account="1000000", measurement_date=date(2025, 6, 18))
         result = calculate_pvc(bill, snap, _standard_rules())
-        assert result.trace.quarter_used == "Q2-FY2025-26"
+        assert result.trace.quarter_used == "Q2"
 
     def test_trace_extra_item_decisions_recorded(self):
         snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
@@ -283,6 +299,16 @@ class TestTrace:
         assert wt.inputs["cement"].input_field == "BillPayload.cement_amount"
         assert "carry_forwards(subtype=tmt)" in wt.inputs["steel_tmt"].input_field
         assert wt.w == result.w
+
+    def test_trace_recoveries_affecting_pvc_is_distinct_from_technical_withheld(self):
+        snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
+        bill = _bill(on_account="1000000", tech_withheld="5000", recoveries_affecting_pvc="10000")
+        result = calculate_pvc(bill, snap, _standard_rules())
+        wt = result.trace.w_derivation
+        assert wt is not None
+        assert wt.inputs["technical_withheld"].value == Decimal("5000")
+        assert wt.inputs["recoveries_affecting_pvc"].value == Decimal("10000")
+        assert wt.inputs["recoveries_affecting_pvc"].input_field == "BillPayload.recoveries_affecting_pvc"
 
     def test_trace_w_derivation_is_none_when_run_blocked_pre_w(self):
         snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)

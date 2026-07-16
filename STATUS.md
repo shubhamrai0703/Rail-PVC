@@ -6,7 +6,8 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Phase
 
-- **Phase 7 (PVC run + results UI) — D-1…D-4 + P7-REVIEW remediation on `saqlain/phase-7` (2026-06-11). PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) OPEN — all HIGH/MEDIUM closed, merge unblocked.** Dedicated run page `/contracts/[id]/bills/[billId]/runs/[runId]` (status, result totals, W-derivation, component breakdown, approve flow, export buttons, run-history list). **Migration 015** persists run result totals; **migration 016** persists `lines_snapshot` (per-run bill lines, P7-H2). Supersede-at-INSERT: recalculating marks prior Calculated runs `Superseded` (P7-H1). Route count 42→43.
+- **FUP backlog + KU-001 quarter fix — `saqlain/fup-backlog`, pushed and merging to `main` (2026-07-16).** Branch now bundles: the 3 original FUP tickets (P6-H1-FUP-C + P7-FUP-L2 dedicated `recoveries_affecting_pvc` W bucket + arithmetic guard; P7-FUP-L1 shared `authedFetch`/`resolveErrorMessage`; P5-IMP-FUP-1 imports router wired) plus the KU-001 rolling-quarter remediation. The engine now resolves plain ordinal quarters (`Q1`…`Q10`…) from the contract `base_month`, Quarter 1 starting the following month; measurement dates in or before the base month fail through the normal validation path. Workbook reconciliation: **12 passed / 9 xfailed** in the fixture module (JRH Bills 3–5 have verified workbook-input divergences; STC Bills 1–2 resolve the correct rolling windows but remain xfail — their calculation sheets hard-code rounded quarter averages, a separate unresolved domain question). Full suites: **119 passed / 9 xfailed engine**, **166 passed backend**; frontend typecheck, lint, and production build clean. Evidence: `tasks/handoffs/2026-07-15-ccs-quarter-convention.md`, `tasks/handoffs/2026-07-16-sol-quarter-rolling-fix.md`.
+- **Phase 7 (PVC run + results UI) — D-1…D-4 + P7-REVIEW remediation. PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) MERGED to `main` (2026-06-11).** Dedicated run page `/contracts/[id]/bills/[billId]/runs/[runId]` (status, result totals, W-derivation, component breakdown, approve flow, export buttons, run-history list). **Migration 015** persists run result totals; **migration 016** persists `lines_snapshot` (per-run bill lines, P7-H2). Supersede-at-INSERT: recalculating marks prior Calculated runs `Superseded` (P7-H1). Route count 42→43.
 - **IDX-1 RBI backfill — PR [#15](https://github.com/saqlainmmomin/Rail-PVC/pull/15) merged to `main` (2026-06-11) [CC-SH].** 5 non-steel series sourced from official publications (CPI-IW/WPI/PPAC derived CSVs) Apr-2022 onward; corrects the workbook's systematic +70 error on `plant_machinery`/`fuel` via `ON CONFLICT DO UPDATE`. Data already applied to Supabase (246 rows verified). Workbook loop now seeds JPC steel only.
 - **Phase 6 COMPLETE — PR [#13](https://github.com/saqlainmmomin/Rail-PVC/pull/13) (P6-REVIEW + C-3) merged to `main` (2026-06-09).** `main` at `a88b85e`.
 - **Phase 5 + SH-P5-1..4 + P5-FUP + IDX-2..3 all on `main` (2026-05-30).** PRs #7/#8/#9 merged.
@@ -20,20 +21,21 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Blockers
 
-- None for PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) — P7-REVIEW HIGH/MEDIUM all closed (2026-06-11); awaiting merge.
-- **Tech-debt (non-blocking):** `P6-H1-FUP-C` — interim approach A overloads `technical_withheld`; migrate to a dedicated W bucket (approach C) before disaggregation is needed. `P7-FUP-L2` (W-derivation arithmetic guard) must land with/before it.
+- None for `saqlain/fup-backlog` — 3 FUP tickets + KU-001 quarter fix, all green; pushed and merging to `main`.
+- STC hard-coded quarter-average rule (2 remaining STC xfails) needs a separate domain decision before it can close — not a blocker for this merge.
 - Out-of-band: credential hygiene — DB password and JWT secret are in `backend/.env` (git-ignored). Keep `.env` out of version control.
 
 ## Active Review Cycle
 
-- **`P7-REVIEW` REMEDIATED (2026-06-11) — PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) merge unblocked.** H1 (approve gate both layers + supersede-at-INSERT), H2 (migration 016 `lines_snapshot` — `bill_snapshot` never contained lines; reviewer premise corrected), M1 (migrations 013-stamped/014/015/016 applied to Supabase, DB at head), M2 (apiDownload blob/URIError paths toast), M3 (closed by H2 — no live lines fetch), M4 (case-insensitive UUID filter). L1/L2 → `P7-FUP-L1`/`P7-FUP-L2` in [TASKS.md](TASKS.md). CC Responses in [REVIEW.md](REVIEW.md).
-- Suite state (on `saqlain/phase-7`): **153/153 backend** (+8 P7-REVIEW pins), **99/99 engine**, **52/52 frontend vitest**, `tsc` + `eslint` + `next build` clean. Route count **43**.
+- **`P7-REVIEW` REMEDIATED (2026-06-11) — PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) merged to `main`.** H1 (approve gate both layers + supersede-at-INSERT), H2 (migration 016 `lines_snapshot` — `bill_snapshot` never contained lines; reviewer premise corrected), M1 (migrations 013-stamped/014/015/016 applied to Supabase, DB at head), M2 (apiDownload blob/URIError paths toast), M3 (closed by H2 — no live lines fetch), M4 (case-insensitive UUID filter). L1/L2 → `P7-FUP-L1`/`P7-FUP-L2` in [TASKS.md](TASKS.md). CC Responses in [REVIEW.md](REVIEW.md).
+- No open review cycle on `saqlain/fup-backlog` yet — KU-001 quarter fix has not had an adversarial pass; CC-S flagged (in the Sol handoff) that the month-delta boundary, December/year rollover, and unbounded `Q10+` labels should get scrutiny.
+- Suite state (on `saqlain/fup-backlog`, includes quarter fix): **166/166 backend**, **119/119 passed + 9 xfailed engine**, **54/54 frontend vitest**, `tsc` + `eslint` + `next build` clean. Route count **47**.
 
 ## Branch State
 
-- `main` — PR #15 (IDX-1 RBI backfill) merged 2026-06-11. Local `main` checkout may lag origin.
-- `saqlain/phase-7` — **Phase 7 D-1…D-4 + P7-REVIEW remediation. PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) open, merge unblocked.** 153/99/52 green, route count 43.
-- All prior feature branches deleted after merge (`saqlain/p6-review`, `saqlain/phase-6`, `saqlain/p5-imp`, `shubham/idx-flag`, and earlier phase/test branches). P5-IMP backend code (`backend/api/imports.py`, `services/llm.py`, migration 014) is on `main` but **not wired into `main.py`** — see `P5-IMP-FUP-1`.
+- `main` — PR #14 (Phase 7) and PR #15 (IDX-1 RBI backfill) merged. `saqlain/fup-backlog` merges next.
+- `saqlain/fup-backlog` — **FUP backlog (P6-H1-FUP-C + P7-FUP-L2 + P7-FUP-L1 + P5-IMP-FUP-1) + KU-001 rolling-quarter fix. All green, pushed, merging to `main`.**
+- All prior feature branches deleted after merge (`saqlain/phase-7`, `saqlain/p6-review`, `saqlain/phase-6`, `saqlain/p5-imp`, `shubham/idx-flag`, and earlier phase/test branches).
 
 ## What To Read
 
@@ -56,9 +58,11 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Priorities
 
-1. [Saqlain] **Merge PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14)** — P7-REVIEW fully remediated; smoke the run page (calculate → supersede badge → approve → export) first if desired.
-2. [CC-S] When a real submission is available, validate `C-3-FUP-NET` (net_amount formula) and revisit `P6-H1-FUP-C` (dedicated W bucket).
-3. [CC-SH] Next task TBD. Export submission-format parity deferred to P8-REVIEW.
+1. [Saqlain] **`saqlain/fup-backlog` pushed and merging to `main`** — FUP backlog + KU-001 quarter fix, all suites green.
+2. [CC-S] STC hard-coded quarter-average rule (2 remaining STC xfails, `stc_cop_bill1_q3`/`bill2_q4`) needs a domain decision: derive full-precision monthly averages, or keep the workbook's rounded quarter averages as ground truth. Separate from the quarter-convention fix.
+3. [CC-S] When a real submission is available, validate `C-3-FUP-NET` (net_amount formula).
+4. [CC-S] `P5-IMP-FUP-2` (templates apply/save UI in `ImportRowsModal`) — unblocked now that P5-IMP-FUP-1 is merged.
+5. [CC-SH] Next task TBD. Export submission-format parity deferred to P8-REVIEW.
 
 ## File Classification
 

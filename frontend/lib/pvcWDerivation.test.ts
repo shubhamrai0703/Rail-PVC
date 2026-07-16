@@ -9,8 +9,9 @@ const WD: WDerivation = {
   steel_tmt: "40000",
   steel_other: "10000",
   technical_withheld: "50000",
+  recoveries_affecting_pvc: "15000",
   extra_items: "5000",
-  w: "9745000",
+  w: "9730000",
 };
 
 describe("describeWDerivation", () => {
@@ -24,20 +25,20 @@ describe("describeWDerivation", () => {
     });
     expect(steps.at(-1)).toEqual({
       label: "W (adjustable base)",
-      amount: "9745000",
+      amount: "9730000",
       kind: "total",
     });
-    // 1 base + 7 subtractions + 1 total
-    expect(steps).toHaveLength(9);
+    // 1 base + 8 subtractions + 1 total, no residual (arithmetic is consistent)
+    expect(steps).toHaveLength(10);
     expect(steps.slice(1, -1).every((s) => s.kind === "subtraction")).toBe(true);
   });
 
-  it("labels the technical-withheld bucket honestly (interim approach A)", () => {
+  it("keeps technical_withheld and recoveries_affecting_pvc as distinct rows (P6-H1-FUP-C)", () => {
     const steps = describeWDerivation(WD);
-    const tw = steps.find((s) => s.amount === "50000");
-    expect(tw?.label).toBe(
-      "Technical withheld (incl. PVC-affecting recoveries)",
-    );
+    const tw = steps.find((s) => s.label === "Technical withheld");
+    const rap = steps.find((s) => s.label === "Recoveries affecting PVC base");
+    expect(tw?.amount).toBe("50000");
+    expect(rap?.amount).toBe("15000");
   });
 
   it("surfaces every named subtraction with its amount", () => {
@@ -52,5 +53,20 @@ describe("describeWDerivation", () => {
   it("returns an empty list when W was not derived (blocked run)", () => {
     expect(describeWDerivation(null)).toEqual([]);
     expect(describeWDerivation(undefined)).toEqual([]);
+  });
+
+  it("appends no residual row when the arithmetic is consistent", () => {
+    const steps = describeWDerivation(WD);
+    expect(steps.some((s) => s.kind === "warning")).toBe(false);
+  });
+
+  it("appends a residual warning row when W doesn't match the subtraction sum (P7-FUP-L2)", () => {
+    const inconsistent: WDerivation = { ...WD, w: "9000000" };
+    const steps = describeWDerivation(inconsistent);
+    const warning = steps.find((s) => s.kind === "warning");
+    expect(warning).toBeDefined();
+    expect(warning?.label).toBe("⚠ Residual (unaccounted)");
+    // expected w was 9730000, actual is 9000000 → 730000 unaccounted
+    expect(warning?.amount).toBe("730000.00");
   });
 });

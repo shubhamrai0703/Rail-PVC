@@ -1,0 +1,135 @@
+{
+  "bill": {
+    "on_account_amount": "6737351.16999999",
+    "cement_amount": "70383.15111071052",
+    "steel_tmt_amount": "0",
+    "steel_angles_amount": "22942.22603664947",
+    "steel_plates_amount": "295.5274133505167",
+    "steel_other_amount": "77703.72207799999",
+    "technical_withheld": "0",
+    "recoveries_affecting_pvc": "0",
+    "extra_item_decisions": [],
+    "carry_forwards": [],
+    "measurement_date": "2025-11-04",
+    "prior_negative_carry_forward": "0"
+  },
+  "indices": {
+    "base_month": "2024-12-01",
+    "series": {
+      "labour": {
+        "2024-12": "143.7",
+        "2025-04": "143.5",
+        "2025-05": "144",
+        "2025-06": "145",
+        "2025-10": "147.7",
+        "2025-11": "148.2",
+        "2025-12": "148.2"
+      },
+      "plant_machinery": {
+        "2024-12": "160",
+        "2025-04": "162.3",
+        "2025-05": "162.5",
+        "2025-06": "162.7",
+        "2025-10": "163",
+        "2025-11": "163.3",
+        "2025-12": "163.1"
+      },
+      "fuel": {
+        "2024-12": "160.48",
+        "2025-04": "160.48",
+        "2025-05": "160.51",
+        "2025-06": "160.53",
+        "2025-10": "160.53",
+        "2025-11": "160.53",
+        "2025-12": "160.53"
+      },
+      "other_materials": {
+        "2024-12": "155.7",
+        "2025-04": "154.2",
+        "2025-05": "153.7",
+        "2025-06": "153.7",
+        "2025-10": "155.1",
+        "2025-11": "156.2",
+        "2025-12": "157.2"
+      },
+      "cement": {
+        "2024-12": "130.2",
+        "2025-04": "130.5",
+        "2025-05": "133",
+        "2025-06": "132.8",
+        "2025-10": "131.3",
+        "2025-11": "130.5",
+        "2025-12": "130.3"
+      },
+      "steel_tmt": {
+        "2024-12": "57812.5",
+        "2025-04": "61917.5",
+        "2025-05": "59765",
+        "2025-06": "56690",
+        "2025-10": "52752.5",
+        "2025-11": "51980",
+        "2025-12": "52435"
+      },
+      "steel_angles": {
+        "2024-12": "58000",
+        "2025-04": "61133.33",
+        "2025-05": "60928.33",
+        "2025-06": "59205",
+        "2025-10": "55820",
+        "2025-11": "54800",
+        "2025-12": "54476.67"
+      },
+      "steel_plates": {
+        "2024-12": "57370",
+        "2025-04": "62902.5",
+        "2025-05": "63637.5",
+        "2025-06": "62385",
+        "2025-10": "59850",
+        "2025-11": "58202.5",
+        "2025-12": "56785"
+      },
+      "steel_other_sections": {
+        "2024-12": "57727.5",
+        "2025-04": "61984.443333333336",
+        "2025-05": "61443.61000000001",
+        "2025-06": "59426.666666666664",
+        "2025-10": "56140.833333333336",
+        "2025-11": "54994.166666666664",
+        "2025-12": "54565.556666666664"
+      }
+    }
+  },
+  "rules": {
+    "quarter_mode": "measurement_date",
+    "component_weights": {
+      "labour": "0.2",
+      "plant": "0.3",
+      "fuel": "0.15",
+      "materials": "0.2"
+    },
+    "adjustable_fraction": "0.85",
+    "negative_pvc_policy": "allow",
+    "rounding_mode": "round_2"
+  },
+  "expected": {
+    "total_pvc": "23412.999679941502",
+    "tolerance": "0.01"
+  },
+  "notes": {
+    "source_tender": "BCT-24-25-252",
+    "source_bill": "Bill 2 / Q4",
+    "source_workbook": "BCT-24-25-252/Banjara - COLABA BP 252 - Apr 2022 GCC.xlsx",
+    "source_cells": {
+      "bill_payload": "Second Page!B6:K6",
+      "expected_total_pvc": "Bill-2!L25",
+      "summary_total_pvc": "Front Page !C7",
+      "rules": "Bill-2!J5:J14",
+      "base_indices": "Index!C2:K2"
+    },
+    "verified_against": "workbook calculation and summary cached formula results, cross-checked by engine/scripts/extract_pvc_fixtures.py",
+    "reconciliation_status": "workbook_divergence",
+    "xfail_reason": "KU-001 follow-up: this calendar-aligned Q4 disproves the predicted pass because the workbook calculation sheet references Q2 averages; quarter.py alone will not fix it",
+    "current_engine_total": "80905.45",
+    "workbook_divergence": "Bill-2 is labelled Quarter 4 and measured 2025-11-04, but its D5:D24 formulas reference Index row 9 (Quarter 2 averages) instead of row 16 (Quarter 4). Front Page !C7/C8 also cross-wire the Bill-2/Bill- 1 calculation links against the displayed first/second-bill labels. The workbook total is preserved."
+  }
+}

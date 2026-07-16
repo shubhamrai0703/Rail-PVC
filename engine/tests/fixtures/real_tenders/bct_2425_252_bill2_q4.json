@@ -94,14 +94,14 @@
   "notes": {
     "source_tender": "BCT-24-25-252",
     "source_bill": "Bill-2",
-    "quarter": "Q4-FY2025-26",
+    "quarter": "Q4",
     "verified_against": "engine-correct value; physical workbook DIVERGES",
-    "workbook_divergence": "Two known divergences from the physical workbook: (1) Quarter: workbook used Q2-FY2025-26 indices for measurement_date 2025-11-04 (Q4). Engine correctly uses Q4. (2) steel_other_sections index: workbook likely used the JPC-published other-sections rate directly (56900 for Q4). GCC 46A.9 SL4 mandates the average of SL1+SL2+SL3 rates (derived: 56666.67 for Q4). Engine follows the GCC formula; the expected total here pins the GCC-correct result.",
+    "workbook_divergence": "Two known divergences from the physical workbook: (1) Quarter: workbook used Q2 indices for measurement_date 2025-11-04 (Q4). Engine correctly uses Q4. (2) steel_other_sections index: workbook likely used the JPC-published other-sections rate directly (56900 for Q4). GCC 46A.9 SL4 mandates the average of SL1+SL2+SL3 rates (derived: 56666.67 for Q4). Engine follows the GCC formula; the expected total here pins the GCC-correct result.",
     "scenario": "Q4 bill including a steel carry-forward (90.72% paid_ratio derived from 5600/6172.57)."
   },
   "expected": {
     "total_pvc": "76959.55",
-    "quarter_used": "Q4-FY2025-26",
+    "quarter_used": "Q4",
     "negative_carry_forward": "0"
   }
 }

@@ -59,3 +59,47 @@ Owner: [CC-S]. Gate: C-3 stable ✅. Review: `P7-REVIEW` (Codex-S) after it land
 ## Open verifications during impl
 - Where the engine persists `negative_carry_forward` + `quarter_used` (w_derivation vs bill_snapshot) — drives D-1a.
 - Superseded runs: `superseded_by` column exists — show "Superseded" badge when non-null.
+
+---
+
+# Golden PVC fixture extraction — 2026-07-15
+
+Source: `tasks/handoffs/2026-07-15-pvc-golden-fixtures.md`
+Branch: `saqlain/fup-backlog`
+
+## Assumptions
+
+- Continue on the existing feature branch; do not commit or push.
+- Treat the five `.xlsx` workbooks in `PVC/` as read-only golden sources.
+- Preserve workbook totals as expected values; model discrepancies explicitly with tolerance, xfail, and provenance notes.
+- Do not modify engine calculation code or quarter resolution.
+
+## Tasks
+
+- [x] Inspect workbook structures and map source cells for contract rules, indices, bill inputs, dates, and expected totals.
+- [x] Add a reproducible `engine/scripts/extract_pvc_fixtures.py` extractor and declare `openpyxl` as an engine dev dependency.
+- [x] Extend fixture tests for optional tolerance and KU-001 xfail metadata, proving the new behavior test-first.
+- [x] Generate and audit one fixture per bill across the five workbooks, retaining the two synthetic 252 fixtures because the workbook-derived versions do not supersede them exactly.
+- [x] Run focused fixture tests, a passing single-fixture smoke check, and the full engine suite.
+- [x] Perform a final diff/review pass and record paths, expected values, pass/xfail state, ambiguities, and verification summaries in the handoff `Results` section.
+
+---
+
+# KU-001 rolling-quarter remediation — 2026-07-16
+
+Source: `tasks/handoffs/2026-07-16-sol-quarter-rolling-fix.md`
+Branch: `saqlain/fup-backlog`
+
+## Assumptions
+
+- Continue on the prescribed feature branch without committing or pushing.
+- For a measurement date in or before the base month, the resolver returns an empty label/window and the calculator emits the required blocking validation error.
+- Preserve workbook ground-truth totals; only remove KU-001 xfails that the rolling resolver genuinely fixes.
+
+## Tasks
+
+- [x] Rewrite quarter resolver tests for rolling-from-base boundaries, year wrap, long-running contracts, and pre-Q1 dates; capture the expected pre-fix failures.
+- [x] Implement rolling quarter resolution and thread `base_month` through engine/backend callers, including the explicit pre-Q1 validation error.
+- [x] Refresh calculator assertions, synthetic fixture labels, and golden-fixture xfail pins/markers from actual rolling results.
+- [x] Run focused fixture verification, full engine/backend suites, frontend type/lint/build checks, and the required fixture smoke command.
+- [x] Review/simplify the diff, update STATUS/domain-handoff/types documentation, and write complete evidence to this handoff's Results section.

@@ -42,10 +42,11 @@ router = APIRouter(prefix="/api", tags=["bills"])
 # DECISION (Saqlain, 2026-06-08) — FLAGGED FOR REVISIT (C-3-FUP-NET):
 #   net_amount = gross_amount − Σ(recoveries WHERE affects_pvc_base = FALSE)
 # i.e. PVC-affecting recoveries are treated as NOTIONAL here — they reduce the
-# PVC base W (via P6-H1, into technical_withheld) but NOT net payable. This is
-# the documented interim choice; if field-account reconciliation shows net
-# payable should net ALL recoveries, flip the filter. This is NOT certain to be
-# the best model — revisit with a real submission before relying on it.
+# PVC base W (via P6-H1-FUP-C, into the dedicated recoveries_affecting_pvc
+# bucket) but NOT net payable. This is the documented interim choice; if
+# field-account reconciliation shows net payable should net ALL recoveries,
+# flip the filter. This is NOT certain to be the best model — revisit with a
+# real submission before relying on it.
 _NET_AMOUNT_EXPR = (
     "gross_amount - COALESCE("
     "(SELECT SUM(amount) FROM recoveries "
@@ -56,8 +57,9 @@ _NET_AMOUNT_EXPR = (
 
 # Matches migration 003 `recovery_type` ENUM. The `affects_pvc_base` flag
 # on the row drives whether the recovery reduces the PVC base (W): when TRUE,
-# `build_bill_payload` sums it into the engine's `technical_withheld` bucket so
-# it shows as a named W subtraction (P6-H1, approach A). Default False.
+# `build_bill_payload` sums it into the engine's dedicated
+# `recoveries_affecting_pvc` bucket so it shows as a named W subtraction,
+# distinct from genuine technical withholding (P6-H1-FUP-C). Default False.
 VALID_RECOVERY_TYPES = frozenset({
     "security_deposit", "income_tax", "labour_cess", "water", "other",
 })

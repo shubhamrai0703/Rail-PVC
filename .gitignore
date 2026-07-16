@@ -41,3 +41,6 @@ supabase/.temp/
 
 # Sample documents (real contract data — keep local only)
 IRL PVC calculation sample/
+
+# Real contractor PVC source data (local only, never commit)
+PVC/

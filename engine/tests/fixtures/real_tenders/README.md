@@ -2,11 +2,26 @@ Add one JSON file per real tender bill in this directory.
 
 Recommended workflow:
 1. Pick one bill from a real tender workbook that already has a trusted PVC value.
-2. Convert the bill inputs, index snapshot, and rules into JSON.
+2. Convert the bill inputs, index snapshot, and rules into JSON. For the five
+   Banjara workbooks, run `uv run python scripts/extract_pvc_fixtures.py` from
+   `engine/`; the script is the provenance record for all source cells.
 3. Pin the known-good workbook output in `expected.total_pvc`.
 4. Run:
-   `python scripts/run_engine_fixture.py engine/tests/fixtures/real_tenders/<file>.json --fail-on-mismatch`
+   `uv run python scripts/run_engine_fixture.py tests/fixtures/real_tenders/<file>.json --fail-on-mismatch`
 5. Add the fixture to git so pytest keeps it as a regression test.
+
+Optional reconciliation metadata:
+
+- `expected.tolerance`: maximum absolute difference, as a decimal string.
+- `notes.xfail_reason`: a non-strict pytest xfail reason. Real-tender xfails
+  must identify `KU-001` so quarter-resolution debt stays visible.
+- `notes.current_engine_total`: exact engine output currently hidden by a
+  numeric xfail. This pin makes unrelated arithmetic changes fail loudly.
+- `notes.expected_validation_errors`: exact ordered validation errors currently
+  hidden by an xfail; broad error-pattern matching is intentionally forbidden.
+- `notes.workbook_divergence`: explicit workbook/engine inconsistency with
+  source cells; never alter source inputs merely to force reconciliation.
+- `notes.reconciliation_status`: `reconciles` or `workbook_divergence`.
 
 Fixture shape:
 

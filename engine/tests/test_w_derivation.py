@@ -17,6 +17,7 @@ def _bill(
     tmt: str = "0",
     steel_other: str = "0",
     tech_withheld: str = "0",
+    recoveries_affecting_pvc: str = "0",
     extra_decisions: list[ExtraItemDecision] | None = None,
     carry_forwards: list[CarryForwardPayload] | None = None,
 ) -> BillPayload:
@@ -28,6 +29,7 @@ def _bill(
         steel_tmt_amount=Decimal(tmt),
         steel_other_amount=Decimal(steel_other),
         technical_withheld=Decimal(tech_withheld),
+        recoveries_affecting_pvc=Decimal(recoveries_affecting_pvc),
         extra_item_decisions=extra_decisions or [],
         carry_forwards=carry_forwards or [],
         measurement_date=date(2025, 6, 18),
@@ -266,7 +268,44 @@ class TestCarryForwardProration:
         ))
         total = (
             d.w + d.cement + d.steel_angles + d.steel_plates
-            + d.steel_tmt + d.steel_other + d.technical_withheld + d.extra_items
+            + d.steel_tmt + d.steel_other + d.technical_withheld
+            + d.recoveries_affecting_pvc + d.extra_items
+        )
+        assert total == Decimal("8903877.99")
+
+
+# ---------------------------------------------------------------------------
+# P6-H1-FUP-C: dedicated recoveries_affecting_pvc bucket
+# ---------------------------------------------------------------------------
+
+class TestRecoveriesAffectingPvcSubtraction:
+    def test_recoveries_affecting_pvc_reduces_w(self):
+        d, errs = derive_w(_bill(on_account="1000000", recoveries_affecting_pvc="10000"))
+        assert errs == []
+        assert d.w == Decimal("990000")
+        assert d.recoveries_affecting_pvc == Decimal("10000")
+
+    def test_distinct_from_technical_withheld(self):
+        d, errs = derive_w(_bill(
+            on_account="1000000", tech_withheld="5000", recoveries_affecting_pvc="10000",
+        ))
+        assert errs == []
+        assert d.technical_withheld == Decimal("5000")
+        assert d.recoveries_affecting_pvc == Decimal("10000")
+        assert d.w == Decimal("985000")
+
+    def test_sum_identity_with_recoveries_affecting_pvc(self):
+        d, _ = derive_w(_bill(
+            on_account="8903877.99",
+            cement="300000",
+            tech_withheld="100000",
+            recoveries_affecting_pvc="25000",
+            extra_decisions=[ExtraItemDecision(item_id="E1", amount=Decimal("50000"), eligible=False)],
+        ))
+        total = (
+            d.w + d.cement + d.steel_angles + d.steel_plates
+            + d.steel_tmt + d.steel_other + d.technical_withheld
+            + d.recoveries_affecting_pvc + d.extra_items
         )
         assert total == Decimal("8903877.99")
 

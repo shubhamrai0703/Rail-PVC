@@ -38,7 +38,8 @@ _CENT = Decimal("0.01")
 _THREE = Decimal("3")
 _W_FORMULA = (
     "W = on_account_amount - cement - steel_angles - steel_plates "
-    "- steel_tmt - steel_other - technical_withheld - extra_items_excluded"
+    "- steel_tmt - steel_other - technical_withheld - recoveries_affecting_pvc "
+    "- extra_items_excluded"
 )
 
 
@@ -221,6 +222,10 @@ def _build_w_derivation_trace(
             value=w_derivation.technical_withheld,
             input_field="BillPayload.technical_withheld",
         ),
+        "recoveries_affecting_pvc": WDerivationLine(
+            value=w_derivation.recoveries_affecting_pvc,
+            input_field="BillPayload.recoveries_affecting_pvc",
+        ),
         "extra_items_excluded": WDerivationLine(
             value=w_derivation.extra_items,
             input_field="Σ extra_item_decisions[].amount where eligible == False",
@@ -310,7 +315,15 @@ def calculate_pvc(
     errors: list[str] = []
 
     # P2-006: resolve quarter
-    quarter_label, quarter_months = resolve_quarter(bill.measurement_date)
+    quarter_label, quarter_months = resolve_quarter(
+        bill.measurement_date, indices.base_month
+    )
+    if not quarter_months:
+        errors.append(
+            f"measurement_date {bill.measurement_date.isoformat()} falls in or before "
+            f"the contract base month {indices.base_month:%Y-%m} — "
+            "no PVC quarter exists yet"
+        )
 
     # P2-002/003/004/005: derive W (also validates extra item decisions)
     w_derivation, w_errors = derive_w(bill)
@@ -405,5 +418,4 @@ def calculate_pvc(
         trace=_build_trace(bill, quarter_label, quarter_months, indices, rules, w_derivation, all_components),
         validation_errors=[],
     )
-
 

@@ -21,6 +21,7 @@ def _make_bill(
     steel_other: Decimal,
     tech_withheld: Decimal,
     excluded_extra: Decimal,
+    recoveries_affecting_pvc: Decimal = Decimal("0"),
 ) -> BillPayload:
     return BillPayload(
         on_account_amount=on_account,
@@ -30,6 +31,7 @@ def _make_bill(
         steel_tmt_amount=tmt,
         steel_other_amount=steel_other,
         technical_withheld=tech_withheld,
+        recoveries_affecting_pvc=recoveries_affecting_pvc,
         extra_item_decisions=[
             ExtraItemDecision(item_id="E1", amount=excluded_extra, eligible=False)
         ] if excluded_extra > Decimal("0") else [],
@@ -47,16 +49,18 @@ def _make_bill(
     steel_other=_SMALL_DEC,
     tech_withheld=_SMALL_DEC,
     excluded_extra=_SMALL_DEC,
+    recoveries_affecting_pvc=_SMALL_DEC,
 )
 @settings(max_examples=200)
-def test_sum_identity(on_account, cement, angles, plates, tmt, steel_other, tech_withheld, excluded_extra):
+def test_sum_identity(on_account, cement, angles, plates, tmt, steel_other, tech_withheld, excluded_extra, recoveries_affecting_pvc):
     """W + all deductions == on_account_amount (no loss of money, all four steel buckets)."""
-    bill = _make_bill(on_account, cement, angles, plates, tmt, steel_other, tech_withheld, excluded_extra)
+    bill = _make_bill(on_account, cement, angles, plates, tmt, steel_other, tech_withheld, excluded_extra, recoveries_affecting_pvc)
     d, errs = derive_w(bill)
     assert errs == []
     total = (
         d.w + d.cement + d.steel_angles + d.steel_plates
-        + d.steel_tmt + d.steel_other + d.technical_withheld + d.extra_items
+        + d.steel_tmt + d.steel_other + d.technical_withheld
+        + d.recoveries_affecting_pvc + d.extra_items
     )
     assert total == on_account
 

@@ -59,6 +59,7 @@ class BillPayload(BaseModel):
     steel_tmt_amount: Decimal                   # GCC 46A.9 SL1 — TMT/rebar items (required; zero must be explicit)
     steel_other_amount: Decimal                 # GCC 46A.9 SL4 — other sections
     technical_withheld: Decimal
+    recoveries_affecting_pvc: Decimal = Decimal("0")  # P6-H1-FUP-C — distinct from genuine technical withholding
     extra_item_decisions: list[ExtraItemDecision]  # P2-004: eligible=None blocks run
     carry_forwards: list[CarryForwardPayload]
     measurement_date: date  # must be the "To" date of the measurement period
@@ -115,6 +116,7 @@ class WDerivation(BaseModel):
     steel_tmt: Decimal      # GCC 46A.9 SL1 — TMT/rebar items
     steel_other: Decimal    # GCC 46A.9 SL4 — other sections
     technical_withheld: Decimal
+    recoveries_affecting_pvc: Decimal = Decimal("0")  # P6-H1-FUP-C — distinct from genuine technical withholding
     extra_items: Decimal  # sum of excluded (eligible=False) extra item amounts
     w: Decimal
 
