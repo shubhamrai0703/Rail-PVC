@@ -6,6 +6,7 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Phase
 
+- **Post-merge follow-ups in working tree (2026-07-16, uncommitted).** PR #17 merged; a Fable session then executed `tasks/handoffs/2026-07-16-fable-next-open-items.md`: (a) **KU-001 review pass — no defects found** in the flagged areas (month-delta boundary, Nov/Dec rollover + new boundary tests, unbounded `Q10+` labels, pre-Q1 422 path); a parallel Opus session owns the formal REVIEW.md entry. (b) **KU-001-STC-AVG investigation complete** — workbook hard-codes avg-then-round-half-up-2dp quarter averages, reproduces both STC totals to the paisa; decision brief in the handoff, awaiting Saqlain's call. (c) **P5-IMP-FUP-2 templates apply/save UI implemented** — `ImportTemplateControls` in `ImportRowsModal`, `lib/importTemplates.ts` + 11 vitest (65 total), schema.ts regenerated; tsc/lint/build/vitest clean; browser smoke test done against a mock API because Supabase is unreachable (below).
 - **FUP backlog + KU-001 quarter fix — `saqlain/fup-backlog`, pushed and merging to `main` (2026-07-16).** Branch now bundles: the 3 original FUP tickets (P6-H1-FUP-C + P7-FUP-L2 dedicated `recoveries_affecting_pvc` W bucket + arithmetic guard; P7-FUP-L1 shared `authedFetch`/`resolveErrorMessage`; P5-IMP-FUP-1 imports router wired) plus the KU-001 rolling-quarter remediation. The engine now resolves plain ordinal quarters (`Q1`…`Q10`…) from the contract `base_month`, Quarter 1 starting the following month; measurement dates in or before the base month fail through the normal validation path. Workbook reconciliation: **12 passed / 9 xfailed** in the fixture module (JRH Bills 3–5 have verified workbook-input divergences; STC Bills 1–2 resolve the correct rolling windows but remain xfail — their calculation sheets hard-code rounded quarter averages, a separate unresolved domain question). Full suites: **119 passed / 9 xfailed engine**, **166 passed backend**; frontend typecheck, lint, and production build clean. Evidence: `tasks/handoffs/2026-07-15-ccs-quarter-convention.md`, `tasks/handoffs/2026-07-16-sol-quarter-rolling-fix.md`.
 - **Phase 7 (PVC run + results UI) — D-1…D-4 + P7-REVIEW remediation. PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) MERGED to `main` (2026-06-11).** Dedicated run page `/contracts/[id]/bills/[billId]/runs/[runId]` (status, result totals, W-derivation, component breakdown, approve flow, export buttons, run-history list). **Migration 015** persists run result totals; **migration 016** persists `lines_snapshot` (per-run bill lines, P7-H2). Supersede-at-INSERT: recalculating marks prior Calculated runs `Superseded` (P7-H1). Route count 42→43.
 - **IDX-1 RBI backfill — PR [#15](https://github.com/saqlainmmomin/Rail-PVC/pull/15) merged to `main` (2026-06-11) [CC-SH].** 5 non-steel series sourced from official publications (CPI-IW/WPI/PPAC derived CSVs) Apr-2022 onward; corrects the workbook's systematic +70 error on `plant_machinery`/`fuel` via `ON CONFLICT DO UPDATE`. Data already applied to Supabase (246 rows verified). Workbook loop now seeds JPC steel only.
@@ -21,6 +22,7 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Blockers
 
+- **Supabase project `ivselmhloegjmqrjekcy` unreachable (2026-07-16)** — pooler `ENOTFOUND tenant/user`, DB host NXDOMAIN, auth health endpoint dead. Looks paused (free-tier auto-pause); restore from the Supabase dashboard. Blocks `alembic current`, real-backend smoke tests, and any live login. The P5-IMP-FUP-2 smoke test should be re-run against the real stack once restored.
 - None for `saqlain/fup-backlog` — 3 FUP tickets + KU-001 quarter fix, all green; pushed and merging to `main`.
 - STC hard-coded quarter-average rule (2 remaining STC xfails) needs a separate domain decision before it can close — not a blocker for this merge.
 - Out-of-band: credential hygiene — DB password and JWT secret are in `backend/.env` (git-ignored). Keep `.env` out of version control.
@@ -58,10 +60,10 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Priorities
 
-1. [Saqlain] **`saqlain/fup-backlog` pushed and merging to `main`** — FUP backlog + KU-001 quarter fix, all suites green.
-2. [CC-S] STC hard-coded quarter-average rule (2 remaining STC xfails, `stc_cop_bill1_q3`/`bill2_q4`) needs a domain decision: derive full-precision monthly averages, or keep the workbook's rounded quarter averages as ground truth. Separate from the quarter-convention fix.
-3. [CC-S] When a real submission is available, validate `C-3-FUP-NET` (net_amount formula).
-4. [CC-S] `P5-IMP-FUP-2` (templates apply/save UI in `ImportRowsModal`) — unblocked now that P5-IMP-FUP-1 is merged.
+1. [Saqlain] Restore the paused Supabase project, then re-run the P5-IMP-FUP-2 smoke test against the real stack and review/commit the working-tree changes (templates UI + quarter boundary tests + docs).
+2. [Saqlain] **KU-001-STC-AVG domain decision** — investigation complete (workbook = avg-then-round-half-up-2dp, verified to the paisa); decision brief in `tasks/handoffs/2026-07-16-fable-next-open-items.md` Results. Option 1 (keep full precision, xfails stay) vs Option 2 (adopt workbook rounding — scoped, needs go-ahead + its own review).
+3. ~~[Opus] Land the formal KU-001-REVIEW entry~~ — **done 2026-07-16**: REVIEW.md `KU-001-REVIEW` cycle landed (no HIGH/MEDIUM; 1 LOW deferred — KU1R-L1 base_month DB CHECK); Fable's independent pass agreed. Backend 167/167, engine 122 + 9 xfailed.
+4. [CC-S] When a real submission is available, validate `C-3-FUP-NET` (net_amount formula).
 5. [CC-SH] Next task TBD. Export submission-format parity deferred to P8-REVIEW.
 
 ## File Classification

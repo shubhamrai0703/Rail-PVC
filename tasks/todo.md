@@ -103,3 +103,18 @@ Branch: `saqlain/fup-backlog`
 - [x] Refresh calculator assertions, synthetic fixture labels, and golden-fixture xfail pins/markers from actual rolling results.
 - [x] Run focused fixture verification, full engine/backend suites, frontend type/lint/build checks, and the required fixture smoke command.
 - [x] Review/simplify the diff, update STATUS/domain-handoff/types documentation, and write complete evidence to this handoff's Results section.
+
+---
+
+# Post-merge follow-ups (Fable + Opus sessions) — 2026-07-16
+
+Source: `tasks/handoffs/2026-07-16-fable-next-open-items.md` + `2026-07-16-opus-ku001-adversarial-review.md`
+
+## Tasks
+
+- [x] KU-001-REVIEW: adversarial pass on the rolling-quarter change — no HIGH/MEDIUM defects; 1 LOW deferred (KU1R-L1, no DB CHECK on `base_month` day=01); formal cycle in REVIEW.md; 3 new boundary tests + HTTP-level pre-Q1 422 pin.
+- [x] KU-001-STC-AVG investigation: workbook method decoded (mean of 3 months, rounded half-up 2dp; reproduces both STC totals to the paisa) — decision brief in the Fable handoff Results.
+- [x] P5-IMP-FUP-2: templates apply/save UI in `ImportRowsModal` (`ImportTemplateControls`, `lib/importTemplates.ts`, 11 vitest, schema.ts regenerated); browser smoke test vs mock (Supabase paused).
+- [ ] Saqlain: restore the paused Supabase project, then re-run the templates smoke test against the real stack.
+- [ ] Saqlain: decide KU-001-STC-AVG (Option 1 keep full precision vs Option 2 adopt workbook 2dp rounding) — check whether JRH/BCT workbooks share the rounding convention first.
+- [ ] When a real submission exists: validate C-3-FUP-NET (`net_amount` formula).
