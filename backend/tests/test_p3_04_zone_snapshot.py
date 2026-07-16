@@ -199,3 +199,79 @@ async def test_execute_pvc_run_surfaces_pre_base_engine_validation(monkeypatch):
         "month 2024-12 — no PVC quarter exists yet"
     ]
     persist.assert_not_awaited()
+
+
+def test_pre_base_bill_returns_422_engine_validation_over_http(monkeypatch):
+    """KU-001-REVIEW: prove the pre-Q1 block reaches an HTTP caller as a
+    structured 422 — POST route → execute_pvc_run → real resolver + engine →
+    EngineValidationProblem → registered ApiProblem handler → JSON body.
+    Only the DB session and payload builders are stubbed; the quarter
+    resolver, calculator, and exception wiring are all real."""
+    from fastapi.testclient import TestClient
+
+    from main import app
+    from services.auth import AuthUser, get_current_user
+    from services.db import get_session
+
+    base_month = date(2024, 12, 1)
+
+    # The route + service issue three queries in order: rule-set lookup,
+    # bill-ownership check, contract base_month/zone select.
+    rule_set_result = MagicMock()
+    rule_set_result.mappings.return_value.first.return_value = _rule_set_row()
+    bill_result = MagicMock()
+    bill_result.first.return_value = (1,)
+    contract_result = MagicMock()
+    contract_result.mappings.return_value.first.return_value = {
+        "base_month": base_month,
+        "railway_zone": "WR",
+    }
+    session = AsyncMock()
+    session.execute = AsyncMock(
+        side_effect=[rule_set_result, bill_result, contract_result]
+    )
+
+    async def _override_user() -> AuthUser:
+        return AuthUser(
+            user_id="u-1",
+            tenant_id="tenant-1",
+            auth_id="auth-1",
+            email="t@example.com",
+            display_name="t@example.com",
+        )
+
+    async def _override_session():
+        return session
+
+    async def _build_bill_payload(_session, _bill_id, _contract_id):
+        return _bill(date(2024, 11, 30))
+
+    async def _build_index_snapshot(_session, base, months, _zone):
+        assert months == []
+        return IndexSnapshot(base_month=base, series={})
+
+    persist = AsyncMock()
+    monkeypatch.setattr(pvc_service, "build_bill_payload", _build_bill_payload)
+    monkeypatch.setattr(pvc_service, "build_index_snapshot", _build_index_snapshot)
+    monkeypatch.setattr(pvc_service, "persist_run_result", persist)
+
+    app.dependency_overrides[get_current_user] = _override_user
+    app.dependency_overrides[get_session] = _override_session
+    try:
+        client = TestClient(app)
+        resp = client.post(
+            "/api/contracts/contract-1/pvc-runs",
+            json={"bill_id": "bill-1"},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_session, None)
+
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert detail["code"] == "engine_validation_error"
+    assert detail["validation_errors"] == [
+        "measurement_date 2024-11-30 falls in or before the contract base "
+        "month 2024-12 — no PVC quarter exists yet"
+    ]
+    persist.assert_not_awaited()

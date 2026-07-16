@@ -25,6 +25,25 @@ class TestQuarterResolver:
         assert label == "Q1"
         assert months == ["2023-11", "2023-12", "2024-01"]
 
+    def test_november_base_quarter_one_crosses_year_boundary(self):
+        label, months = resolve_quarter(date(2023, 12, 5), date(2023, 11, 1))
+        assert label == "Q1"
+        assert months == ["2023-12", "2024-01", "2024-02"]
+
+    def test_december_base_multi_year_contract(self):
+        # Base Dec-2023: Q1 = Jan–Mar 2024, so Q9 = Jan–Mar 2026.
+        label, months = resolve_quarter(date(2026, 2, 10), date(2023, 12, 1))
+        assert label == "Q9"
+        assert months == ["2026-01", "2026-02", "2026-03"]
+
+    def test_late_quarter_window_straddles_second_year_boundary(self):
+        # Base Nov-2023: Q1 = Dec 2023 – Feb 2024 already crosses the first
+        # Jan 1st. Q9 = Dec 2025 – Feb 2026 — the emitted window must straddle
+        # the SECOND Jan 1st after the base month, not just the first.
+        label, months = resolve_quarter(date(2025, 12, 15), date(2023, 11, 1))
+        assert label == "Q9"
+        assert months == ["2025-12", "2026-01", "2026-02"]
+
     def test_contract_quarters_continue_past_q4(self):
         label, months = resolve_quarter(date(2025, 10, 30), date(2023, 5, 1))
         assert label == "Q10"

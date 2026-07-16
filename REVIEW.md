@@ -11,6 +11,41 @@ Use this file for the current live review state only.
 
 ## Active Cycle
 
+**KU-001-REVIEW** — opened and closed 2026-07-16. Adversarial pass by **Claude (Fable 5, Opus review session — `tasks/handoffs/2026-07-16-opus-ku001-adversarial-review.md`)** on the rolling-quarter change merged to `main` via PR [#17](https://github.com/saqlainmmomin/Rail-PVC/pull/17) (`f164bc1`): `engine/engine/quarter.py` rewritten to derive rolling quarters from each contract's `base_month` (plain ordinal labels `Q1`…`Qn`, unbounded), called from `engine/engine/calculator.py:318` and mirrored at `backend/services/pvc_service.py:549`.
+
+**Status: CLOSED — no HIGH/MEDIUM defects. 1 LOW deferred. 2 coverage gaps closed with new tests in this pass.** Suite after review: engine **122 passed, 9 xfailed**; backend **167 passed** (was 166; +1 HTTP-level regression pin).
+
+### Verification record — four scrutiny points from the implementing session
+
+**1. Month-delta boundary / day-of-month invariance — NO DEFECT.**
+- **Files:** `engine/engine/quarter.py:19-24`, `backend/api/contracts.py:127,213`, `backend/migrations/versions/002_contracts.py:51`
+- **Verified:** `resolve_quarter` reads only `.year`/`.month` of both arguments — day-of-month cannot reach the boundary decision. Proved by brute force, not inspection: 99,696 `(base_month, measurement_date)` pairs (bases 2020-01…2027-12 × days 1/15/28; measurements from 14 months before base to ~10 years after × days 1/10/31) checked against an independent month-stepping reference implementation — **0 mismatches**. Q1 starts exactly at `months_since_base == 1`, i.e. the calendar month immediately after `base_month`, for every day combination. The day=01 storage assumption holds at every write path: API create rejects `day != 1` with a structured 422 (`api/contracts.py:127`), API update likewise (`api/contracts.py:213`, gated on `model_fields_set`), `create_contract_with_default_rule_set` is only reachable from the validated create route, `seeds/seed_demo_contract.py:106` uses `BASE_MONTH = date(2024, 12, 1)`, and `backend/api/imports.py` writes `import_templates` only — no contract writes. The DB column itself is bare `DATE NOT NULL` with no CHECK constraint — see KU1R-L1 below.
+
+**2. December/year rollover — NO DEFECT; coverage gap closed.**
+- **File:** `engine/engine/quarter.py:33`
+- **Verified:** the same brute-force sweep crosses every year boundary in an 8-year base range with ~11-year measurement windows — 0 mismatches in the emitted `YYYY-MM` strings. Explicit traces for the flagged cases: base Nov-2023 → Q9 = `["2025-12", "2026-01", "2026-02"]` (the window itself straddles the **second** Jan 1st after base); base Dec-2023 → Q13 = `["2027-01", "2027-02", "2027-03"]` (measurement crosses three Jan 1sts). The two pre-existing boundary tests only covered windows straddling the *first* year boundary; the second-boundary-straddle case was untested.
+- **Fix applied:** added `test_late_quarter_window_straddles_second_year_boundary` (`engine/tests/test_quarter.py:39`).
+
+**3. Unbounded `Q10+` labels — NO DEFECT.**
+- **Files checked:** `frontend/app/(app)/contracts/[id]/bills/[billId]/page.tsx:289`, `frontend/app/(app)/contracts/[id]/bills/[billId]/runs/[runId]/page.tsx:221`, `backend/services/exports.py`, `backend/api/exports.py`, `backend/migrations/versions/015_pvc_run_outputs.py:39`
+- **Verified:** grepped frontend (`app/`, `components/`, `lib/`) and the whole backend for `FY`, `Q[0-9]-`, and quarter regex/parsing — nothing consumes the label's shape. The bill page renders `String(pvcRun.data.quarter_used)` and the run page renders `run.quarter_used ?? "—"`; both treat it as an opaque string. Export code (Excel/PDF) never references quarter at all. `pvc_runs.quarter_used` is unconstrained `TEXT` (migration 015, confirmed no later migration adds a length limit; DB at head 016). The bill page's `quarter_used: string | number` type is looser than the runs page's `string | null` but harmless: it types the POST-success payload, and blocked runs raise 422 before persisting, so a successful response always carries a real label.
+
+**4. Pre-Q1 validation error, end-to-end — NO DEFECT; HTTP-layer gap closed.**
+- **Files:** `backend/tests/test_p3_04_zone_snapshot.py:199` (existing), `backend/services/errors.py:91,170`, `backend/main.py:40`
+- **Verified:** the existing backend test does **not** mock around the resolver — it stubs only the DB session and payload builders, then runs the real `resolve_quarter` + `calculate_pvc` inside `execute_pvc_run` and asserts `EngineValidationProblem` (status 422) with the exact user-facing message. `test_p3_09_error_contract.py:23` pins the `detail` shape (`code=engine_validation_error`, full `validation_errors` list). The one unexercised link was route → registered `ApiProblem` handler → HTTP response body: no test drove `POST /api/contracts/{id}/pvc-runs` to an actual JSON 422.
+- **Fix applied:** added `test_pre_base_bill_returns_422_engine_validation_over_http` (end of `backend/tests/test_p3_04_zone_snapshot.py`) — TestClient drives the real route with dependency overrides; only DB/builders stubbed; asserts HTTP 422, `detail.code == "engine_validation_error"`, exact message, and that nothing was persisted.
+- **Lock-step check (per handoff):** `backend/services/pvc_service.py:547` imports the engine's own `resolve_quarter` and feeds it the same `contract_row["base_month"]` it later passes into `IndexSnapshot` — the engine and the observation loader cannot disagree without a code change to one import site. No discrepancy found.
+
+### [LOW] KU1R-L1 — `base_month` first-of-month invariant enforced only at the API layer
+
+- **File:** `backend/migrations/versions/002_contracts.py:51`
+- **Verified:** `contracts.base_month` is `DATE NOT NULL` with no CHECK constraint; the day=01 rule lives solely in `api/contracts.py` (create + update). The resolver is provably day-invariant (see point 1), so quarter math cannot go wrong — but `build_index_snapshot` (`pvc_service.py:463`) matches observations by exact date (`o.month = ANY([base_month, *quarter_months])`). A day≠1 `base_month` written by direct SQL (seed drift, a future import path, manual Supabase edit) would silently drop the base-month observation and block every run on that contract with a misleading "missing index" error instead of pointing at the malformed base month.
+- **Proposed fix:** next migration adds `CHECK (EXTRACT(DAY FROM base_month) = 1)` on `contracts` (name it, e.g. `contracts_base_month_first_day`).
+- **Test that would catch it:** not testable on the aiosqlite fixture layer (Postgres-only constraint); verify via `alembic upgrade head` against Supabase + one manual `INSERT ... base_month='2025-01-15'` expecting rejection.
+- **Deferral acceptable:** defense-in-depth only; every current write path is validated or hardcoded to day=01.
+
+---
+
 **P7-REVIEW** — opened 2026-06-10. Adversarial pass by **CC-S** (Fable 5) on `saqlain/phase-7` (PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14)) implementing Phase 7 D-1…D-4: PVC run results UI, approve flow, export buttons, run-history list, migration 015.
 
 **Scope (on `saqlain/phase-7`):**
