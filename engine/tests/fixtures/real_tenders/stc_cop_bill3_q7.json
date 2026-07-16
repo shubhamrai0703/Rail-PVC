@@ -218,7 +218,7 @@
         "2025-01": "58050",
         "2025-02": "58953.33",
         "2025-03": "59373.33",
-        "2025-04": "61133.33",
+        "2025-04": "61092",
         "2025-05": "60868",
         "2025-06": "59205",
         "2025-07": "57222",
@@ -313,13 +313,12 @@
       "expected_total_pvc": "Table 10 !L30",
       "summary_total_pvc": "Table 1!C12",
       "rules": "Table 10 !J5:J14",
-      "base_indices": "Table 2!C7:K7",
-      "index_overrides": "Values documented in notes.workbook_divergence and required by the workbook calculation sheet"
+      "base_indices": "Table 2!C7:K7"
     },
     "verified_against": "workbook calculation and summary cached formula results, cross-checked by engine/scripts/extract_pvc_fixtures.py",
     "reconciliation_status": "workbook_divergence",
-    "xfail_reason": "KU-001: workbook uses rolling-from-base quarters (base Jul-23); engine resolves calendar quarters; workbook also double-counts TMT in general W",
-    "current_engine_total": "-20134.82",
-    "workbook_divergence": "The general-W mismatch double-counts TMT because Table 10 also calculates a TMT bucket. Table 10 !D16 uses angles average 59820, while Table 3!I24 is 59806.22. The fixture uses the calculation-sheet-implied Apr-25 angles value 61133.33 and retains the Index-sheet value 61092 in this note. Source-row deductions derive W=6773975.905, but Table 10 !B5 uses 7094214.67."
+    "xfail_reason": "KU-001 follow-up: rolling quarter resolution is correct; the workbook double-counts TMT in general W",
+    "current_engine_total": "5230.05",
+    "workbook_divergence": "The general-W mismatch double-counts TMT because Table 10 also calculates a TMT bucket. Table 10 also hard-codes two-decimal quarter averages, and its angles average 59820 conflicts with the Index-sheet average 59806.22. The fixture preserves the Index-sheet monthly observations verbatim. Source-row deductions derive W=6773975.905, but Table 10 !B5 uses 7094214.67."
   }
 }

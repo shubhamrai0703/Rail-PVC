@@ -209,8 +209,6 @@
     },
     "verified_against": "workbook calculation and summary cached formula results, cross-checked by engine/scripts/extract_pvc_fixtures.py",
     "reconciliation_status": "workbook_divergence",
-    "xfail_reason": "KU-001: workbook uses rolling-from-base quarters (base Feb-24); engine resolves calendar quarters",
-    "current_engine_total": "337.75",
     "workbook_divergence": "Second page!C8 labels the third bill Q5, while Front Page!B8 and Bill 3!A2 label it Q4 and the calculation sheet uses Q4 averages."
   }
 }

@@ -54,4 +54,4 @@ Consequences for the design questions above:
 
 ## Results
 
-(Implementer: append design decision + implementation notes here.)
+Executed on `saqlain/fup-backlog` on 2026-07-16: `resolve_quarter` now uses the contract's existing `base_month`, numbers unbounded rolling three-month windows with plain ordinal labels, and rejects measurement dates in or before the base month through the existing validation-error path. No convention flag, schema migration, payload field, component-math change, or frontend change was introduced. The complete implementation notes, fixture reconciliation (including newly verified JRH workbook divergences), file list, and verification evidence are in `tasks/handoffs/2026-07-16-sol-quarter-rolling-fix.md`.

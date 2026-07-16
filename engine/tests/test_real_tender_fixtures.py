@@ -55,10 +55,14 @@ def test_real_tender_fixture_matches_expected_total(path: Path):
     expected_total = Decimal(str(expected["total_pvc"]))
     tolerance = Decimal(str(expected.get("tolerance", "0")))
     difference = abs(result.total_pvc - expected_total)
-    if difference > tolerance and notes.get("xfail_reason"):
+    if notes.get("xfail_reason"):
         pinned_total = notes.get("current_engine_total")
         assert pinned_total is not None, (
             f"{path.name} must pin notes.current_engine_total before xfail can hide a mismatch"
+        )
+        assert difference > tolerance, (
+            f"{path.name} unexpectedly reconciles with the workbook; verify the change "
+            "and remove its stale xfail metadata"
         )
         assert result.total_pvc == Decimal(str(pinned_total)), (
             f"{path.name} engine output changed independently of its documented mismatch: "
@@ -118,6 +122,9 @@ def test_real_tender_fixture_metadata_is_valid():
             assert reason.startswith("KU-001"), (
                 f"{path.name} notes.xfail_reason must identify KU-001"
             )
+            assert "engine resolves calendar quarters" not in reason, (
+                f"{path.name} carries stale pre-fix KU-001 metadata"
+            )
             assert (
                 data.get("notes", {}).get("current_engine_total") is not None
                 or data.get("notes", {}).get("expected_validation_errors")
@@ -125,6 +132,6 @@ def test_real_tender_fixture_metadata_is_valid():
 
         status = data.get("notes", {}).get("reconciliation_status")
         if status is not None:
-            assert status in {"reconciles", "ku_001_pending", "workbook_divergence"}, (
+            assert status in {"reconciles", "workbook_divergence"}, (
                 f"{path.name} has unknown reconciliation_status={status!r}"
             )

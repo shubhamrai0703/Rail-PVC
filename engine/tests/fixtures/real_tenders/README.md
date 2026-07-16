@@ -21,8 +21,7 @@ Optional reconciliation metadata:
   hidden by an xfail; broad error-pattern matching is intentionally forbidden.
 - `notes.workbook_divergence`: explicit workbook/engine inconsistency with
   source cells; never alter source inputs merely to force reconciliation.
-- `notes.reconciliation_status`: `reconciles`, `ku_001_pending`, or
-  `workbook_divergence`.
+- `notes.reconciliation_status`: `reconciles` or `workbook_divergence`.
 
 Fixture shape:
 

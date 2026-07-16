@@ -68,11 +68,11 @@ W = OnAccountBill
 
 If any required eligibility decision is missing (extra-item not yet classified as in/out, cement or steel bucket not configured), the PVC run must **block** with an explicit error. No silent defaults. No calculation with assumed values.
 
-### 2. Quarter Mapping Must Be Confirmed and Locked
+### 2. Quarter Mapping: Rolling From Contract Base Month (confirmed 2026-07-15)
 
-The quarter is determined by the **bill's measurement date** (not submission date). For a measurement date in month M, the quarter is the three-month window containing M, and the index average is `(index_M-2 + index_M-1 + index_M) / 3` per the RBI quarterly publication cycle.
+Quarters are **rolling, not calendar**, anchored to the contract's `base_month` (input by the contractor at contract creation). Quarter 1 is the three months immediately after the base month; Quarter N continues in three-month windows for the life of the contract (including extensions), labelled with plain ordinals (`Q1`, `Q2`, ... unbounded). The quarter is determined by the **bill's measurement date** — the window containing it — and the index average is `(index_M-2 + index_M-1 + index_M) / 3` over that window.
 
-This interpretation must be domain-confirmed with at least one Railway division field account before the engine ships. The approved quarter is stored as an immutable field on every PVC run — it cannot be re-derived post-hoc.
+Confirmed by a Western Railway field contact ("rolling quarter, start date will be input by contractor") and independently verified against five real GCC-April-2022 PVC workbooks. This falsified the earlier KU-001 assumption of fixed calendar quarters with FY labels (e.g. `Q2-FY2025-26`) — two of the five confirming contracts happened to have December base months, making rolling and calendar windows coincide, which is what let the wrong convention pass an earlier domain check. See `tasks/handoffs/2026-07-15-ccs-quarter-convention.md` and `tasks/handoffs/2026-07-16-sol-quarter-rolling-fix.md` for evidence and implementation. The approved quarter is stored as an immutable field on every PVC run — it cannot be re-derived post-hoc.
 
 ### 3. Approved PVC Runs Are Immutable
 

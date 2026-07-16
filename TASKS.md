@@ -206,7 +206,7 @@ Status: **frontend complete on `saqlain/p5-imp` (2026-06-02)**. Replaces the Ses
 
 ### Phase 7 — PVC Run + Results UI `[CC-S]`
 
-Status: **implemented + P7-REVIEW remediated on `saqlain/phase-7` (2026-06-11).** 153/153 backend, 99/99 engine, 52/52 vitest, tsc/eslint/next-build clean, route count 43. All HIGH/MEDIUM findings closed (see [REVIEW.md](REVIEW.md)); awaiting merge of PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14).
+Status: **implemented + P7-REVIEW remediated. Merged to `main` via PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) (2026-06-11).** 153/153 backend, 99/99 engine, 52/52 vitest, tsc/eslint/next-build clean, route count 43. All HIGH/MEDIUM findings closed (see [REVIEW.md](REVIEW.md)).
 
 | ID | Title | Owner | Status | Notes |
 |---|---|---|---|---|
@@ -219,6 +219,17 @@ Status: **implemented + P7-REVIEW remediated on `saqlain/phase-7` (2026-06-11).*
 | D-FUP-1 | Apply migration 015 to Supabase before running PVC on real bills | [CC-S] | complete | Done 2026-06-11 via `alembic upgrade head` (DB now at 016; stamped 013 — `is_admin` pre-existed out-of-band; created `get_tenant_id()` so 014's RLS policies could apply). Existing rows keep NULL totals (acceptable — pre-Phase-7). |
 | P7-FUP-L1 | Extract shared `authedFetch` from `apiFetch`/`apiDownload` | [CC-S] | complete | 2026-07-02. `authedFetch` private helper owns auth injection + network-failure logging + toast; `resolveErrorMessage` unifies two-tier error resolution (structured → string `detail` → statusText). `apiDownload` now gets `console.error` logging (was missing) and string-`detail` fallback (was missing) — both were real drift bugs. No caller changes. |
 | P7-FUP-L2 | `describeWDerivation` arithmetic guard | [CC-S] | complete | 2026-07-02, landed with P6-H1-FUP-C. `describeWDerivation` now computes `on_account - Σ subtractions - w`; pushes an amber "⚠ Residual (unaccounted)" warning row when `|residual| > 0.01`. 2 new vitest (consistent / inconsistent cases). |
+
+### KU-001 — Rolling-quarter remediation `[CC-S + ChatGPT Codex Sol]`
+
+Status: **complete on `saqlain/fup-backlog` (2026-07-16), merging to `main`.** Domain confirmation (rolling-from-base, anchored to contract `base_month`) closed the design question CC-S opened in `tasks/handoffs/2026-07-15-ccs-quarter-convention.md`; ChatGPT Codex Sol implemented it per `tasks/handoffs/2026-07-16-sol-quarter-rolling-fix.md`.
+
+| ID | Title | Owner | Status | Notes |
+|---|---|---|---|---|
+| KU-001-FIX | Rewrite `resolve_quarter` for rolling-from-base ordinals; thread `base_month` through engine + backend callers | [Sol] | complete | `quarter.py` rewritten; `calculator.py:318` and `backend/services/pvc_service.py:549` pass `indices.base_month`. Pre-Q1 measurement dates surface a blocking validation error, not an exception. |
+| KU-001-FIXTURES | Refresh 14 golden-fixture xfail pins/markers from rolling results | [Sol] | complete | Fixture module: **12 passed, 9 xfailed**. 9 bills flip to genuine PASS; JRH Bills 3–5 + STC Bills 1–4 + `bct_2425_183_bill2_q3` + `bct_2425_252_golden_bill2_q4` remain xfail — verified workbook-internal divergences, not quarter bugs. |
+| KU-001-REVIEW | Adversarial review of the quarter-fix diff | [CODEX-S] | pending | Not yet run. CC-S flagged for scrutiny: month-delta boundary (`base + 1 month` starts Q1), December/year rollover, unbounded `Q10+` labels. |
+| KU-001-STC-AVG | Domain decision: STC's hard-coded 2-decimal quarter averages vs full-precision monthly averages | unassigned | pending | Separate from the quarter-convention fix. Blocks the last 2 STC xfails (`stc_cop_bill1_q3`, `stc_cop_bill2_q4`) from closing. |
 
 ### Phases 8–9 — Forward Plan
 

@@ -92,13 +92,13 @@
   "notes": {
     "source_tender": "BCT-24-25-252",
     "source_bill": "Bill-1",
-    "quarter": "Q2-FY2025-26",
+    "quarter": "Q2",
     "verified_against": "manual workbook layout",
     "scenario": "typical on-account bill with one excluded NS extra item, mixed steel buckets, cement deduction."
   },
   "expected": {
     "total_pvc": "0.00",
-    "quarter_used": "Q2-FY2025-26",
+    "quarter_used": "Q2",
     "negative_carry_forward": "635.38"
   }
 }

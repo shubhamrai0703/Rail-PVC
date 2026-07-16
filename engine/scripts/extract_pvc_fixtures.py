@@ -87,24 +87,7 @@ class WorkbookSpec:
     })
 
 
-KU_COP = (
-    "KU-001: workbook uses rolling-from-base quarters (base Jul-23); "
-    "engine resolves calendar quarters"
-)
-KU_296 = (
-    "KU-001: workbook uses rolling-from-base quarters (base Feb-24); "
-    "engine resolves calendar quarters"
-)
-KU_JRH = (
-    "KU-001: workbook uses rolling-from-base quarters (base May-23); "
-    "engine resolves calendar quarters"
-)
-
-MISSING_OCT_DEC_INDICES = tuple(
-    f"missing quarter index: series='{series}' months=['2025-10', '2025-11', '2025-12']"
-    for series in ("labour", "plant_machinery", "fuel", "other_materials", "cement")
-)
-MISSING_STEEL_LABOUR = "missing index for series='labour' (steel labour sub-component)"
+KU_FOLLOWUP = "KU-001 follow-up: rolling quarter resolution is correct; "
 
 SPECS = (
     WorkbookSpec(
@@ -127,28 +110,47 @@ SPECS = (
         bills=(
             BillSpec(
                 "stc_cop_bill1_q3.json", "Bill 1 / Q3", 4, "Table 8", "L30", "Table 1", "C8",
-                "0.15", xfail_reason=KU_COP, current_engine_total="-117866.41",
+                "0.15",
+                xfail_reason=(
+                    KU_FOLLOWUP + "the workbook hard-codes rounded quarter averages"
+                ),
+                divergence=(
+                    "Table 8 hard-codes two-decimal quarter averages instead of deriving "
+                    "them at full precision from the Index-sheet monthly observations. "
+                    "The fixture preserves the source observations verbatim; resolving "
+                    "the averaging-rule difference requires a separate domain decision."
+                ),
+                current_engine_total="-120665.56",
             ),
             BillSpec(
                 "stc_cop_bill2_q4.json", "Bill 2 / Q4", 6, "Table 9", "L30", "Table 1", "C9",
-                "0.15", xfail_reason=KU_COP, current_engine_total="-26388.88",
+                "0.15",
+                xfail_reason=(
+                    KU_FOLLOWUP + "the workbook hard-codes rounded quarter averages"
+                ),
+                divergence=(
+                    "Table 9 hard-codes two-decimal quarter averages instead of deriving "
+                    "them at full precision from the Index-sheet monthly observations. "
+                    "The fixture preserves the source observations verbatim; resolving "
+                    "the averaging-rule difference requires a separate domain decision."
+                ),
+                current_engine_total="-54130.40",
             ),
             BillSpec(
                 "stc_cop_bill3_q7.json", "Bill 3 / Q7", 8, "Table 10 ", "L30", "Table 1", "C12",
-                xfail_reason=KU_COP + "; workbook also double-counts TMT in general W",
+                xfail_reason=KU_FOLLOWUP + "the workbook double-counts TMT in general W",
                 divergence=(
                     "The general-W mismatch double-counts TMT because Table 10 also "
-                    "calculates a TMT bucket. Table 10 !D16 uses angles "
-                    "average 59820, while Table 3!I24 is 59806.22. The fixture uses "
-                    "the calculation-sheet-implied Apr-25 angles value 61133.33 and "
-                    "retains the Index-sheet value 61092 in this note."
+                    "calculates a TMT bucket. Table 10 also hard-codes two-decimal quarter "
+                    "averages, and its angles average 59820 conflicts with the Index-sheet "
+                    "average 59806.22. The fixture preserves the Index-sheet monthly "
+                    "observations verbatim."
                 ),
-                index_overrides={"steel_angles": {"2025-04": "61133.33"}},
-                current_engine_total="-20134.82",
+                current_engine_total="5230.05",
             ),
             BillSpec(
                 "stc_cop_bill4_q9.json", "Bill 4 / Q9", 10, "Table 11", "L30", "Table 1", "C15",
-                xfail_reason=KU_COP + "; workbook also uses a hybrid steel-other amount",
+                xfail_reason=KU_FOLLOWUP + "the workbook uses a hybrid steel-other amount",
                 divergence=(
                     "The workbook total is a hybrid: Table 4!I10 subtracts 665094.334275 "
                     "from W, while Table 11!B25 calculates the steel-other bucket on "
@@ -156,7 +158,7 @@ SPECS = (
                     "in the payload and preserves both source values in this note."
                 ),
                 amount_overrides={"steel_other_amount": "B25"},
-                expected_validation_errors=MISSING_OCT_DEC_INDICES + (MISSING_STEEL_LABOUR,) * 4,
+                current_engine_total="-156249.28",
             ),
         ),
     ),
@@ -237,21 +239,19 @@ SPECS = (
         bills=(
             BillSpec(
                 "bct_2324_296_bill1_q3.json", "Bill 1 / Q3", 4, "Bill 1", "L25",
-                "Front Page ", "C6", xfail_reason=KU_296, current_engine_total="45470.44",
+                "Front Page ", "C6",
             ),
             BillSpec(
                 "bct_2324_296_bill2_q4.json", "Bill 2 / Q4", 6, "Bill 2", "L25",
-                "Front Page ", "C7", xfail_reason=KU_296, current_engine_total="102623.70",
+                "Front Page ", "C7",
             ),
             BillSpec(
                 "bct_2324_296_bill3_q4.json", "Bill 3 / Q4", 8, "Bill 3", "L25",
                 "Front Page ", "C8",
-                xfail_reason=KU_296,
                 divergence=(
                     "Second page!C8 labels the third bill Q5, while Front Page!B8 and "
                     "Bill 3!A2 label it Q4 and the calculation sheet uses Q4 averages."
                 ),
-                current_engine_total="337.75",
             ),
         ),
     ),
@@ -266,29 +266,47 @@ SPECS = (
         bills=(
             BillSpec(
                 "jrh_bct_2324_48_bill1_q4.json", "Bill 1 / Q4", 4, "1st bill", "L25",
-                "Front page", "C9", xfail_reason=KU_JRH, current_engine_total="-28863.63",
+                "Front page", "C9",
             ),
             BillSpec(
                 "jrh_bct_2324_48_bill2_q6.json", "Bill 2 / Q6", 6, "2nd Bill", "L25",
-                "Front page", "C11", xfail_reason=KU_JRH, current_engine_total="182912.11",
+                "Front page", "C11",
             ),
             BillSpec(
                 "jrh_bct_2324_48_bill3_q7.json", "Bill 3 / Q7", 8, "3rd bill", "L25",
-                "Front page", "C12", xfail_reason=KU_JRH, current_engine_total="177255.16",
+                "Front page", "C12",
+                xfail_reason=KU_FOLLOWUP + "the workbook uses stale W inputs in general rows",
+                divergence=(
+                    "3rd bill!B5 uses derived W 6668663.099263423, while B6:B8 "
+                    "hard-code stale W 6660973.25310658. The fixture keeps the "
+                    "source-derived W and Index-sheet values."
+                ),
+                current_engine_total="168488.10",
             ),
             BillSpec(
                 "jrh_bct_2324_48_bill4_q9.json", "Bill 4 / Q9", 10, "4th bill", "L25",
-                "Front page", "C14", xfail_reason=KU_JRH, current_engine_total="189521.14",
+                "Front page", "C14",
+                xfail_reason=KU_FOLLOWUP + "the workbook mixes W, steel amounts, and indices",
+                divergence=(
+                    "4th bill!B5 uses derived W 7741793.184496519, while B6:B8 "
+                    "hard-code 7734810.34001062. Steel rows also mix source amounts "
+                    "with stale amounts and use materials average 154.466666666667 "
+                    "instead of the Index-sheet Q9 average 154.433333333333."
+                ),
+                current_engine_total="181375.32",
             ),
             BillSpec(
                 "jrh_bct_2324_48_bill5_q10.json", "Bill 5 / Q10", 12, "5th bill", "L25",
                 "Front page", "C15",
-                extra_cells=("L13", "L14"), xfail_reason=KU_JRH,
+                extra_cells=("L13", "L14"),
+                xfail_reason=KU_FOLLOWUP + "the workbook rounds steel sub-index inputs",
                 divergence=(
                     "5th bill!A2 says Quarter 9, but Front page!B15, Second page !C12, "
-                    "and the calculation formulas identify/use Quarter 10."
+                    "and the calculation formulas identify/use Quarter 10. Its steel "
+                    "rows round labour 147.733333→147.73, plant 93.066667→93.1, and "
+                    "materials 155.333333→155.33 while general rows use exact averages."
                 ),
-                expected_validation_errors=MISSING_OCT_DEC_INDICES + (MISSING_STEEL_LABOUR,) * 3,
+                current_engine_total="100982.68",
             ),
         ),
     ),
@@ -494,9 +512,7 @@ def _build_fixture(
             "engine/scripts/extract_pvc_fixtures.py"
         ),
         "reconciliation_status": (
-            "workbook_divergence" if divergence else
-            "ku_001_pending" if bill.xfail_reason else
-            "reconciles"
+            "workbook_divergence" if divergence else "reconciles"
         ),
     }
     if bill.xfail_reason:

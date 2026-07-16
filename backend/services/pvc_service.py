@@ -541,12 +541,14 @@ async def execute_pvc_run(
 
     bill_payload = await build_bill_payload(session, bill_id, contract_id)
 
-    # The engine resolves quarter months from measurement_date; we mirror that
-    # to load the right observations. Importing the resolver keeps the two in
-    # lock-step.
+    # The engine resolves quarter months from measurement_date and the contract
+    # base month; we mirror that to load the right observations. Importing the
+    # resolver keeps the two in lock-step.
     from engine.quarter import resolve_quarter
 
-    _, quarter_months_str = resolve_quarter(bill_payload.measurement_date)
+    _, quarter_months_str = resolve_quarter(
+        bill_payload.measurement_date, contract_row["base_month"]
+    )
     quarter_months = [date.fromisoformat(f"{m}-01") for m in quarter_months_str]
 
     snapshot = await build_index_snapshot(

@@ -343,8 +343,9 @@
       "base_indices": "Index!C6:K6"
     },
     "verified_against": "workbook calculation and summary cached formula results, cross-checked by engine/scripts/extract_pvc_fixtures.py",
-    "reconciliation_status": "ku_001_pending",
-    "xfail_reason": "KU-001: workbook uses rolling-from-base quarters (base May-23); engine resolves calendar quarters",
-    "current_engine_total": "189521.14"
+    "reconciliation_status": "workbook_divergence",
+    "xfail_reason": "KU-001 follow-up: rolling quarter resolution is correct; the workbook mixes W, steel amounts, and indices",
+    "current_engine_total": "181375.32",
+    "workbook_divergence": "4th bill!B5 uses derived W 7741793.184496519, while B6:B8 hard-code 7734810.34001062. Steel rows also mix source amounts with stale amounts and use materials average 154.466666666667 instead of the Index-sheet Q9 average 154.433333333333."
   }
 }

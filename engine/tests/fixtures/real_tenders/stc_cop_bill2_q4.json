@@ -316,9 +316,10 @@
       "base_indices": "Table 2!C7:K7"
     },
     "verified_against": "workbook calculation and summary cached formula results, cross-checked by engine/scripts/extract_pvc_fixtures.py",
-    "reconciliation_status": "ku_001_pending",
-    "xfail_reason": "KU-001: workbook uses rolling-from-base quarters (base Jul-23); engine resolves calendar quarters",
-    "current_engine_total": "-26388.88",
-    "tolerance_reason": "Workbook rounds individual formula lines to 2dp; 0.15 covers the verified paise residual."
+    "reconciliation_status": "workbook_divergence",
+    "xfail_reason": "KU-001 follow-up: rolling quarter resolution is correct; the workbook hard-codes rounded quarter averages",
+    "current_engine_total": "-54130.40",
+    "tolerance_reason": "Workbook rounds individual formula lines to 2dp; 0.15 covers the verified paise residual.",
+    "workbook_divergence": "Table 9 hard-codes two-decimal quarter averages instead of deriving them at full precision from the Index-sheet monthly observations. The fixture preserves the source observations verbatim; resolving the averaging-rule difference requires a separate domain decision."
   }
 }

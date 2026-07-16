@@ -343,8 +343,9 @@
       "base_indices": "Index!C6:K6"
     },
     "verified_against": "workbook calculation and summary cached formula results, cross-checked by engine/scripts/extract_pvc_fixtures.py",
-    "reconciliation_status": "ku_001_pending",
-    "xfail_reason": "KU-001: workbook uses rolling-from-base quarters (base May-23); engine resolves calendar quarters",
-    "current_engine_total": "177255.16"
+    "reconciliation_status": "workbook_divergence",
+    "xfail_reason": "KU-001 follow-up: rolling quarter resolution is correct; the workbook uses stale W inputs in general rows",
+    "current_engine_total": "168488.10",
+    "workbook_divergence": "3rd bill!B5 uses derived W 6668663.099263423, while B6:B8 hard-code stale W 6660973.25310658. The fixture keeps the source-derived W and Index-sheet values."
   }
 }

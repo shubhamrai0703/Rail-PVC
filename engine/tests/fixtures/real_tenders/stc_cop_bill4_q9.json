@@ -320,18 +320,8 @@
     },
     "verified_against": "workbook calculation and summary cached formula results, cross-checked by engine/scripts/extract_pvc_fixtures.py",
     "reconciliation_status": "workbook_divergence",
-    "xfail_reason": "KU-001: workbook uses rolling-from-base quarters (base Jul-23); engine resolves calendar quarters; workbook also uses a hybrid steel-other amount",
-    "expected_validation_errors": [
-      "missing quarter index: series='labour' months=['2025-10', '2025-11', '2025-12']",
-      "missing quarter index: series='plant_machinery' months=['2025-10', '2025-11', '2025-12']",
-      "missing quarter index: series='fuel' months=['2025-10', '2025-11', '2025-12']",
-      "missing quarter index: series='other_materials' months=['2025-10', '2025-11', '2025-12']",
-      "missing quarter index: series='cement' months=['2025-10', '2025-11', '2025-12']",
-      "missing index for series='labour' (steel labour sub-component)",
-      "missing index for series='labour' (steel labour sub-component)",
-      "missing index for series='labour' (steel labour sub-component)",
-      "missing index for series='labour' (steel labour sub-component)"
-    ],
+    "xfail_reason": "KU-001 follow-up: rolling quarter resolution is correct; the workbook uses a hybrid steel-other amount",
+    "current_engine_total": "-156249.28",
     "workbook_divergence": "The workbook total is a hybrid: Table 4!I10 subtracts 665094.334275 from W, while Table 11!B25 calculates the steel-other bucket on 1978547.683065. The fixture uses the calculation-sheet bucket amount in the payload and preserves both source values in this note. Source-row deductions derive W=2252974.8905265002, but Table 11!B5 uses 3566428.2393165007."
   }
 }

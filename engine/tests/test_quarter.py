@@ -1,48 +1,46 @@
-"""Unit tests for P2-006: quarter resolver."""
+"""Unit tests for P2-006: rolling quarter resolver."""
 from datetime import date
 
 from engine.quarter import resolve_quarter
 
 
 class TestQuarterResolver:
-    def test_bct_bill1_jun_18_is_q2_fy2025_26(self):
-        """BCT-24-25-252 Bill-1: measurement_date 2025-06-18 → Q2."""
-        label, months = resolve_quarter(date(2025, 6, 18))
-        assert label == "Q2-FY2025-26"
-        assert months == ["2025-04", "2025-05", "2025-06"]
+    def test_quarter_one_starts_in_month_after_base(self):
+        label, months = resolve_quarter(date(2023, 8, 1), date(2023, 7, 1))
+        assert label == "Q1"
+        assert months == ["2023-08", "2023-09", "2023-10"]
 
-    def test_bct_bill2_nov_4_is_q4_fy2025_26(self):
-        """BCT-24-25-252 Bill-2: measurement_date 2025-11-04 → Q4."""
-        label, months = resolve_quarter(date(2025, 11, 4))
-        assert label == "Q4-FY2025-26"
-        assert months == ["2025-10", "2025-11", "2025-12"]
+    def test_measurement_on_last_month_of_quarter_stays_in_quarter(self):
+        label, months = resolve_quarter(date(2023, 10, 31), date(2023, 7, 1))
+        assert label == "Q1"
+        assert months == ["2023-08", "2023-09", "2023-10"]
 
-    def test_q1_calendar_jan_mar(self):
-        label, months = resolve_quarter(date(2026, 2, 15))
-        assert label == "Q1-FY2025-26"
-        assert months == ["2026-01", "2026-02", "2026-03"]
+    def test_measurement_on_first_month_of_next_quarter_advances(self):
+        label, months = resolve_quarter(date(2023, 11, 1), date(2023, 7, 1))
+        assert label == "Q2"
+        assert months == ["2023-11", "2023-12", "2024-01"]
 
-    def test_q3_jul_sep(self):
-        label, months = resolve_quarter(date(2025, 8, 20))
-        assert label == "Q3-FY2025-26"
-        assert months == ["2025-07", "2025-08", "2025-09"]
+    def test_quarter_window_wraps_across_december(self):
+        label, months = resolve_quarter(date(2024, 1, 15), date(2023, 10, 1))
+        assert label == "Q1"
+        assert months == ["2023-11", "2023-12", "2024-01"]
 
-    def test_fy_boundary_apr_starts_new_fy(self):
-        label, months = resolve_quarter(date(2026, 4, 1))
-        assert label == "Q2-FY2026-27"
-        assert months == ["2026-04", "2026-05", "2026-06"]
+    def test_contract_quarters_continue_past_q4(self):
+        label, months = resolve_quarter(date(2025, 10, 30), date(2023, 5, 1))
+        assert label == "Q10"
+        assert months == ["2025-09", "2025-10", "2025-11"]
 
-    def test_fy_boundary_mar_stays_in_prior_fy(self):
-        label, months = resolve_quarter(date(2026, 3, 31))
-        assert label == "Q1-FY2025-26"
-        assert months == ["2026-01", "2026-02", "2026-03"]
+    def test_day_of_month_is_ignored_for_base_and_measurement(self):
+        label, months = resolve_quarter(date(2024, 4, 30), date(2023, 7, 31))
+        assert label == "Q3"
+        assert months == ["2024-02", "2024-03", "2024-04"]
 
-    def test_dec_is_q4(self):
-        label, months = resolve_quarter(date(2024, 12, 31))
-        assert label == "Q4-FY2024-25"
-        assert months == ["2024-10", "2024-11", "2024-12"]
+    def test_measurement_in_base_month_has_no_quarter(self):
+        label, months = resolve_quarter(date(2023, 7, 31), date(2023, 7, 1))
+        assert label == ""
+        assert months == []
 
-    def test_quarter_months_always_3(self):
-        for month in range(1, 13):
-            _, months = resolve_quarter(date(2025, month, 15))
-            assert len(months) == 3
+    def test_measurement_before_base_month_has_no_quarter(self):
+        label, months = resolve_quarter(date(2023, 6, 30), date(2023, 7, 1))
+        assert label == ""
+        assert months == []

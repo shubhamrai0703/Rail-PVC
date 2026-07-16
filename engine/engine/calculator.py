@@ -315,7 +315,15 @@ def calculate_pvc(
     errors: list[str] = []
 
     # P2-006: resolve quarter
-    quarter_label, quarter_months = resolve_quarter(bill.measurement_date)
+    quarter_label, quarter_months = resolve_quarter(
+        bill.measurement_date, indices.base_month
+    )
+    if not quarter_months:
+        errors.append(
+            f"measurement_date {bill.measurement_date.isoformat()} falls in or before "
+            f"the contract base month {indices.base_month:%Y-%m} — "
+            "no PVC quarter exists yet"
+        )
 
     # P2-002/003/004/005: derive W (also validates extra item decisions)
     w_derivation, w_errors = derive_w(bill)
@@ -410,5 +418,4 @@ def calculate_pvc(
         trace=_build_trace(bill, quarter_label, quarter_months, indices, rules, w_derivation, all_components),
         validation_errors=[],
     )
-
 

@@ -81,3 +81,84 @@ Paste the pytest summary lines and the spot-check JSON into Results.
 ## Report back
 
 Append a `## Results` section to THIS file with: the final pass/xfail table (calling out any fixture that didn't land where predicted, especially JRH bill 5), the edge-case behaviour you implemented for measurement-in-base-month, every file touched, the verification output, and anything the reviewer (CC-S will review this change) should scrutinize. Also update: `STATUS.md` (quarter defect fixed on `saqlain/fup-backlog`), the `## Results` section of `tasks/handoffs/2026-07-15-ccs-quarter-convention.md` (one paragraph: decision executed, pointer here), and the KU-001 note in `engine/engine/types.py` if its comment references calendar quarters.
+
+## Results
+
+Implemented on `saqlain/fup-backlog` on 2026-07-16, without committing or pushing. `resolve_quarter` now derives unbounded, plain-ordinal rolling quarters from the contract's existing `base_month`; both engine and backend callers pass that anchor. No convention flag, schema/payload migration, component-math change, or frontend change was made. The `IndexSnapshot.quarter_mode` comment in `engine/engine/types.py` only describes the unchanged measurement-date anchor and does not mention calendar quarters, so that file was intentionally left unchanged.
+
+### Final fixture disposition
+
+| PASS | Expected xfail retained |
+|---|---|
+| `bct_2324_296_bill1_q3` | `stc_cop_bill1_q3` — calculation sheet hard-codes rounded quarter averages |
+| `bct_2324_296_bill2_q4` | `stc_cop_bill2_q4` — calculation sheet hard-codes rounded quarter averages |
+| `bct_2324_296_bill3_q4` | `stc_cop_bill3_q7` — workbook double-counts TMT and uses conflicting averages |
+| `jrh_bct_2324_48_bill1_q4` | `stc_cop_bill4_q9` — workbook uses a hybrid steel-other basis |
+| `jrh_bct_2324_48_bill2_q6` | `bct_2425_183_bill2_q3` — workbook double-treats cement |
+| `bct_2425_183_bill1_q2` | `bct_2425_252_golden_bill2_q4` — workbook links Q2 rows for a Q4 bill |
+| `bct_2425_252_golden_bill1_q2` | `jrh_bct_2324_48_bill3_q7` — workbook retains stale W-row inputs |
+| `bct_2425_252_bill1_q2` (synthetic) | `jrh_bct_2324_48_bill4_q9` — workbook mixes W, amount, and index inputs |
+| `bct_2425_252_bill2_q4` (synthetic) | `jrh_bct_2324_48_bill5_q10` — workbook uses rounded steel sub-index inputs |
+
+The handoff's predicted split was incomplete for both JRH and STC. JRH Bills 3 and 4 resolve to the correct rolling windows, but a read-only source-workbook audit found independent input divergences, so they remain xfail with exact refreshed pins. JRH Bill 5 now resolves `Q10` to Sep–Nov 2025 with no missing-index errors; it nevertheless remains xfail because its workbook rounds steel sub-index inputs before calculation.
+
+An independent code-review pass caught that an interim extraction change made STC Bills 1–3 reconcile by changing monthly source observations by ±₹0.01. Those overrides were removed: fixtures again preserve the source index sheets verbatim. STC Bills 1 and 2 therefore resolve the intended `Q3`/`Q4` windows but remain exact xfails because Tables 8/9 hard-code two-decimal quarter averages rather than deriving full-precision averages from those observations. Resolving that separate averaging-rule question requires a domain decision and was not smuggled into this resolver-only change. The final fixture-module summary includes three metadata tests in addition to nine passing fixture cases: **12 passed, 9 xfailed**.
+
+### Edge behaviour
+
+If the measurement month is the base month or earlier, the resolver returns an empty label and month window. The calculator then emits the normal blocking validation error, for example: `measurement_date 2024-12-15 falls in or before the contract base month 2024-12 — no PVC quarter exists yet`. It does not raise a resolver exception or attempt a partial quarter.
+
+### Files changed
+
+- Runtime: `engine/engine/quarter.py`, `engine/engine/calculator.py`, `backend/services/pvc_service.py`.
+- Tests and fixture contract: `engine/tests/test_quarter.py`, `engine/tests/test_calculator.py`, `engine/tests/test_real_tender_fixtures.py`, `backend/tests/test_p3_04_zone_snapshot.py`, `engine/tests/fixtures/real_tenders/README.md`.
+- Reproducible extraction: `engine/scripts/extract_pvc_fixtures.py`.
+- Refreshed fixture metadata: `bct_2324_296_bill1_q3.json`, `bct_2324_296_bill2_q4.json`, `bct_2324_296_bill3_q4.json`, `bct_2425_252_bill1_q2.json`, `bct_2425_252_bill2_q4.json`, `jrh_bct_2324_48_bill1_q4.json`, `jrh_bct_2324_48_bill2_q6.json`, `jrh_bct_2324_48_bill3_q7.json`, `jrh_bct_2324_48_bill4_q9.json`, `jrh_bct_2324_48_bill5_q10.json`, `stc_cop_bill1_q3.json`, `stc_cop_bill2_q4.json`, `stc_cop_bill3_q7.json`, and `stc_cop_bill4_q9.json`, all under `engine/tests/fixtures/real_tenders/`.
+- Project records: `STATUS.md`, `tasks/todo.md`, `tasks/handoffs/2026-07-15-ccs-quarter-convention.md`, and this handoff.
+
+### Verification evidence
+
+Test-first, the focused resolver/calculator tests failed before the runtime change (`13 failed, 25 passed`) and passed afterward (`38 passed`). Final checks:
+
+```text
+engine fixture module: 12 passed, 9 xfailed in 0.74s
+full engine suite:      119 passed, 9 xfailed in 4.42s
+full backend suite:     166 passed in 5.08s
+fixture extractor:      Checked 16 fixtures
+scoped mypy:            Success: no issues found in 2 source files
+frontend typecheck:     npx tsc --noEmit — clean
+frontend lint:          npm run lint — clean
+frontend build:         next build — compiled successfully; 11 static pages generated
+```
+
+The initial sandboxed frontend build could not fetch Google Fonts; the same production build succeeded with network access. `rg -n "FY|Q[1-4]-FY" frontend` found no source dependency on the old label format. A scoped simplification pass found no reusable abstraction or performance change worth adding. The broader existing mypy baseline still reports three unrelated errors in `engine/components.py:191-192` and `engine/calculator.py:139`; the changed resolver and extractor pass scoped mypy.
+
+Required spot check:
+
+```json
+{
+  "fixture": "tests/fixtures/real_tenders/stc_cop_bill1_q3.json",
+  "quarter_used": "Q3",
+  "quarter_months": [
+    "2024-02",
+    "2024-03",
+    "2024-04"
+  ],
+  "validation_errors": [],
+  "comparison": {
+    "matches_total_pvc": false,
+    "actual_total_pvc": "-120665.56",
+    "expected_total_pvc": "-120623.44",
+    "difference": "42.12",
+    "tolerance": "0.15"
+  }
+}
+```
+
+### Reviewer scrutiny and operations
+
+The required STC `--fail-on-mismatch` spot command exits 1 for the documented averaging divergence while proving the corrected `Q3` window and clean validation path; the strict xfail harness pins that exact `-120665.56` outcome. A newly passing rolling fixture (`bct_2324_296_bill1_q3`) is covered by the same harness.
+
+The review found three actionable issues and all were addressed: synthetic STC index overrides were removed, retained workbook divergences became strict xfails that cannot silently pass, and backend tests now prove the persisted contract base month selects Feb–Apr 2024 for a Jul-2023 base plus the structured pre-base error path. CC-S should still scrutinize the month-delta boundary (`base + 1 month` starts Q1), December/year rollover, unbounded `Q10+` labels, and the unresolved STC hard-coded-average rule. The source workbooks were inspected read-only and remain untouched; expected workbook totals were never changed. Canonical `PRODUCT.md` and `ARCHITECTURE.md` still contain historical descriptions of quarter semantics, but this handoff's explicit allowed surface limited documentation edits to the report-back files.
+
+There is no deployment migration. After exposure, sample new `pvc_runs.quarter_used` values for ordinal `Q\d+` labels and watch engine-validation logs for pre-base bills or missing rolling-window indices. If production assignments disagree with contract workbooks, roll back the application change (old persisted FY labels remain valid opaque text) and retain the affected run inputs for CC-S comparison.

@@ -208,8 +208,6 @@
       "base_indices": "Index (2)!C3:K3"
     },
     "verified_against": "workbook calculation and summary cached formula results, cross-checked by engine/scripts/extract_pvc_fixtures.py",
-    "reconciliation_status": "ku_001_pending",
-    "xfail_reason": "KU-001: workbook uses rolling-from-base quarters (base Feb-24); engine resolves calendar quarters",
-    "current_engine_total": "45470.44"
+    "reconciliation_status": "reconciles"
   }
 }

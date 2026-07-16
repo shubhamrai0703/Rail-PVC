@@ -304,7 +304,7 @@ class PVCRunResult(BaseModel):
     w_derivation: WDerivation           # named breakdown — every step explicit
     components: list[PVCComponent]      # per-category results
     total_pvc: Decimal
-    quarter_used: str                   # "Q2-2025" — stored, not re-derived
+    quarter_used: str                   # "Q2" — plain ordinal, rolling from contract base_month, stored not re-derived
     quarter_months: list[str]           # ["2025-04", "2025-05", "2025-06"]
     trace: dict                         # full provenance tree
     validation_errors: list[str]        # non-empty → run blocked, no result produced

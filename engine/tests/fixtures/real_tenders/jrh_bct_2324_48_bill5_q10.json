@@ -355,17 +355,8 @@
     },
     "verified_against": "workbook calculation and summary cached formula results, cross-checked by engine/scripts/extract_pvc_fixtures.py",
     "reconciliation_status": "workbook_divergence",
-    "xfail_reason": "KU-001: workbook uses rolling-from-base quarters (base May-23); engine resolves calendar quarters",
-    "expected_validation_errors": [
-      "missing quarter index: series='labour' months=['2025-10', '2025-11', '2025-12']",
-      "missing quarter index: series='plant_machinery' months=['2025-10', '2025-11', '2025-12']",
-      "missing quarter index: series='fuel' months=['2025-10', '2025-11', '2025-12']",
-      "missing quarter index: series='other_materials' months=['2025-10', '2025-11', '2025-12']",
-      "missing quarter index: series='cement' months=['2025-10', '2025-11', '2025-12']",
-      "missing index for series='labour' (steel labour sub-component)",
-      "missing index for series='labour' (steel labour sub-component)",
-      "missing index for series='labour' (steel labour sub-component)"
-    ],
-    "workbook_divergence": "5th bill!A2 says Quarter 9, but Front page!B15, Second page !C12, and the calculation formulas identify/use Quarter 10."
+    "xfail_reason": "KU-001 follow-up: rolling quarter resolution is correct; the workbook rounds steel sub-index inputs",
+    "current_engine_total": "100982.68",
+    "workbook_divergence": "5th bill!A2 says Quarter 9, but Front page!B15, Second page !C12, and the calculation formulas identify/use Quarter 10. Its steel rows round labour 147.733333→147.73, plant 93.066667→93.1, and materials 155.333333→155.33 while general rows use exact averages."
   }
 }
