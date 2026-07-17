@@ -115,6 +115,20 @@ Source: `tasks/handoffs/2026-07-16-fable-next-open-items.md` + `2026-07-16-opus-
 - [x] KU-001-REVIEW: adversarial pass on the rolling-quarter change — no HIGH/MEDIUM defects; 1 LOW deferred (KU1R-L1, no DB CHECK on `base_month` day=01); formal cycle in REVIEW.md; 3 new boundary tests + HTTP-level pre-Q1 422 pin.
 - [x] KU-001-STC-AVG investigation: workbook method decoded (mean of 3 months, rounded half-up 2dp; reproduces both STC totals to the paisa) — decision brief in the Fable handoff Results.
 - [x] P5-IMP-FUP-2: templates apply/save UI in `ImportRowsModal` (`ImportTemplateControls`, `lib/importTemplates.ts`, 11 vitest, schema.ts regenerated); browser smoke test vs mock (Supabase paused).
-- [ ] Saqlain: restore the paused Supabase project, then re-run the templates smoke test against the real stack.
+- [x] Saqlain: restore the paused Supabase project, then re-run the templates smoke test against the real stack.
 - [ ] Saqlain: decide KU-001-STC-AVG (Option 1 keep full precision vs Option 2 adopt workbook 2dp rounding) — check whether JRH/BCT workbooks share the rounding convention first.
 - [ ] When a real submission exists: validate C-3-FUP-NET (`net_amount` formula).
+
+---
+
+# P5-IMP-FUP-2 real-stack smoke test — 2026-07-16
+
+Source: `tasks/handoffs/2026-07-16-codex-supabase-smoke-test.md`
+
+## Tasks
+
+- [x] Confirm Supabase Auth/DB reachability and migration head 016.
+- [x] Build and start the production frontend plus real backend without duplicating existing listeners.
+- [x] Drive the authenticated template save/reload/apply/duplicate/preview/import flow in a real browser.
+- [x] Verify persisted tenant-scoped template data directly and clean up created templates.
+- [x] Record per-step evidence, logs/errors, defects, and verdict in the handoff Results section.

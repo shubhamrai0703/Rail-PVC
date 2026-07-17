@@ -22,7 +22,7 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Blockers
 
-- **Supabase project `ivselmhloegjmqrjekcy` unreachable (2026-07-16)** — pooler `ENOTFOUND tenant/user`, DB host NXDOMAIN, auth health endpoint dead. Looks paused (free-tier auto-pause); restore from the Supabase dashboard. Blocks `alembic current`, real-backend smoke tests, and any live login. The P5-IMP-FUP-2 smoke test should be re-run against the real stack once restored.
+- ~~Supabase project `ivselmhloegjmqrjekcy` unreachable~~ — **CLOSED 2026-07-16**: Saqlain restored the paused project; Codex re-ran the P5-IMP-FUP-2 smoke test against the real stack (real auth, DB at head `016`, full template save/apply/409/delete flow) — **PASSED, no defects**. Evidence: `tasks/handoffs/2026-07-16-codex-supabase-smoke-test.md` Results.
 - None for `saqlain/fup-backlog` — 3 FUP tickets + KU-001 quarter fix, all green; pushed and merging to `main`.
 - STC hard-coded quarter-average rule (2 remaining STC xfails) needs a separate domain decision before it can close — not a blocker for this merge.
 - Out-of-band: credential hygiene — DB password and JWT secret are in `backend/.env` (git-ignored). Keep `.env` out of version control.
@@ -60,7 +60,7 @@ This file is the shortest path to current branch state, blockers, and next actio
 
 ## Current Priorities
 
-1. [Saqlain] Restore the paused Supabase project, then re-run the P5-IMP-FUP-2 smoke test against the real stack and review/commit the working-tree changes (templates UI + quarter boundary tests + docs).
+1. ~~[Saqlain] Restore Supabase + re-run P5-IMP-FUP-2 smoke test~~ — **done 2026-07-16**: project restored, Codex real-stack smoke test PASSED (`tasks/handoffs/2026-07-16-codex-supabase-smoke-test.md`).
 2. [Saqlain] **KU-001-STC-AVG domain decision** — investigation complete (workbook = avg-then-round-half-up-2dp, verified to the paisa); decision brief in `tasks/handoffs/2026-07-16-fable-next-open-items.md` Results. Option 1 (keep full precision, xfails stay) vs Option 2 (adopt workbook rounding — scoped, needs go-ahead + its own review).
 3. ~~[Opus] Land the formal KU-001-REVIEW entry~~ — **done 2026-07-16**: REVIEW.md `KU-001-REVIEW` cycle landed (no HIGH/MEDIUM; 1 LOW deferred — KU1R-L1 base_month DB CHECK); Fable's independent pass agreed. Backend 167/167, engine 122 + 9 xfailed.
 4. [CC-S] When a real submission is available, validate `C-3-FUP-NET` (net_amount formula).
