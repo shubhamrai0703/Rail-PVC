@@ -60,6 +60,7 @@ _APPROVED_RUN = {
     "created_at": datetime(2026, 5, 31, 9, 0, 0),
     "tender_number": "T-123",
     "contractor_name": "Acme Infra",
+    "quarter_used": "Q2",
 }
 
 _COMPONENTS = [
@@ -156,3 +157,66 @@ def test_build_run_pdf_is_nonempty_pdf():
 def test_build_run_excel_handles_empty_components():
     out = build_run_excel(_APPROVED_RUN, [])
     assert out[:2] == b"PK"
+
+
+# ── P8-REVIEW parity: submission-sheet column order, formats, live total ────
+
+
+def _load_sheet(out: bytes):
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    return load_workbook(BytesIO(out)).active
+
+
+def test_build_run_excel_submission_column_order():
+    ws = _load_sheet(build_run_excel(_APPROVED_RUN, _COMPONENTS))
+    # Summary block includes the quarter (row 7 = 5th summary row).
+    labels = [ws.cell(row=r, column=1).value for r in range(3, 10)]
+    assert "Quarter" in labels
+    q_row = 3 + labels.index("Quarter")
+    assert ws.cell(row=q_row, column=2).value == "Q2"
+    # Header row: submission order — amount, avg index, base index, weight, PVC.
+    header_row = 11  # title(1) + blank + 7 summary rows + blank
+    headers = [ws.cell(row=header_row, column=c).value for c in range(1, 7)]
+    assert headers == [
+        "Category",
+        'Eligible amount "W"',
+        "Average index of quarter",
+        "Base index",
+        "Component weight",
+        "PVC amount",
+    ]
+
+
+def test_build_run_excel_numeric_cells_and_formats():
+    ws = _load_sheet(build_run_excel(_APPROVED_RUN, _COMPONENTS))
+    header_row = 11
+    first = header_row + 1
+    # Native numbers, not strings.
+    assert float(ws.cell(row=first, column=2).value) == 100000.00
+    assert float(ws.cell(row=first, column=3).value) == 133.5  # avg before base
+    assert float(ws.cell(row=first, column=4).value) == 130.2
+    assert float(ws.cell(row=first, column=5).value) == 0.10
+    assert float(ws.cell(row=first, column=6).value) == 253.45
+    # Submission-style number formats.
+    assert ws.cell(row=first, column=2).number_format == "#,##0.00"
+    assert ws.cell(row=first, column=3).number_format == "0.00"
+    assert ws.cell(row=first, column=5).number_format == "0%"
+    assert ws.cell(row=first, column=6).number_format == "#,##0.00"
+
+
+def test_build_run_excel_total_is_live_sum_formula():
+    ws = _load_sheet(build_run_excel(_APPROVED_RUN, _COMPONENTS))
+    total_row = 11 + 1 + len(_COMPONENTS)
+    assert ws.cell(row=total_row, column=1).value == "Total PVC"
+    assert ws.cell(row=total_row, column=6).value == "=SUM(F12:F13)"
+    assert ws.cell(row=total_row, column=6).number_format == "#,##0.00"
+
+
+def test_build_run_excel_empty_components_total_is_zero():
+    ws = _load_sheet(build_run_excel(_APPROVED_RUN, []))
+    total_row = 11 + 1  # header row + total row directly after
+    assert ws.cell(row=total_row, column=1).value == "Total PVC"
+    assert float(ws.cell(row=total_row, column=6).value) == 0.0
