@@ -231,6 +231,19 @@ Status: **complete on `saqlain/fup-backlog` (2026-07-16), merging to `main`.** D
 | KU-001-REVIEW | Adversarial review of the quarter-fix diff | [Fable]+[Opus] | complete | 2026-07-16. Formal cycle landed in [REVIEW.md](REVIEW.md) (`KU-001-REVIEW`, per `2026-07-16-opus-ku001-adversarial-review.md`): **no HIGH/MEDIUM defects; 1 LOW deferred** (KU1R-L1 — no DB CHECK that `base_month` is day=01; API-layer-only enforcement). All four scrutiny points verified with traced evidence incl. a 99,696-case brute-force of `resolve_quarter` vs an independent reference (0 mismatches, day-invariant). 2 coverage gaps closed: second-year-boundary window test (`engine/tests/test_quarter.py:39`) + HTTP-level pre-Q1 422 pin (`backend/tests/test_p3_04_zone_snapshot.py`, end). Engine 122 passed / 9 xfailed, backend **167/167**. Uncommitted in working tree pending Saqlain. |
 | KU-001-STC-AVG | Domain decision: STC's hard-coded 2-decimal quarter averages vs full-precision monthly averages | [Saqlain] | pending decision | Investigation complete 2026-07-16: divergence is purely methodological, not a data error. Workbook method determined exactly — mean of the 3 monthly observations rounded HALF-UP to 2dp, used in every formula line; reproduces both bills' totals to the paisa. Decision brief (Option 1: keep full precision, fixtures stay xfail vs Option 2: adopt round-then-average, scoped to `_quarter_avg` in `engine/components.py:49` + SL4 path) in `tasks/handoffs/2026-07-16-fable-next-open-items.md` Results. No code changed. |
 
+### AUDIT-1 — Usability-audit triage (2026-05-31 PDF, triaged 2026-07-17) `[CC-S]`
+
+Source: `RailPVC Smoke Test & Usability Audit.pdf` (repo root, untracked). Audit predates Phases 5–7: its three BLOCKERs (F1–F3, infinite "Loading…" on contract detail / bills / extra-items) and its two navigation/error-state friction points (F8, F9) were verified fixed on current `main` — every affected page now has `isError` branches with messages and a back-link, and the 2026-07-16 real-stack smoke drove those screens successfully. F4 (logo "RRailPVC") is the intentional R-badge + wordmark, not a doubled string — won't-fix. F6 (Index Manager stub) is superseded by the existing IDX workstream. Accepted findings:
+
+| ID | Audit ref | Title | Disposition | Status | Notes |
+|---|---|---|---|---|---|
+| AUDIT-1-1 | F10 | Gross-amount field lacks domain guidance | quick win | complete (2026-07-17) | Inline help note on `BillForm` + `BillHeaderForm`: on-account MB total; PVC exclusions deducted at run time (wording from PRODUCT.md W-derivation; GST phrasing avoided — unconfirmed). |
+| AUDIT-1-2 | F12 | Contracts list missing contract value column | quick win | complete (2026-07-17) | `contract_value` added to `GET /api/contracts` SELECT + "Value (₹)" column (`formatINR`, right-aligned, "—" when null). |
+| AUDIT-1-3 | F5 | Junk draft contracts visible (fake contractor, base month 2501-02) | ticket | open | Data hygiene in the live tenant, not a code defect. Saqlain to delete the junk drafts (UI or SQL); consider a follow-up ticket for a draft-delete affordance if one doesn't exist. |
+| AUDIT-1-4 | F11 | Rebate entered as decimal (0.15 = 15%) invites input errors | ticket | open | UX change to `ContractForm`: percent-suffixed input accepting "15", stored as 0.15. Touches form semantics + stored value expectations — needs Saqlain's call on display convention before implementing. |
+| AUDIT-1-5 | F7 | Document Vault non-functional | duplicate | open (tracked) | Already planned as P5-006 (Supabase Storage upload). No new ticket. |
+| AUDIT-1-6 | F8 (residual) | No retry button on failed page loads | won't-fix (for now) | closed | Error states + messages exist everywhere now; React Query refetches on focus. Revisit only if real users report it. |
+
 ### Phases 8–9 — Forward Plan
 
 | Phase | Owner | Dependency |
