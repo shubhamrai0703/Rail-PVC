@@ -170,8 +170,6 @@ export function ItemsGrid({ scheduleId }: { scheduleId: string }) {
         headerName: "Code",
         editable: true,
         width: 130,
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
       },
       {
         field: "description",
@@ -422,8 +420,12 @@ export function ItemsGrid({ scheduleId }: { scheduleId: string }) {
           rowData={rows}
           columnDefs={columnDefs}
           defaultColDef={{ resizable: true, sortable: true }}
-          rowSelection="multiple"
-          suppressRowClickSelection
+          rowSelection={{
+            mode: "multiRow",
+            checkboxes: true,
+            headerCheckbox: true,
+            enableClickSelection: false,
+          }}
           singleClickEdit
           stopEditingWhenCellsLoseFocus
           onSelectionChanged={(e: SelectionChangedEvent<RowState>) => {
