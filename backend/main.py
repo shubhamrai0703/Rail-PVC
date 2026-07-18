@@ -1,6 +1,8 @@
 """FastAPI app entrypoint. Wires routers, error contract, and CORS."""
 from __future__ import annotations
 
+import os
+
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,14 +26,18 @@ from api import (  # noqa: E402  (env must load before module-level imports)
 from services.errors import register_exception_handlers  # noqa: E402
 
 app = FastAPI(
-    title="RailPVC API",
+    title="TenderAudit API",
     description="Billing OS for Indian Railway contractors — PVC calculation engine API",
     version="0.1.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        origin.strip()
+        for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
+        if origin.strip()
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,4 +64,4 @@ for router in (
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "railpvc-api"}
+    return {"status": "ok", "service": "tenderaudit-api"}

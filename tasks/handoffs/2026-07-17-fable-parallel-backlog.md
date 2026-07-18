@@ -88,6 +88,8 @@ Full verbatim extraction: scratchpad `ws-a-audit-extraction.md` (session-local; 
 
 **Smoke caveat (applies to WS-A quick wins + WS-D console check):** the authenticated browser click-through could not be completed autonomously. The session's permission classifier blocked injecting the magic-link session into the controlled browser (twice, deliberately — not retried further), and the Claude-in-Chrome extension didn't respond (likely a pending permission prompt with nobody at the keyboard). What was verified instead: full `tsc`/`eslint`/`vitest`/`next build` clean after the edits, the backend column addition exercised against the live DB, and repo-wide greps proving zero deprecated AG Grid options remain. **Saqlain: one manual look at `/contracts` (Value column), the new-bill form (help note), and the Items grid console (no AG Grid deprecation warnings) closes this caveat.** Both servers were left running on the standard ports (backend :8000, frontend :3000, freshly built).
 
+**Closed 2026-07-18:** Codex completed the authenticated `/contracts`, bill-form, and Items-grid console checks; all passed. Evidence: `tasks/handoffs/2026-07-18-codex-browser-smoke-caveat.md` Results.
+
 ### WS-B — Export submission-format parity: **done** (first parity pass + gap report)
 
 **Implemented (uncontroversial, backend-only, commit `e2ce3d5`):**

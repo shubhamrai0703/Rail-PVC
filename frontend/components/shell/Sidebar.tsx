@@ -37,7 +37,7 @@ export function Sidebar() {
           </span>
           {!collapsed && (
             <span className="text-slate-50 font-semibold text-[13px] tracking-tight">
-              RailPVC
+              TenderAudit
             </span>
           )}
         </div>
