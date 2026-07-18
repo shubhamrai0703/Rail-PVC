@@ -146,8 +146,23 @@ Branch: `saqlain/parallel-backlog` → PR #19
 - [x] WS-B: export parity first pass — submission column order/headers, native number formats, live =SUM total, Quarter in summary; +4 test pins; real-run smoke on 8bfc1f40.
 - [x] WS-C: migration 017 `contracts_base_month_first_day` CHECK — applied to live DB (head 017), day≠1 INSERT rejected; KU1R-L1 closed.
 - [x] WS-D: ItemsGrid → AG Grid v35 rowSelection object API; deprecated options gone repo-wide.
-- [ ] Saqlain: manual browser pass — /contracts Value column, new-bill help note, Items-grid console free of AG Grid warnings (automated auth was permission-blocked).
+- [x] Authenticated browser pass — /contracts Value column, both gross-amount help-note surfaces, and Items-grid console free of AG Grid/deprecation warnings (Codex, 2026-07-18; evidence in the dedicated handoff Results).
 - [ ] Saqlain: merge PR #19 (note: migration 017 already applied to DB).
 - [ ] Saqlain: AUDIT-1-3 (delete junk draft contracts) + AUDIT-1-4 (rebate % input UX call).
 - [ ] Saqlain: check hermes-agent WhatsApp bridge respawning on port 3000 (see handoff Results env notes).
 - [ ] P8-REVIEW: answer the 4 open export-parity questions (multi-sheet workbook, steel sub-lines, clause codes, "W" header wording).
+
+---
+
+# Authenticated browser smoke caveat — 2026-07-18
+
+Source: `tasks/handoffs/2026-07-18-codex-browser-smoke-caveat.md`
+Branch: `saqlain/parallel-backlog`
+
+## Tasks
+
+- [x] Confirm the production frontend is serving on localhost:3000 and open a real authenticated browser session.
+- [x] Verify the contracts-list Value (₹) column, including INR formatting and the null-value em dash.
+- [x] Verify the Gross amount help text in both the new-bill form and the existing-bill header form.
+- [x] Verify the Items grid checkbox placement and that the console has no AG Grid/deprecation warnings.
+- [x] Record per-check observations and the overall caveat verdict in the handoff Results section.
