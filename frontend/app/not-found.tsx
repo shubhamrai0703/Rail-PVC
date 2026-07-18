@@ -13,7 +13,7 @@ export default function NotFound() {
           Page not found.
         </h1>
         <p className="mt-1 text-[13px] text-slate-500">
-          The URL doesn&apos;t match anything in RailPVC.
+          The URL doesn&apos;t match anything in TenderAudit.
         </p>
         <div className="mt-4">
           <Link href="/contracts">

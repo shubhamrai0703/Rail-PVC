@@ -32,7 +32,7 @@ export default function RouteError({
               Something went wrong on this page.
             </h2>
             <p className="text-[13px] text-slate-500 mt-1">
-              The rest of RailPVC is still reachable — try again, or jump elsewhere from the sidebar.
+              The rest of TenderAudit is still reachable — try again, or jump elsewhere from the sidebar.
             </p>
 
             {process.env.NODE_ENV === "development" && (

@@ -41,7 +41,7 @@ export default function GlobalError({
           }}
         >
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
-            RailPVC hit an unexpected error.
+            TenderAudit hit an unexpected error.
           </h2>
           <p style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>
             We couldn&apos;t render the page. The error has been logged.

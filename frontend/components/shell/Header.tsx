@@ -84,7 +84,7 @@ export function Header() {
     <header className="h-14 flex items-center gap-4 px-6 bg-white border-b border-slate-200">
       {/* Breadcrumbs — section-only for Phase 4. Deeper crumbs land per-route. */}
       <div className="flex items-center gap-2 text-[13px] min-w-0">
-        <span className="text-slate-500">RailPVC</span>
+        <span className="text-slate-500">TenderAudit</span>
         {section && (
           <>
             <span className="text-slate-300">/</span>

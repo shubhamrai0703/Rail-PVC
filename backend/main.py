@@ -24,7 +24,7 @@ from api import (  # noqa: E402  (env must load before module-level imports)
 from services.errors import register_exception_handlers  # noqa: E402
 
 app = FastAPI(
-    title="RailPVC API",
+    title="TenderAudit API",
     description="Billing OS for Indian Railway contractors — PVC calculation engine API",
     version="0.1.0",
 )
@@ -58,4 +58,4 @@ for router in (
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "railpvc-api"}
+    return {"status": "ok", "service": "tenderaudit-api"}
