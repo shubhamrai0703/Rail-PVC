@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { FileText, PlusCircle } from "lucide-react";
 import { apiFetch } from "@/lib/api/client";
+import { formatINR } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,6 +13,7 @@ interface Contract {
   id: string;
   tender_number: string;
   contractor_name: string;
+  contract_value: string | null;
   base_month: string;
   railway_zone: string;
   status: string;
@@ -77,10 +79,11 @@ export default function ContractsPage() {
       {contracts && contracts.length > 0 && (
         <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
           {/* Header row */}
-          <div className="px-5 py-3 grid grid-cols-[1fr_160px_120px_100px_100px] gap-4
+          <div className="px-5 py-3 grid grid-cols-[1fr_140px_120px_100px_100px_100px] gap-4
                           text-[11px] uppercase tracking-wider text-slate-500 font-medium
                           border-b border-slate-200 bg-slate-50">
             <div>Tender / Contractor</div>
+            <div className="text-right">Value (₹)</div>
             <div>Base month</div>
             <div>Zone</div>
             <div>Status</div>
@@ -90,13 +93,16 @@ export default function ContractsPage() {
           {contracts.map((c, i) => (
             <div
               key={c.id}
-              className={`px-5 h-12 grid grid-cols-[1fr_160px_120px_100px_100px] gap-4
+              className={`px-5 h-12 grid grid-cols-[1fr_140px_120px_100px_100px_100px] gap-4
                           items-center text-[13px]
                           ${i < contracts.length - 1 ? "border-b border-slate-100" : ""}`}
             >
               <div className="min-w-0">
                 <div className="font-medium text-slate-900 truncate">{c.tender_number}</div>
                 <div className="text-[12px] text-slate-500 truncate">{c.contractor_name}</div>
+              </div>
+              <div className="text-slate-600 font-mono text-[12px] text-right tabular-nums">
+                {c.contract_value !== null ? formatINR(c.contract_value) : "—"}
               </div>
               <div className="text-slate-600 font-mono text-[12px]">{c.base_month}</div>
               <div className="text-slate-600 font-mono text-[12px]">{c.railway_zone}</div>

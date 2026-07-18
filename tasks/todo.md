@@ -52,9 +52,9 @@ Owner: [CC-S]. Gate: C-3 stable ✅. Review: `P7-REVIEW` (Codex-S) after it land
 - [x] D-4c: `npm run build` + `tsc` + `eslint` + `vitest` clean.
 
 ### Wrap
-- [ ] Full backend suite green, engine 99/99 unchanged, vitest green, route count 43.
+- [x] Full backend suite green, engine 99/99 unchanged, vitest green, route count 43. (Merged via PR #14.)
 - [x] Docs sync: STATUS (Phase 7 done), TASKS (D-1…D-4 rows), SESSION_LOG entry.
-- [ ] Open PR → `main`, request `P7-REVIEW`.
+- [x] Open PR → `main`, request `P7-REVIEW`. (PR #14 merged 2026-06-11.)
 
 ## Open verifications during impl
 - Where the engine persists `negative_carry_forward` + `quarter_used` (w_derivation vs bill_snapshot) — drives D-1a.
@@ -132,3 +132,22 @@ Source: `tasks/handoffs/2026-07-16-codex-supabase-smoke-test.md`
 - [x] Drive the authenticated template save/reload/apply/duplicate/preview/import flow in a real browser.
 - [x] Verify persisted tenant-scoped template data directly and clean up created templates.
 - [x] Record per-step evidence, logs/errors, defects, and verdict in the handoff Results section.
+
+---
+
+# Parallel backlog (WS-A/B/C/D) — 2026-07-17
+
+Source: `tasks/handoffs/2026-07-17-fable-parallel-backlog.md` (Results filled)
+Branch: `saqlain/parallel-backlog` → PR #19
+
+## Tasks
+
+- [x] WS-A: usability-audit triage — AUDIT-1 table in TASKS.md; quick wins AUDIT-1-1 (gross-amount help note) + AUDIT-1-2 (contracts-list Value ₹ column) shipped.
+- [x] WS-B: export parity first pass — submission column order/headers, native number formats, live =SUM total, Quarter in summary; +4 test pins; real-run smoke on 8bfc1f40.
+- [x] WS-C: migration 017 `contracts_base_month_first_day` CHECK — applied to live DB (head 017), day≠1 INSERT rejected; KU1R-L1 closed.
+- [x] WS-D: ItemsGrid → AG Grid v35 rowSelection object API; deprecated options gone repo-wide.
+- [ ] Saqlain: manual browser pass — /contracts Value column, new-bill help note, Items-grid console free of AG Grid warnings (automated auth was permission-blocked).
+- [ ] Saqlain: merge PR #19 (note: migration 017 already applied to DB).
+- [ ] Saqlain: AUDIT-1-3 (delete junk draft contracts) + AUDIT-1-4 (rebate % input UX call).
+- [ ] Saqlain: check hermes-agent WhatsApp bridge respawning on port 3000 (see handoff Results env notes).
+- [ ] P8-REVIEW: answer the 4 open export-parity questions (multi-sheet workbook, steel sub-lines, clause codes, "W" header wording).

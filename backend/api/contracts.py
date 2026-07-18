@@ -147,7 +147,7 @@ async def list_contracts(
     rows = (
         await session.execute(
             text("""
-                SELECT id::text AS id, tender_number, contractor_name,
+                SELECT id::text AS id, tender_number, contractor_name, contract_value,
                        base_month, railway_zone::text AS railway_zone, status::text AS status
                 FROM contracts
                 WHERE tenant_id = :tid

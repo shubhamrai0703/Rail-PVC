@@ -34,7 +34,7 @@ async def _load_approved_run(
         await session.execute(
             text("""
                 SELECT r.id::text AS id, r.status::text AS status,
-                       r.approved_by, r.approved_at, r.created_at,
+                       r.approved_by, r.approved_at, r.created_at, r.quarter_used,
                        c.tender_number, c.contractor_name
                 FROM pvc_runs r
                 JOIN contracts c ON c.id = r.contract_id

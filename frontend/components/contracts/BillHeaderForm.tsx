@@ -111,6 +111,10 @@ export function BillHeaderForm({ billId, initial, onSaved, onCancel }: Props) {
             })}
             className={inputCls}
           />
+          <p className="text-[11px] text-slate-400 mt-1">
+            On-account bill total from the Measurement Book. Cement/steel and
+            other PVC exclusions are deducted during the PVC run, not here.
+          </p>
           {errors.gross_amount && <p className={errCls}>{errors.gross_amount.message}</p>}
         </div>
         <div>
