@@ -63,3 +63,26 @@ Run the mandated `KU-001-STC-AVG-REVIEW` adversarial pass over Codex's uncommitt
 ### Next Actions
 - Merge `codex/ku001-stc-avg-option2` to `main`; triage and delete stale branches (this wrap).
 - Compile this fallback file into the vault when Obsidian is open, then delete it.
+
+## 21:40 — RailPVC/TenderAudit go-live: GoDaddy DNS + Vercel frontend deploy
+
+### Goal
+Finish wiring `tenderaudit.in` end-to-end per DEPLOY.md: GoDaddy DNS, Vercel frontend deploy, Supabase auth config, launch smoke test.
+
+### What Happened
+- Caught a wrong turn early: Saqlain was about to deploy the FastAPI backend a second time on Vercel via its "Services" monorepo preset (frontend + backend in one project), which would have duplicated the backend already live on Railway per DEPLOY.md's Railway-backend/Vercel-frontend split. Redirected to a plain single-service Next.js import, root directory `frontend`.
+- Fixed two GoDaddy DNS conflicts blocking Vercel domain verification: a stale `CNAME www → tenderaudit.in` left over from GoDaddy's default Website Builder parking setup (blocked adding the real `CNAME www → vercel-dns` value), and the default `A @ → WebsiteBuilder Site` parking record (blocked apex verification).
+- Root-caused a `MIDDLEWARE_INVOCATION_FAILED` 500 on the live domain: Next.js 16 runs the legacy `middleware.ts` file convention on Edge Runtime (no Node globals), and `@supabase/ssr`'s dependency chain references `__dirname` — an Edge-incompatible Node global. Confirmed via `node_modules/next/dist/docs` (this project pins Next 16, ahead of my training data — AGENTS.md flags exactly this). Fix: Next ships a `middleware-to-proxy` codemod, but the repo had unrelated uncommitted work in progress, so did the two-line rename (`middleware.ts`→`proxy.ts`, `middleware()`→`proxy()`) by hand instead of forcing the codemod through a dirty tree. `proxy.ts` defaults to the Node.js runtime, which has `__dirname`.
+- Committed just that fix (not the unrelated uncommitted KU-001 STC-AVG work sitting in the same working tree) by stashing the WIP, fast-forward merging the single commit to `main`, then popping the stash back onto `codex/ku001-stc-avg-option2` untouched. Pushed `main` to origin.
+- Second failure after the merge: generic Vercel-platform `404 NOT_FOUND` (not a Next.js 404) even on the raw `*.vercel.app` domain, despite the deployment showing "Ready"/"Production" on the right commit. Root cause: the Vercel project's **Framework Preset** was still `Other` — a holdover from the earlier "Services" preset flirtation — even after Root Directory got corrected to `frontend`. A "Configuration Settings in the current Production deployment differ from your current Project Settings" banner confirmed the live deployment had `Other` baked in at build time. Fixed by setting Framework Preset to Next.js and redeploying with build cache cleared.
+- Confirmed live: sign-in page renders at `tenderaudit.in`, Saqlain logged in with a real account, Supabase auth redirect URLs updated, `api.tenderaudit.in/health` verified.
+
+### Key Decisions
+- Backend stays single-sourced on Railway; Vercel hosts only the Next.js frontend — no duplicate backend service in Vercel, no `vercel.json` services block.
+- Next.js 16 middleware must be authored as `proxy.ts`/`proxy()`, not the deprecated `middleware.ts`/`middleware()` convention, whenever it depends on packages using Node globals (e.g. `@supabase/ssr`'s transitive deps) — Edge Runtime will break with obscure `ReferenceError`s otherwise.
+- When a hotfix needs to land on `main` from a branch carrying large unrelated uncommitted WIP, stash-merge-pop is the right shape: never let unrelated in-progress work ride along into a "quick fix" merge.
+
+### Next Actions
+- ~~Merge `codex/ku001-stc-avg-option2` to `main`~~ — done in the 20:15 wrap (`a204a85`, plus PR #21/#22 merged and all branches deleted; migration 018 applied to the live DB).
+- Compile this fallback file into the vault when Obsidian is open, then delete it.
+- Nothing else outstanding on the go-live checklist — DEPLOY.md steps 1-5 are done. `tenderaudit.in` live end-to-end.

@@ -178,9 +178,9 @@ Branch: `saqlain/tenderaudit-rename` (off `parallel-backlog`), 3 commits, suites
 - [x] Rename all user-facing RailPVC → TenderAudit (shell, metadata, error/404, API title/health id); Python dist names intentionally unchanged.
 - [x] Backend CORS env-driven via `CORS_ORIGINS` (localhost default; documented in `.env.example`).
 - [x] DEPLOY.md go-live runbook (Railway backend + Vercel frontend + GoDaddy DNS + Supabase allowlist + smoke checklist).
-- [ ] Saqlain: merge order `parallel-backlog` (PR #19) → `fup-backlog` → `tenderaudit-rename`.
-- [ ] Saqlain: create Railway + Vercel projects, set env vars per DEPLOY.md §1–2.
-- [ ] Saqlain: GoDaddy DNS records (DEPLOY.md §3) + Supabase auth redirect allowlist (§4).
+- [x] Saqlain: merge order `parallel-backlog` (PR #19) → `fup-backlog` → `tenderaudit-rename` — all merged to `main`; branches deleted in the 2026-07-19 wrap.
+- [x] Saqlain: create Railway + Vercel projects, set env vars per DEPLOY.md §1–2.
+- [x] Saqlain: GoDaddy DNS records (DEPLOY.md §3) + Supabase auth redirect allowlist (§4).
 - [ ] Saqlain: decide Supabase Pro vs keep-alive ping (free tier auto-pauses).
 - [ ] Provision tenant + seed demo contract per contact before they log in.
 - [ ] Future ticket: auto-provision tenant on signup.
@@ -213,7 +213,7 @@ Branches: `saqlain/railway-dockerfile` (PR #21), `saqlain/openrouter-llm` (PR #2
 - [x] Add repo-root Dockerfile + .dockerignore; verified locally (simulated COPY layout, real `uv sync`, app import) before push. Deployed clean on Railway.
 - [x] Switch AI column-mapper (`backend/services/llm.py`) from Anthropic SDK to OpenRouter (`httpx`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` override); dropped `anthropic` dep; 171 backend tests + live mocked round-trip green.
 - [x] DEPLOY.md + `.env.example` updated to match (Dockerfile-based deploy steps, OpenRouter env vars).
-- [ ] Saqlain: merge PR #21 + PR #22 into `main`; point Railway service source back at `main`.
-- [ ] Saqlain: resolve Railway custom-domain plan limit, then add `api.tenderaudit.in` CNAME + TXT at GoDaddy.
+- [x] Saqlain: merge PR #21 + PR #22 into `main`; point Railway service source back at `main`.
+- [x] Saqlain: resolve Railway custom-domain plan limit, then add `api.tenderaudit.in` CNAME + TXT at GoDaddy.
 - [ ] Saqlain: confirm `anthropic/claude-haiku-4.5` resolves on the OpenRouter account (override via `OPENROUTER_MODEL` if not).
-- [ ] Vercel frontend deploy once backend URL confirmed live.
+- [x] Vercel frontend deploy once backend URL confirmed live — hit `MIDDLEWARE_INVOCATION_FAILED` (Next 16 middleware.ts→proxy.ts) and a Framework Preset mismatch along the way, both fixed 2026-07-19. `tenderaudit.in` is live.
