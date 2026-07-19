@@ -257,7 +257,7 @@ async def test_suggest_mapping_llm_unavailable_raises_503():
 
 @pytest.mark.asyncio
 async def test_suggest_mapping_no_api_key_raises_503(monkeypatch):
-    """No ANTHROPIC_API_KEY → 503 without mocking the LLM function.
+    """No OPENROUTER_API_KEY → 503 without mocking the LLM function.
 
     Uses monkeypatch + cache_clear to be deterministic regardless of dev env.
     The real _client() raises LLMUnavailableProblem when the key is absent;
@@ -266,7 +266,7 @@ async def test_suggest_mapping_no_api_key_raises_503(monkeypatch):
     from services.llm import _client as _llm_client
 
     _llm_client.cache_clear()
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
 
     with pytest.raises(LLMUnavailableProblem) as exc:
         await suggest_mapping(
