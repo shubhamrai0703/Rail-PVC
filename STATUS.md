@@ -31,16 +31,14 @@ This file is the shortest path to current branch state, blockers, and next actio
 ## Active Review Cycle
 
 - **`P7-REVIEW` REMEDIATED (2026-06-11) — PR [#14](https://github.com/saqlainmmomin/Rail-PVC/pull/14) merged to `main`.** H1 (approve gate both layers + supersede-at-INSERT), H2 (migration 016 `lines_snapshot` — `bill_snapshot` never contained lines; reviewer premise corrected), M1 (migrations 013-stamped/014/015/016 applied to Supabase, DB at head), M2 (apiDownload blob/URIError paths toast), M3 (closed by H2 — no live lines fetch), M4 (case-insensitive UUID filter). L1/L2 → `P7-FUP-L1`/`P7-FUP-L2` in [TASKS.md](TASKS.md). CC Responses in [REVIEW.md](REVIEW.md).
-- No open review cycle on `saqlain/fup-backlog` yet — KU-001 quarter fix has not had an adversarial pass; CC-S flagged (in the Sol handoff) that the month-delta boundary, December/year rollover, and unbounded `Q10+` labels should get scrutiny.
-- Suite state (on `saqlain/fup-backlog`, includes quarter fix): **166/166 backend**, **119/119 passed + 9 xfailed engine**, **54/54 frontend vitest**, `tsc` + `eslint` + `next build` clean. Route count **47**.
+- **`KU-001-STC-AVG-REVIEW` CLOSED (2026-07-19)** — Fable adversarial pass over the Option 2 implementation: 1 MEDIUM found+fixed in-branch (KU1SA-M1 — rule-set PUT omitting `quarter_avg_precision` silently reset the policy; now COALESCE-preserved), no other HIGH/MEDIUM. Record in [REVIEW.md](REVIEW.md); merged to `main`.
+- Suite state (on `main`): **180/180 backend**, **136 passed + 7 xfailed engine**, `mypy engine` + `tsc` + `eslint` clean.
 
 ## Branch State
 
-- `main` — PR #14 (Phase 7) and PR #15 (IDX-1 RBI backfill) merged. `saqlain/fup-backlog` merges next.
-- `saqlain/parallel-backlog` — **WS-A/B/C/D from the 2026-07-17 parallel-backlog handoff, 4 scoped commits, all suites green. Note: migration 017 is already applied to the live DB. Authenticated browser-smoke caveat closed by Codex 2026-07-18 (all 3 checks PASS).**
-- `saqlain/tenderaudit-rename` — **Rebrand to TenderAudit (tenderaudit.in bought 2026-07-18) + env-driven `CORS_ORIGINS` + `DEPLOY.md` go-live runbook (Railway backend / Vercel frontend / GoDaddy DNS / Supabase allowlist). 3 commits off `parallel-backlog`; suites green incl. production build. Merges after PR #19 and `fup-backlog`.**
-- `saqlain/fup-backlog` — **FUP backlog (P6-H1-FUP-C + P7-FUP-L2 + P7-FUP-L1 + P5-IMP-FUP-1) + KU-001 rolling-quarter fix. All green, pushed, merging to `main`.**
-- All prior feature branches deleted after merge (`saqlain/phase-7`, `saqlain/p6-review`, `saqlain/phase-6`, `saqlain/p5-imp`, `shubham/idx-flag`, and earlier phase/test branches).
+- `main` — everything merged as of 2026-07-19 evening: KU-001-STC-AVG Option 2 + review (`a204a85`), Railway root Dockerfile ([PR #21](https://github.com/saqlainmmomin/Rail-PVC/pull/21)), OpenRouter LLM switch ([PR #22](https://github.com/saqlainmmomin/Rail-PVC/pull/22)); earlier the same day, `parallel-backlog`/`fup-backlog`/`tenderaudit-rename` chains landed via PRs #16–#20.
+- **`tenderaudit.in` is live in production (2026-07-19).** Backend on Railway (`api.tenderaudit.in`), frontend on Vercel (`tenderaudit.in`/`www`), Supabase auth redirect URLs updated, `/health` verified, real-account login confirmed. `frontend/middleware.ts` renamed to `proxy.ts` (Next 16 deprecated the old convention; legacy `middleware.ts` runs on Edge Runtime, which broke on `@supabase/ssr`'s Node-only deps). Full session: [tasks/session-log-2026-07-19.md](tasks/session-log-2026-07-19.md).
+- **No other branches exist** — all feature branches (local and remote) deleted after merge in the 2026-07-19 wrap. Note: migration 018 is merged but not yet applied to the live Supabase DB (project was paused 2026-07-16 — apply on next deploy).
 
 ## What To Read
 
