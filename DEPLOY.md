@@ -18,19 +18,20 @@ Order matters: backend first (frontend needs its URL), then frontend, then DNS, 
 
 ## 1. Backend → Railway
 
-1. New Railway project → deploy from GitHub repo, root directory `backend/`.
-2. Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT` (Python 3.11+).
-3. Environment variables (values from `backend/.env` / Supabase dashboard — never commit them):
+1. New Railway project → deploy from GitHub repo. **Root Directory: leave blank** (repo root) — Railway auto-detects the repo-root `Dockerfile` and builds from it. Do not set a custom Build or Start Command; the Dockerfile's `CMD` handles the start.
+   - Why a Dockerfile instead of Railway's Railpack auto-detection: `backend/`'s `railpvc-engine` dependency is an editable install at `../engine`, a sibling directory. Railpack scopes its build context to whatever Root Directory you give it, so pointing it at `backend/` breaks the `../engine` reference, and leaving it blank makes Railpack's own app-detection ambiguous across the monorepo (`frontend/`, `backend/`, docs, etc). A Dockerfile's build context is always the repo root regardless, sidestepping both failure modes.
+2. Environment variables (values from `backend/.env` / Supabase dashboard — never commit them):
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `SUPABASE_JWT_SECRET`
    - `DATABASE_URL` (asyncpg pooler URL; password URL-encoded)
-   - `ANTHROPIC_API_KEY` (optional — only the import column-mapper 503s without it)
+   - `OPENROUTER_API_KEY` (optional — only the import column-mapper 503s without it; via OpenRouter, not Anthropic directly)
+   - `OPENROUTER_MODEL` (optional — defaults to `anthropic/claude-haiku-4.5`)
    - `CORS_ORIGINS=https://tenderaudit.in,https://www.tenderaudit.in`
-4. Custom domain: add `api.tenderaudit.in` in Railway → it gives a CNAME target for GoDaddy (step 3). TLS is automatic.
-5. Migrations: DB is already at head `017`; nothing to run. Future migrations stay a manual `alembic upgrade head` from a trusted machine (service-role path), not part of app boot.
-6. Smoke: `curl https://api.tenderaudit.in/health` → `{"status":"ok","service":"tenderaudit-api"}`.
+3. Expose the service: Settings → Networking → Generate Domain (quick Railway URL for testing) or Custom Domain → `api.tenderaudit.in` (Railway shows the CNAME + TXT verify record for GoDaddy — step 3 below).
+4. Migrations: DB is already at head `017`; nothing to run. Future migrations stay a manual `alembic upgrade head` from a trusted machine (service-role path), not part of app boot.
+5. Smoke: `curl https://api.tenderaudit.in/health` → `{"status":"ok","service":"tenderaudit-api"}`.
 
 ## 2. Frontend → Vercel
 

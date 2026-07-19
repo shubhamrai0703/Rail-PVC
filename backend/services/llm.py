@@ -1,8 +1,10 @@
 """LLM client for AI-assisted column mapping (P5-IMP-3).
 
-Uses Claude Haiku 4.5 via the official Anthropic Python SDK. The prompt
-is split into a stable system block (cached — see Anthropic prompt-cache
-docs) and a per-request user block with the source headers + sample rows.
+Calls Claude Haiku via OpenRouter's OpenAI-compatible chat completions
+API (httpx directly — OpenRouter has no first-party Python SDK, and this
+avoids adding one just for a single call site). The model is
+configurable via `OPENROUTER_MODEL` since OpenRouter's model slugs can
+shift independently of Anthropic's own naming.
 
 Returns a strict JSON shape; structured-output enforcement keeps the
 frontend's contract honest. Errors from the upstream service surface as
@@ -23,11 +25,14 @@ import time
 from functools import lru_cache
 from typing import Any
 
+import httpx
+
 from services.errors import ApiProblem
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "claude-haiku-4-5"
+_OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+_MODEL = os.environ.get("OPENROUTER_MODEL", "anthropic/claude-haiku-4.5")
 _MAX_TOKENS = 1024
 
 _SYSTEM_PROMPT = """You map source columns from a Bill of Quantities (BOQ) Excel sheet to a fixed canonical schema used by a railway PVC (Price Variation Clause) billing system.
@@ -72,15 +77,15 @@ Rules:
 
 
 @lru_cache(maxsize=1)
-def _client():
-    # Imported lazily so the backend can import this module without the SDK
-    # installed (useful for tests that don't exercise the LLM path).
-    from anthropic import AsyncAnthropic
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+def _client() -> httpx.AsyncClient:
+    api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
-        raise LLMUnavailableProblem("ANTHROPIC_API_KEY is not configured")
-    return AsyncAnthropic(api_key=api_key)
+        raise LLMUnavailableProblem("OPENROUTER_API_KEY is not configured")
+    return httpx.AsyncClient(
+        base_url=_OPENROUTER_URL,
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=30.0,
+    )
 
 
 class LLMUnavailableProblem(ApiProblem):
@@ -137,26 +142,23 @@ async def suggest_mapping_via_llm(
     started = time.monotonic()
     try:
         client = _client()
-        response = await client.messages.create(
-            model=_MODEL,
-            max_tokens=_MAX_TOKENS,
-            system=[
-                {
-                    "type": "text",
-                    "text": _SYSTEM_PROMPT,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            messages=[
-                {
-                    "role": "user",
-                    "content": json.dumps(user_payload, ensure_ascii=False),
-                }
-            ],
-            output_config={
-                "format": {"type": "json_schema", "schema": _RESPONSE_SCHEMA},
+        http_response = await client.post(
+            "",
+            json={
+                "model": _MODEL,
+                "max_tokens": _MAX_TOKENS,
+                "messages": [
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+                ],
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {"name": "column_mapping", "schema": _RESPONSE_SCHEMA},
+                },
             },
         )
+        http_response.raise_for_status()
+        response = http_response.json()
     except LLMUnavailableProblem:
         raise
     except Exception as exc:
@@ -165,30 +167,27 @@ async def suggest_mapping_via_llm(
 
     elapsed_ms = int((time.monotonic() - started) * 1000)
 
-    text_block = next(
-        (b for b in response.content if getattr(b, "type", None) == "text"),
-        None,
-    )
-    if text_block is None:
-        raise LLMUnavailableProblem("Mapping service returned no text block")
+    try:
+        content = response["choices"][0]["message"]["content"]
+    except (KeyError, IndexError) as exc:
+        raise LLMUnavailableProblem("Mapping service returned no content") from exc
 
     try:
-        parsed = json.loads(text_block.text)
+        parsed = json.loads(content)
     except json.JSONDecodeError as exc:
         raise LLMUnavailableProblem(
             f"Mapping service returned non-JSON output: {exc}"
         ) from exc
 
+    usage = response.get("usage", {})
     logger.info(
         "llm_suggest_mapping: headers=%d sample_rows=%d elapsed_ms=%d "
-        "cache_read=%s cache_write=%s input=%s output=%s",
+        "prompt_tokens=%s completion_tokens=%s",
         len(headers),
         len(user_payload["sample_rows"]),
         elapsed_ms,
-        getattr(response.usage, "cache_read_input_tokens", None),
-        getattr(response.usage, "cache_creation_input_tokens", None),
-        getattr(response.usage, "input_tokens", None),
-        getattr(response.usage, "output_tokens", None),
+        usage.get("prompt_tokens"),
+        usage.get("completion_tokens"),
     )
 
     return parsed
