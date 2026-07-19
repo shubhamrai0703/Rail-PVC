@@ -1,0 +1,9 @@
+frontend
+node_modules
+.next
+.git
+*.pdf
+*.numbers
+REFERENCES
+PVC
+.codex-stage
