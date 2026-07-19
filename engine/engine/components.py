@@ -7,12 +7,18 @@ Series names as stored in IndexSnapshot.series (matching seed data):
 """
 from __future__ import annotations
 
-from decimal import Decimal
-
-from .types import IndexSnapshot, PVCComponent, PVCRuleSet, WDerivation
+from decimal import ROUND_HALF_UP, Decimal
+from .types import (
+    IndexSnapshot,
+    PVCComponent,
+    PVCRuleSet,
+    QuarterAvgPrecision,
+    WDerivation,
+)
 
 _TWO = Decimal("2")
 _THREE = Decimal("3")
+_CENT = Decimal("0.01")
 
 # Fixed steel sub-component weights under GCC Clause 46A
 _STEEL_SUB_WEIGHTS: dict[str, Decimal] = {
@@ -46,14 +52,36 @@ def _base_value(snapshot: IndexSnapshot, series: str) -> Decimal | None:
     return snapshot.series.get(series, {}).get(month_key)
 
 
-def _quarter_avg(snapshot: IndexSnapshot, series: str, quarter_months: list[str]) -> Decimal | None:
+def _apply_quarter_avg_precision(
+    value: Decimal,
+    quarter_avg_precision: QuarterAvgPrecision,
+) -> Decimal:
+    if quarter_avg_precision == "half_up_2dp":
+        return value.quantize(_CENT, rounding=ROUND_HALF_UP)
+    return value
+
+
+def _quarter_avg_from_values(
+    values: list[Decimal], quarter_avg_precision: QuarterAvgPrecision
+) -> Decimal:
+    return _apply_quarter_avg_precision(
+        sum(values, Decimal("0")) / _THREE, quarter_avg_precision
+    )
+
+
+def _quarter_avg(
+    snapshot: IndexSnapshot,
+    series: str,
+    quarter_months: list[str],
+    quarter_avg_precision: QuarterAvgPrecision = "full",
+) -> Decimal | None:
     values = []
     for m in quarter_months:
         v = snapshot.series.get(series, {}).get(m)
         if v is None:
             return None
         values.append(v)
-    return sum(values) / _THREE
+    return _quarter_avg_from_values(values, quarter_avg_precision)
 
 
 def _index_change(base: Decimal, avg: Decimal) -> Decimal:
@@ -82,7 +110,9 @@ def compute_general_w_components(
             continue
 
         base_idx = _base_value(snapshot, series)
-        avg_idx = _quarter_avg(snapshot, series, quarter_months)
+        avg_idx = _quarter_avg(
+            snapshot, series, quarter_months, rules.quarter_avg_precision
+        )
 
         if base_idx is None:
             errors.append(f"missing base index: series='{series}'")
@@ -115,10 +145,14 @@ def compute_cement_component(
     adjustable_fraction: Decimal,
     snapshot: IndexSnapshot,
     quarter_months: list[str],
+    *,
+    quarter_avg_precision: QuarterAvgPrecision = "full",
 ) -> tuple[PVCComponent | None, list[str]]:
     series = "cement"
     base_idx = _base_value(snapshot, series)
-    avg_idx = _quarter_avg(snapshot, series, quarter_months)
+    avg_idx = _quarter_avg(
+        snapshot, series, quarter_months, quarter_avg_precision
+    )
 
     if base_idx is None:
         return None, [f"missing base index: series='{series}'"]
@@ -147,6 +181,7 @@ def _steel_bucket_pvc(
     commodity_series: str | list[str],
     snapshot: IndexSnapshot,
     quarter_months: list[str],
+    quarter_avg_precision: QuarterAvgPrecision = "full",
 ) -> tuple[Decimal | None, Decimal | None, Decimal | None, list[str]]:
     """
     Returns (base_commodity_idx, avg_commodity_idx, pvc_value, errors).
@@ -161,13 +196,17 @@ def _steel_bucket_pvc(
     for sub_cat, series in _COMMON_SERIES.items():
         weight = _STEEL_SUB_WEIGHTS[sub_cat]
         base_idx = _base_value(snapshot, series)
-        avg_idx = _quarter_avg(snapshot, series, quarter_months)
+        avg_idx = _quarter_avg(
+            snapshot, series, quarter_months, quarter_avg_precision
+        )
         if base_idx is None or avg_idx is None:
             errors.append(f"missing index for series='{series}' (steel {sub_cat} sub-component)")
             return None, None, None, errors
         pvc += bucket_amount * weight * _index_change(base_idx, avg_idx)
 
     # Commodity component — single series or derived average (GCC 46A.9 SL4)
+    base_comm: Decimal | None
+    avg_comm: Decimal | None
     if isinstance(commodity_series, list):
         if not commodity_series:
             return None, None, None, ["empty commodity series list for steel bucket"]
@@ -175,7 +214,9 @@ def _steel_bucket_pvc(
         avg_vals: list[Decimal] = []
         for s in commodity_series:
             bv = _base_value(snapshot, s)
-            av = _quarter_avg(snapshot, s, quarter_months)
+            av = _quarter_avg(
+                snapshot, s, quarter_months, quarter_avg_precision
+            )
             if bv is None:
                 errors.append(f"missing base index: series='{s}' (other_sections commodity avg)")
                 return None, None, None, errors
@@ -186,10 +227,17 @@ def _steel_bucket_pvc(
             avg_vals.append(av)
         n = Decimal(str(len(commodity_series)))
         base_comm = sum(base_vals, Decimal("0")) / n
-        avg_comm = sum(avg_vals, Decimal("0")) / n
+        # KU-001-STC-AVG assumption: under half_up_2dp, quantize every
+        # per-series quarter mean first, then quantize the SL4 derived mean.
+        # Base values remain as published and are never quantized here.
+        avg_comm = _apply_quarter_avg_precision(
+            sum(avg_vals, Decimal("0")) / n, quarter_avg_precision
+        )
     else:
         base_comm = _base_value(snapshot, commodity_series)
-        avg_comm = _quarter_avg(snapshot, commodity_series, quarter_months)
+        avg_comm = _quarter_avg(
+            snapshot, commodity_series, quarter_months, quarter_avg_precision
+        )
         if base_comm is None:
             errors.append(f"missing base index: series='{commodity_series}'")
             return None, None, None, errors
@@ -205,6 +253,8 @@ def compute_steel_components(
     derivation: WDerivation,
     snapshot: IndexSnapshot,
     quarter_months: list[str],
+    *,
+    quarter_avg_precision: QuarterAvgPrecision = "full",
 ) -> tuple[list[PVCComponent], list[str]]:
     components: list[PVCComponent] = []
     errors: list[str] = []
@@ -222,7 +272,11 @@ def compute_steel_components(
 
         commodity_series = _STEEL_BUCKET_COMMODITY_SERIES[cat]
         base_comm, avg_comm, pvc_value, errs = _steel_bucket_pvc(
-            amount, commodity_series, snapshot, quarter_months
+            amount,
+            commodity_series,
+            snapshot,
+            quarter_months,
+            quarter_avg_precision,
         )
         if errs:
             errors.extend(errs)

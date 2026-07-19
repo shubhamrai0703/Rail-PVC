@@ -796,6 +796,8 @@ export interface components {
             };
             /** Adjustable Fraction */
             adjustable_fraction: number | string;
+            /** Quarter Avg Precision */
+            quarter_avg_precision?: ("full" | "half_up_2dp") | null;
             /** Rounding Mode */
             rounding_mode: string;
             /** Negative Pvc Policy */

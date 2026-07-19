@@ -121,6 +121,7 @@ def _rule_set_row() -> dict[str, object]:
         },
         "adjustable_fraction": "0.85",
         "negative_pvc_policy": "allow",
+        "quarter_avg_precision": "full",
         "rounding_mode": "round_2",
     }
 

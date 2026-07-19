@@ -155,6 +155,7 @@ pvc_rule_sets (
   component_weights jsonb,  -- {"labour": 0.20, "plant": 0.30, "fuel": 0.15, ...}
   extra_item_policy,        -- 'exclude_by_default' | 'include_by_default'
   adjustable_fraction numeric DEFAULT 0.85,  -- non-variable residual = 1 - adjustable
+  quarter_avg_precision TEXT NOT NULL DEFAULT 'full',  -- 'full' | 'half_up_2dp'
   rounding_mode,            -- 'round_2' | 'truncate_2'
   negative_pvc_policy,      -- 'allow' | 'block' | 'zero_floor'
   created_at

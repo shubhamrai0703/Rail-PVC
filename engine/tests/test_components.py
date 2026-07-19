@@ -5,6 +5,7 @@ from datetime import date
 import pytest
 
 from engine.components import (
+    _quarter_avg,
     _steel_bucket_pvc,
     compute_cement_component,
     compute_general_w_components,
@@ -53,7 +54,10 @@ def _snapshot(months: list[str], avgs: dict[str, Decimal]) -> IndexSnapshot:
     return IndexSnapshot(base_month=_BASE, series=series)
 
 
-def _rules(weights: dict[str, str] | None = None) -> PVCRuleSet:
+def _rules(
+    weights: dict[str, str] | None = None,
+    quarter_avg_precision: str = "full",
+) -> PVCRuleSet:
     defaults = {"labour": "0", "plant": "0", "fuel": "0", "materials": "0"}
     merged = {**defaults, **(weights or {"labour": "0.20", "plant": "0.30", "fuel": "0.15", "materials": "0.20"})}
     return PVCRuleSet(
@@ -62,6 +66,7 @@ def _rules(weights: dict[str, str] | None = None) -> PVCRuleSet:
         adjustable_fraction=Decimal("0.85"),
         negative_pvc_policy="zero_floor",
         rounding_mode="round_2",
+        quarter_avg_precision=quarter_avg_precision,
     )
 
 
@@ -90,7 +95,77 @@ def _derivation(
 # P2-007: General W components
 # ---------------------------------------------------------------------------
 
+class TestQuarterAveragePrecision:
+    def test_half_up_2dp_quantizes_after_averaging_each_series(self):
+        snap = IndexSnapshot(
+            base_month=_BASE,
+            series={
+                "labour": {
+                    "2024-12": Decimal("140"),
+                    "2025-04": Decimal("139.164"),
+                    "2025-05": Decimal("139.164"),
+                    "2025-06": Decimal("139.169"),
+                }
+            },
+        )
+
+        # The raw mean is 139.16566... -> 139.17. Rounding the monthly
+        # observations first would incorrectly produce 139.16.
+        assert _quarter_avg(
+            snap, "labour", _Q2_MONTHS, "half_up_2dp"
+        ) == Decimal("139.17")
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [("1.235", "1.24"), ("-1.235", "-1.24")],
+    )
+    def test_half_up_2dp_ties_round_away_from_zero(self, value: str, expected: str):
+        snap = IndexSnapshot(
+            base_month=_BASE,
+            series={
+                "tie": {
+                    "2025-04": Decimal(value),
+                    "2025-05": Decimal(value),
+                    "2025-06": Decimal(value),
+                }
+            },
+        )
+
+        assert _quarter_avg(
+            snap, "tie", _Q2_MONTHS, "half_up_2dp"
+        ) == Decimal(expected)
+
+    def test_full_precision_remains_the_helper_default(self):
+        snap = IndexSnapshot(
+            base_month=_BASE,
+            series={
+                "labour": {
+                    "2025-04": Decimal("139.16"),
+                    "2025-05": Decimal("139.17"),
+                    "2025-06": Decimal("139.17"),
+                }
+            },
+        )
+
+        assert _quarter_avg(snap, "labour", _Q2_MONTHS) == (
+            Decimal("139.16") + Decimal("139.17") + Decimal("139.17")
+        ) / Decimal("3")
+
+
 class TestGeneralWComponents:
+    def test_half_up_precision_is_applied_to_general_series(self):
+        snap = _snapshot(_Q2_MONTHS, {**_Q2_AVGS, "labour": Decimal("139.1666")})
+        rules = _rules({"labour": "0.20"}, quarter_avg_precision="half_up_2dp")
+
+        components, errs = compute_general_w_components(
+            Decimal("1000000"), rules, snap, _Q2_MONTHS
+        )
+
+        assert errs == []
+        labour = next(c for c in components if c.category == "labour")
+        assert labour.current_avg_index == Decimal("139.17")
+        assert labour.base_index == _BASE_INDICES["labour"]
+
     def test_labour_formula(self):
         snap = _snapshot(_Q2_MONTHS, _Q2_AVGS)
         components, errs = compute_general_w_components(
@@ -158,6 +233,20 @@ class TestGeneralWComponents:
 # ---------------------------------------------------------------------------
 
 class TestCementComponent:
+    def test_half_up_precision_is_applied_to_cement_series(self):
+        snap = _snapshot(_Q2_MONTHS, {**_Q2_AVGS, "cement": Decimal("129.505")})
+        c, errs = compute_cement_component(
+            Decimal("500000"),
+            Decimal("0.85"),
+            snap,
+            _Q2_MONTHS,
+            quarter_avg_precision="half_up_2dp",
+        )
+
+        assert errs == []
+        assert c is not None
+        assert c.current_avg_index == Decimal("129.51")
+
     def test_cement_formula(self):
         snap = _snapshot(_Q2_MONTHS, _Q2_AVGS)
         c, errs = compute_cement_component(Decimal("500000"), Decimal("0.85"), snap, _Q2_MONTHS)
@@ -196,6 +285,72 @@ class TestCementComponent:
 # ---------------------------------------------------------------------------
 
 class TestSteelComponents:
+    def test_half_up_precision_is_applied_to_common_and_single_commodity_series(self):
+        avgs = {
+            **_Q2_AVGS,
+            "labour": Decimal("144.166"),
+            "steel_angles": Decimal("57500.005"),
+        }
+        snap = _snapshot(_Q2_MONTHS, avgs)
+        d = _derivation(angles="1000000")
+
+        components, errs = compute_steel_components(
+            d, snap, _Q2_MONTHS, quarter_avg_precision="half_up_2dp"
+        )
+
+        assert errs == []
+        component = next(c for c in components if c.category == "steel_angles")
+        expected = Decimal("1000000") * (
+            Decimal("0.10")
+            * ((Decimal("144.17") - _BASE_INDICES["labour"]) / _BASE_INDICES["labour"])
+            + Decimal("0.10")
+            * ((_Q2_AVGS["plant_machinery"] - _BASE_INDICES["plant_machinery"])
+               / _BASE_INDICES["plant_machinery"])
+            + Decimal("0.10")
+            * ((_Q2_AVGS["fuel"] - _BASE_INDICES["fuel"]) / _BASE_INDICES["fuel"])
+            + Decimal("0.05")
+            * ((_Q2_AVGS["other_materials"] - _BASE_INDICES["other_materials"])
+               / _BASE_INDICES["other_materials"])
+            + Decimal("0.50")
+            * ((Decimal("57500.01") - _BASE_INDICES["steel_angles"])
+               / _BASE_INDICES["steel_angles"])
+        )
+        assert component.current_avg_index == Decimal("57500.01")
+        assert component.pvc_value == expected
+
+    def test_sl4_quantizes_per_series_then_quantizes_derived_average(self):
+        snap = _snapshot(_Q2_MONTHS, _Q2_AVGS)
+        for series, base_value in {
+            "steel_tmt": Decimal("100.001"),
+            "steel_angles": Decimal("100.002"),
+            "steel_plates": Decimal("100.003"),
+        }.items():
+            snap.series[series]["2024-12"] = base_value
+        for series, value in {
+            "steel_tmt": Decimal("1.004"),
+            "steel_angles": Decimal("1.004"),
+            "steel_plates": Decimal("1.014"),
+        }.items():
+            for month in _Q2_MONTHS:
+                snap.series[series][month] = value
+
+        components, errs = compute_steel_components(
+            _derivation(other="100000"),
+            snap,
+            _Q2_MONTHS,
+            quarter_avg_precision="half_up_2dp",
+        )
+
+        assert errs == []
+        other = next(c for c in components if c.category == "steel_other")
+        # KU-001-STC-AVG assumption: 1.004/1.004/1.014 first become
+        # 1.00/1.00/1.01, whose derived mean then becomes 1.00. Quantizing
+        # only the raw derived mean would instead produce 1.01.
+        assert other.current_avg_index == Decimal("1.00")
+        # Base observations are used as published; even the SL4 derived base
+        # retains precision beyond 2dp under the quarter-average policy.
+        assert other.base_index == Decimal("100.002")
+
     def test_angles_bucket_uses_steel_angles_series(self):
         snap = _snapshot(_Q2_MONTHS, _Q2_AVGS)
         d = _derivation(angles="300000")

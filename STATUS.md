@@ -37,7 +37,8 @@ This file is the shortest path to current branch state, blockers, and next actio
 ## Branch State
 
 - `main` — PR #14 (Phase 7) and PR #15 (IDX-1 RBI backfill) merged. `saqlain/fup-backlog` merges next.
-- `saqlain/parallel-backlog` — **WS-A/B/C/D from the 2026-07-17 parallel-backlog handoff, 4 scoped commits, all suites green. Note: migration 017 is already applied to the live DB.**
+- `saqlain/parallel-backlog` — **WS-A/B/C/D from the 2026-07-17 parallel-backlog handoff, 4 scoped commits, all suites green. Note: migration 017 is already applied to the live DB. Authenticated browser-smoke caveat closed by Codex 2026-07-18 (all 3 checks PASS).**
+- `saqlain/tenderaudit-rename` — **Rebrand to TenderAudit (tenderaudit.in bought 2026-07-18) + env-driven `CORS_ORIGINS` + `DEPLOY.md` go-live runbook (Railway backend / Vercel frontend / GoDaddy DNS / Supabase allowlist). 3 commits off `parallel-backlog`; suites green incl. production build. Merges after PR #19 and `fup-backlog`.**
 - `saqlain/fup-backlog` — **FUP backlog (P6-H1-FUP-C + P7-FUP-L2 + P7-FUP-L1 + P5-IMP-FUP-1) + KU-001 rolling-quarter fix. All green, pushed, merging to `main`.**
 - All prior feature branches deleted after merge (`saqlain/phase-7`, `saqlain/p6-review`, `saqlain/phase-6`, `saqlain/p5-imp`, `shubham/idx-flag`, and earlier phase/test branches).
 

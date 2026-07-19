@@ -22,6 +22,7 @@ def test_default_payload_matches_engine_validator():
         component_weights={k: Decimal(v) for k, v in payload["component_weights"].items()},
         adjustable_fraction=Decimal(payload["adjustable_fraction"]),
         negative_pvc_policy=payload["negative_pvc_policy"],
+        quarter_avg_precision=payload["quarter_avg_precision"],
         rounding_mode=payload["rounding_mode"],
     )
 

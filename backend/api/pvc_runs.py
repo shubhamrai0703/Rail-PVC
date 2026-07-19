@@ -34,6 +34,7 @@ async def create_pvc_run(
             text("""
                 SELECT rs.id::text AS id, rs.quarter_mode::text AS quarter_mode,
                        rs.component_weights, rs.adjustable_fraction,
+                       rs.quarter_avg_precision,
                        rs.rounding_mode::text AS rounding_mode,
                        rs.negative_pvc_policy::text AS negative_pvc_policy
                 FROM pvc_rule_sets rs

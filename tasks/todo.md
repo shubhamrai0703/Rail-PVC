@@ -116,7 +116,7 @@ Source: `tasks/handoffs/2026-07-16-fable-next-open-items.md` + `2026-07-16-opus-
 - [x] KU-001-STC-AVG investigation: workbook method decoded (mean of 3 months, rounded half-up 2dp; reproduces both STC totals to the paisa) — decision brief in the Fable handoff Results.
 - [x] P5-IMP-FUP-2: templates apply/save UI in `ImportRowsModal` (`ImportTemplateControls`, `lib/importTemplates.ts`, 11 vitest, schema.ts regenerated); browser smoke test vs mock (Supabase paused).
 - [x] Saqlain: restore the paused Supabase project, then re-run the templates smoke test against the real stack.
-- [ ] Saqlain: decide KU-001-STC-AVG (Option 1 keep full precision vs Option 2 adopt workbook 2dp rounding) — check whether JRH/BCT workbooks share the rounding convention first.
+- [x] Saqlain: decide KU-001-STC-AVG — Option 2 selected with rule-set scope, HALF-UP 2dp, average-first ordering, and `full` as the compatibility default; implementation evidence is recorded below.
 - [ ] When a real submission exists: validate C-3-FUP-NET (`net_amount` formula).
 
 ---
@@ -166,3 +166,54 @@ Branch: `saqlain/parallel-backlog`
 - [x] Verify the Gross amount help text in both the new-bill form and the existing-bill header form.
 - [x] Verify the Items grid checkbox placement and that the console has no AG Grid/deprecation warnings.
 - [x] Record per-check observations and the overall caveat verdict in the handoff Results section.
+
+---
+
+# TenderAudit rebrand + go-live prep — 2026-07-18
+
+Branch: `saqlain/tenderaudit-rename` (off `parallel-backlog`), 3 commits, suites green.
+
+## Tasks
+
+- [x] Rename all user-facing RailPVC → TenderAudit (shell, metadata, error/404, API title/health id); Python dist names intentionally unchanged.
+- [x] Backend CORS env-driven via `CORS_ORIGINS` (localhost default; documented in `.env.example`).
+- [x] DEPLOY.md go-live runbook (Railway backend + Vercel frontend + GoDaddy DNS + Supabase allowlist + smoke checklist).
+- [ ] Saqlain: merge order `parallel-backlog` (PR #19) → `fup-backlog` → `tenderaudit-rename`.
+- [ ] Saqlain: create Railway + Vercel projects, set env vars per DEPLOY.md §1–2.
+- [ ] Saqlain: GoDaddy DNS records (DEPLOY.md §3) + Supabase auth redirect allowlist (§4).
+- [ ] Saqlain: decide Supabase Pro vs keep-alive ping (free tier auto-pauses).
+- [ ] Provision tenant + seed demo contract per contact before they log in.
+- [ ] Future ticket: auto-provision tenant on signup.
+
+---
+
+# KU-001-STC-AVG Option 2 implementation — 2026-07-19
+
+Source: `tasks/handoffs/2026-07-19-ku001-stc-avg-option2-implementation.md`
+Branch: `codex/ku001-stc-avg-option2`
+
+## Tasks
+
+- [x] Capture pre-change engine/backend suite counts and byte-exact totals for the 9 currently passing real-tender fixtures.
+- [x] Add the rule-set-scoped engine precision policy, strict STC fixtures, trace parity, and focused regression tests.
+- [x] Add migration 018 and thread the policy through rule-set create/read/update and per-run engine construction.
+- [x] Run focused and full engine/backend verification, smoke both STC fixtures, and diff the 9-fixture totals.
+- [x] Review/simplify the diff and record complete evidence in the implementation handoff Results section.
+- [x] KU-001-STC-AVG-REVIEW: adversarial pass complete 2026-07-19 (Fable). 1 MEDIUM found+fixed (KU1SA-M1 — PUT omitting `quarter_avg_precision` silently reset the policy; now COALESCE-preserved). Record in REVIEW.md + handoff. Merged to `main` at wrap.
+
+---
+
+# Railway deploy debugging + OpenRouter switch — 2026-07-19
+
+Branches: `saqlain/railway-dockerfile` (PR #21), `saqlain/openrouter-llm` (PR #22), both off `main`.
+
+## Tasks
+
+- [x] Diagnose 3 Railway build failures (context-scoping vs. auto-provisioning vs. detection ambiguity); root-cause: Railpack can't satisfy backend's `../engine` relative dependency under any Root Directory setting.
+- [x] Add repo-root Dockerfile + .dockerignore; verified locally (simulated COPY layout, real `uv sync`, app import) before push. Deployed clean on Railway.
+- [x] Switch AI column-mapper (`backend/services/llm.py`) from Anthropic SDK to OpenRouter (`httpx`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` override); dropped `anthropic` dep; 171 backend tests + live mocked round-trip green.
+- [x] DEPLOY.md + `.env.example` updated to match (Dockerfile-based deploy steps, OpenRouter env vars).
+- [ ] Saqlain: merge PR #21 + PR #22 into `main`; point Railway service source back at `main`.
+- [ ] Saqlain: resolve Railway custom-domain plan limit, then add `api.tenderaudit.in` CNAME + TXT at GoDaddy.
+- [ ] Saqlain: confirm `anthropic/claude-haiku-4.5` resolves on the OpenRouter account (override via `OPENROUTER_MODEL` if not).
+- [ ] Vercel frontend deploy once backend URL confirmed live.

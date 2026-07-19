@@ -7,6 +7,8 @@ from .components import (
     _COMMON_SERIES,
     _STEEL_BUCKET_COMMODITY_SERIES,
     _STEEL_SUB_WEIGHTS,
+    _apply_quarter_avg_precision,
+    _quarter_avg_from_values,
     compute_cement_component,
     compute_general_w_components,
     compute_steel_components,
@@ -35,7 +37,6 @@ from .types import (
 from .w_derivation import _SUBTYPE_TO_BUCKET, derive_w
 
 _CENT = Decimal("0.01")
-_THREE = Decimal("3")
 _W_FORMULA = (
     "W = on_account_amount - cement - steel_angles - steel_plates "
     "- steel_tmt - steel_other - technical_withheld - recoveries_affecting_pvc "
@@ -51,7 +52,10 @@ def _round(value: Decimal, mode: str) -> Decimal:
 
 
 def _build_index_ref(
-    snapshot: IndexSnapshot, series: str, quarter_months: list[str]
+    snapshot: IndexSnapshot,
+    series: str,
+    quarter_months: list[str],
+    rules: PVCRuleSet,
 ) -> IndexRef | None:
     base_month_key = snapshot.base_month.strftime("%Y-%m")
     base_val = snapshot.series.get(series, {}).get(base_month_key)
@@ -63,23 +67,29 @@ def _build_index_ref(
         if v is None:
             return None
         q_values.append(v)
+    quarter_avg = _quarter_avg_from_values(
+        q_values, rules.quarter_avg_precision
+    )
     return IndexRef(
         series=series,
         base=IndexBaseValue(month=base_month_key, value=base_val),
         quarter=IndexQuarterValues(
             months=list(quarter_months),
             values=q_values,
-            avg=sum(q_values, Decimal("0")) / _THREE,
+            avg=quarter_avg,
         ),
     )
 
 
 def _build_derived_avg_ref(
-    snapshot: IndexSnapshot, series_list: list[str], quarter_months: list[str]
+    snapshot: IndexSnapshot,
+    series_list: list[str],
+    quarter_months: list[str],
+    rules: PVCRuleSet,
 ) -> DerivedAvgIndexRef | None:
     per_series: list[IndexRef] = []
     for s in series_list:
-        ref = _build_index_ref(snapshot, s, quarter_months)
+        ref = _build_index_ref(snapshot, s, quarter_months, rules)
         if ref is None:
             return None
         per_series.append(ref)
@@ -88,7 +98,10 @@ def _build_derived_avg_ref(
         series_list=list(series_list),
         per_series=per_series,
         base_avg=sum((r.base.value for r in per_series), Decimal("0")) / n,
-        quarter_avg=sum((r.quarter.avg for r in per_series), Decimal("0")) / n,
+        quarter_avg=_apply_quarter_avg_precision(
+            sum((r.quarter.avg for r in per_series), Decimal("0")) / n,
+            rules.quarter_avg_precision,
+        ),
     )
 
 
@@ -101,7 +114,7 @@ def _build_component_trace(
     # General works components (labour/plant/fuel/materials)
     if c.category in _COMMON_SERIES:
         series = _COMMON_SERIES[c.category]
-        index_ref = _build_index_ref(snapshot, series, quarter_months)
+        index_ref = _build_index_ref(snapshot, series, quarter_months, rules)
         return ComponentTrace(
             category=c.category,
             formula="general_w_component",
@@ -114,7 +127,7 @@ def _build_component_trace(
         )
 
     if c.category == "cement":
-        index_ref = _build_index_ref(snapshot, "cement", quarter_months)
+        index_ref = _build_index_ref(snapshot, "cement", quarter_months, rules)
         return ComponentTrace(
             category="cement",
             formula="cement_component",
@@ -128,15 +141,20 @@ def _build_component_trace(
 
     # Steel buckets
     commodity_series = _STEEL_BUCKET_COMMODITY_SERIES[c.category]
+    commodity_ref: IndexRef | DerivedAvgIndexRef | None
     if isinstance(commodity_series, list):
-        commodity_ref = _build_derived_avg_ref(snapshot, commodity_series, quarter_months)
+        commodity_ref = _build_derived_avg_ref(
+            snapshot, commodity_series, quarter_months, rules
+        )
         formula_id = "steel_bucket_pvc_derived_avg"
         formula_expanded = (
             "bucket × ( Σ sub_weight×(ΔI/I₀)_sub for labour/plant/fuel/materials "
             "+ 0.50×(ΔI/I₀)_commodity ) ; commodity index = avg(SL1,SL2,SL3)"
         )
     else:
-        commodity_ref = _build_index_ref(snapshot, commodity_series, quarter_months)
+        commodity_ref = _build_index_ref(
+            snapshot, commodity_series, quarter_months, rules
+        )
         formula_id = "steel_bucket_pvc"
         formula_expanded = (
             "bucket × ( Σ sub_weight×(ΔI/I₀)_sub for labour/plant/fuel/materials "
@@ -145,7 +163,7 @@ def _build_component_trace(
 
     sub_components: dict[str, SteelSubComponentTrace] = {}
     for sub_cat, series in _COMMON_SERIES.items():
-        sub_ref = _build_index_ref(snapshot, series, quarter_months)
+        sub_ref = _build_index_ref(snapshot, series, quarter_months, rules)
         if sub_ref is None:
             continue
         sub_components[sub_cat] = SteelSubComponentTrace(
@@ -354,14 +372,21 @@ def calculate_pvc(
     all_components.extend(gen_components)
 
     cement_component, cem_errs = compute_cement_component(
-        w_derivation.cement, rules.adjustable_fraction, indices, quarter_months
+        w_derivation.cement,
+        rules.adjustable_fraction,
+        indices,
+        quarter_months,
+        quarter_avg_precision=rules.quarter_avg_precision,
     )
     component_errors.extend(cem_errs)
     if cement_component:
         all_components.append(cement_component)
 
     steel_components, steel_errs = compute_steel_components(
-        w_derivation, indices, quarter_months
+        w_derivation,
+        indices,
+        quarter_months,
+        quarter_avg_precision=rules.quarter_avg_precision,
     )
     component_errors.extend(steel_errs)
     all_components.extend(steel_components)
@@ -418,4 +443,3 @@ def calculate_pvc(
         trace=_build_trace(bill, quarter_label, quarter_months, indices, rules, w_derivation, all_components),
         validation_errors=[],
     )
-

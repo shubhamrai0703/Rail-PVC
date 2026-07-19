@@ -298,7 +298,8 @@
     },
     "adjustable_fraction": "0.85",
     "negative_pvc_policy": "allow",
-    "rounding_mode": "round_2"
+    "rounding_mode": "round_2",
+    "quarter_avg_precision": "half_up_2dp"
   },
   "expected": {
     "total_pvc": "-120623.44",
@@ -316,10 +317,9 @@
       "base_indices": "Table 2!C7:K7"
     },
     "verified_against": "workbook calculation and summary cached formula results, cross-checked by engine/scripts/extract_pvc_fixtures.py",
-    "reconciliation_status": "workbook_divergence",
-    "xfail_reason": "KU-001 follow-up: rolling quarter resolution is correct; the workbook hard-codes rounded quarter averages",
-    "current_engine_total": "-120665.56",
+    "reconciliation_status": "reconciles",
+    "quarter_avg_policy": "KU-001-STC-AVG Option 2: average each quarterly series first, then round half-up to 2dp before formula use. Decision record: tasks/handoffs/2026-07-17-ku001-stc-avg-decision-consult.md (Results).",
     "tolerance_reason": "Workbook rounds individual formula lines to 2dp; 0.15 covers the verified paise residual.",
-    "workbook_divergence": "Table 8 hard-codes two-decimal quarter averages instead of deriving them at full precision from the Index-sheet monthly observations. The fixture preserves the source observations verbatim; resolving the averaging-rule difference requires a separate domain decision."
+    "reconciliation_note": "The fixture preserves source monthly observations verbatim; the rule-set-scoped quarter-average policy reconciles the engine result without per-formula-line rounding."
   }
 }

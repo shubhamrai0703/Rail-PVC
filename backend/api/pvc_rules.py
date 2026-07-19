@@ -10,7 +10,10 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from engine.types import REQUIRED_GENERAL_WEIGHTS  # parity with engine validator
+from engine.types import (  # parity with engine validator
+    REQUIRED_GENERAL_WEIGHTS,
+    QuarterAvgPrecision,
+)
 from services.auth import AuthUser, get_current_user
 from services.db import get_session
 from services.errors import NotFoundProblem, ValidationProblem
@@ -21,6 +24,10 @@ router = APIRouter(prefix="/api", tags=["pvc_rules"])
 class RuleSetUpdate(BaseModel):
     component_weights: dict[str, Decimal]
     adjustable_fraction: Decimal
+    # None means "not specified" — the stored policy is preserved, so a
+    # pre-KU-001-STC-AVG client PUTting weights cannot silently reset a
+    # half_up_2dp rule set back to full precision.
+    quarter_avg_precision: QuarterAvgPrecision | None = None
     rounding_mode: str
     negative_pvc_policy: str
 
@@ -49,6 +56,7 @@ async def get_rule_set(
             text("""
                 SELECT rs.id::text AS id, rs.version, rs.quarter_mode::text AS quarter_mode,
                        rs.component_weights, rs.adjustable_fraction,
+                       rs.quarter_avg_precision,
                        rs.rounding_mode::text AS rounding_mode,
                        rs.negative_pvc_policy::text AS negative_pvc_policy
                 FROM pvc_rule_sets rs
@@ -111,15 +119,17 @@ async def update_rule_set(
                 UPDATE pvc_rule_sets
                 SET component_weights = CAST(:cw AS JSONB),
                     adjustable_fraction = :af,
+                    quarter_avg_precision = COALESCE(:qap, quarter_avg_precision),
                     rounding_mode = :rm,
                     negative_pvc_policy = :np
                 WHERE contract_id = :cid
-                RETURNING id::text AS id, version
+                RETURNING id::text AS id, version, quarter_avg_precision
             """),
             {
                 "cid": contract_id,
                 "cw": json.dumps({k: str(v) for k, v in body.component_weights.items()}),
                 "af": body.adjustable_fraction,
+                "qap": body.quarter_avg_precision,
                 "rm": body.rounding_mode,
                 "np": body.negative_pvc_policy,
             },

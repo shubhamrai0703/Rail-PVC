@@ -404,6 +404,28 @@ def _full_weights() -> dict[str, Decimal]:
 
 
 class TestPVCRuleSetSchema:
+    def test_quarter_average_precision_defaults_to_full(self):
+        rules = PVCRuleSet(
+            quarter_mode="measurement_date",
+            component_weights=_full_weights(),
+            adjustable_fraction=Decimal("0.85"),
+            negative_pvc_policy="zero_floor",
+            rounding_mode="round_2",
+        )
+
+        assert rules.quarter_avg_precision == "full"
+
+    def test_unknown_quarter_average_precision_is_rejected(self):
+        with pytest.raises(ValidationError):
+            PVCRuleSet(
+                quarter_mode="measurement_date",
+                component_weights=_full_weights(),
+                adjustable_fraction=Decimal("0.85"),
+                negative_pvc_policy="zero_floor",
+                rounding_mode="round_2",
+                quarter_avg_precision="bankers_2dp",  # type: ignore[arg-type]
+            )
+
     def test_bill_date_quarter_mode_rejected(self):
         with pytest.raises(ValidationError):
             PVCRuleSet(

@@ -58,6 +58,7 @@ def _standard_rules(**overrides) -> PVCRuleSet:
         adjustable_fraction=Decimal("0.85"),
         negative_pvc_policy=overrides.get("negative_pvc_policy", "zero_floor"),
         rounding_mode=overrides.get("rounding_mode", "round_2"),
+        quarter_avg_precision=overrides.get("quarter_avg_precision", "full"),
     )
 
 
@@ -332,6 +333,53 @@ class TestTrace:
         assert labour.index_ref.base.value == _BASE_INDICES["labour"]
         assert labour.index_ref.quarter.months == _Q2_MONTHS
         assert labour.index_ref.quarter.avg == _Q2_AVGS["labour"]
+
+    def test_trace_echoes_half_up_series_and_sl4_derived_averages(self):
+        snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)
+        for month, value in zip(
+            _Q2_MONTHS,
+            [Decimal("139.16"), Decimal("139.17"), Decimal("139.17")],
+            strict=True,
+        ):
+            snap.series["labour"][month] = value
+        for series, value in {
+            "steel_tmt": Decimal("1.004"),
+            "steel_angles": Decimal("1.004"),
+            "steel_plates": Decimal("1.014"),
+        }.items():
+            for month in _Q2_MONTHS:
+                snap.series[series][month] = value
+
+        result = calculate_pvc(
+            _bill(on_account="1000000", steel_other="200000"),
+            snap,
+            _standard_rules(quarter_avg_precision="half_up_2dp"),
+        )
+
+        labour = result.trace.components["labour"]
+        assert labour.index_ref is not None
+        assert labour.index_ref.quarter.values == [
+            Decimal("139.16"),
+            Decimal("139.17"),
+            Decimal("139.17"),
+        ]
+        assert labour.index_ref.quarter.avg == Decimal("139.17")
+        assert labour.index_ref.quarter.avg == next(
+            c.current_avg_index for c in result.components if c.category == "labour"
+        )
+
+        other = result.trace.components["steel_other"]
+        ref = other.commodity_index_ref
+        assert ref is not None and ref.kind == "derived_avg"
+        assert [series_ref.quarter.avg for series_ref in ref.per_series] == [
+            Decimal("1.00"),
+            Decimal("1.00"),
+            Decimal("1.01"),
+        ]
+        assert ref.quarter_avg == Decimal("1.00")
+        assert ref.quarter_avg == next(
+            c.current_avg_index for c in result.components if c.category == "steel_other"
+        )
 
     def test_trace_steel_tmt_uses_single_commodity_ref(self):
         snap = _full_snapshot(_Q2_MONTHS, _Q2_AVGS)

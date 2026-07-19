@@ -137,6 +137,7 @@ def default_rule_set_payload() -> dict[str, Any]:
         },
         "extra_item_policy": "exclude_by_default",
         "adjustable_fraction": "0.85",
+        "quarter_avg_precision": "full",
         "rounding_mode": "round_2",
         "negative_pvc_policy": "zero_floor",
     }
@@ -273,14 +274,14 @@ async def create_contract_with_default_rule_set(
             text("""
                 INSERT INTO pvc_rule_sets (
                     contract_id, version, quarter_mode, component_weights,
-                    extra_item_policy, adjustable_fraction, rounding_mode,
-                    negative_pvc_policy
+                    extra_item_policy, adjustable_fraction,
+                    quarter_avg_precision, rounding_mode, negative_pvc_policy
                 )
                 VALUES (
                     :contract_id, :version, :quarter_mode,
                     CAST(:component_weights AS JSONB),
-                    :extra_item_policy, :adjustable_fraction, :rounding_mode,
-                    :negative_pvc_policy
+                    :extra_item_policy, :adjustable_fraction,
+                    :quarter_avg_precision, :rounding_mode, :negative_pvc_policy
                 )
             """),
             {
@@ -290,6 +291,7 @@ async def create_contract_with_default_rule_set(
                 "component_weights": _json_dumps(rs["component_weights"]),
                 "extra_item_policy": rs["extra_item_policy"],
                 "adjustable_fraction": rs["adjustable_fraction"],
+                "quarter_avg_precision": rs["quarter_avg_precision"],
                 "rounding_mode": rs["rounding_mode"],
                 "negative_pvc_policy": rs["negative_pvc_policy"],
             },
@@ -555,15 +557,7 @@ async def execute_pvc_run(
         session, contract_row["base_month"], quarter_months, contract_row["railway_zone"]
     )
 
-    rules = PVCRuleSet(
-        quarter_mode=rule_set_row["quarter_mode"],
-        component_weights={
-            k: Decimal(str(v)) for k, v in rule_set_row["component_weights"].items()
-        },
-        adjustable_fraction=Decimal(str(rule_set_row["adjustable_fraction"])),
-        negative_pvc_policy=rule_set_row["negative_pvc_policy"],
-        rounding_mode=rule_set_row["rounding_mode"],
-    )
+    rules = PVCRuleSet.model_validate(rule_set_row)
 
     result = calculate_pvc(bill_payload, snapshot, rules)
     if result.validation_errors:

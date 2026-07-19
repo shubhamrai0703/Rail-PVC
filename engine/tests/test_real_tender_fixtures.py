@@ -85,6 +85,23 @@ def test_real_tender_fixture_directory_not_empty():
     )
 
 
+def test_golden_fixture_without_precision_retains_full_precision_total():
+    """KU-001-STC-AVG guard: legacy rule payloads stay byte-compatible."""
+    path = FIXTURE_DIR / "bct_2324_296_bill1_q3.json"
+    data = _fixture_data(path)
+    assert "quarter_avg_precision" not in data["rules"]
+
+    rules = PVCRuleSet.model_validate(data["rules"])
+    result = calculate_pvc(
+        bill=BillPayload.model_validate(data["bill"]),
+        indices=IndexSnapshot.model_validate(data["indices"]),
+        rules=rules,
+    )
+
+    assert rules.quarter_avg_precision == "full"
+    assert result.total_pvc == Decimal("82102.85")
+
+
 def test_real_tender_fixture_documents_divergence_where_present():
     """Any fixture whose notes claim a workbook divergence must spell it out."""
     for path in _fixture_paths():

@@ -74,6 +74,7 @@ class IndexSnapshot(BaseModel):
 REQUIRED_GENERAL_WEIGHTS: frozenset[str] = frozenset(
     {"labour", "plant", "fuel", "materials"}
 )
+QuarterAvgPrecision = Literal["full", "half_up_2dp"]
 
 
 class PVCRuleSet(BaseModel):
@@ -85,6 +86,7 @@ class PVCRuleSet(BaseModel):
     adjustable_fraction: Decimal           # typically 0.85
     negative_pvc_policy: Literal["allow", "block", "zero_floor"]
     rounding_mode: Literal["round_2", "truncate_2"]
+    quarter_avg_precision: QuarterAvgPrecision = "full"
 
     @field_validator("component_weights")
     @classmethod

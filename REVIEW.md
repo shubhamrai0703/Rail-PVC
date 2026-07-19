@@ -11,6 +11,33 @@ Use this file for the current live review state only.
 
 ## Active Cycle
 
+**KU-001-STC-AVG-REVIEW** — opened and closed 2026-07-19. Adversarial pass by **Claude (Fable 5)** on Codex's uncommitted `codex/ku001-stc-avg-option2` implementation of the rule-set-scoped quarter-average precision policy (`quarter_avg_precision: "full" | "half_up_2dp"` on `PVCRuleSet` + migration 018 + API/run threading). Implementation record: `tasks/handoffs/2026-07-19-ku001-stc-avg-option2-implementation.md`.
+
+**Status: CLOSED — 1 MEDIUM defect found and fixed in this pass; no other HIGH/MEDIUM defects.** Suites after review: engine **136 passed, 7 xfailed**; backend **180 passed**; `mypy engine` clean; frontend `tsc --noEmit` + `eslint` clean.
+
+### Finding — fixed in this pass
+
+**KU1SA-M1 (MEDIUM, fixed): PUT rule-set update silently reset the precision policy.**
+- **Files:** `backend/api/pvc_rules.py`, `backend/tests/test_ku001_stc_avg_rule_threading.py`, `frontend/lib/api/schema.ts`
+- **Defect:** `RuleSetUpdate.quarter_avg_precision` defaulted to `"full"` and the UPDATE always wrote it — any client PUTting weights without knowing the new field (the current frontend has no rules editor; API scripts predating this change) would silently flip a `half_up_2dp` rule set back to full precision, changing money results on the next run with no signal. A plausible-wrong-value hazard on a financial policy field.
+- **Fix:** field is now `QuarterAvgPrecision | None = None`; SQL uses `COALESCE(:qap, quarter_avg_precision)` so an omitted field preserves the stored policy while an explicit value still persists. Test updated to pin preserve-on-omit; `schema.ts` regenerated from the live OpenAPI spec (2-line delta).
+
+### Verification record
+
+1. **Nine-fixture invariance re-verified independently:** all 9 non-STC passing fixtures exit 0 under `run_engine_fixture.py --fail-on-mismatch`; fixture-directory diff touches only the two STC files; the `"full"` code path is arithmetically identical to pre-change (`sum(values)/3` vs `sum(values, Decimal("0"))/3` — same start-value semantics). The 7 remaining FAILs in the fixture directory are the pre-existing xfail fixtures, untouched.
+2. **No universalization:** `half_up_2dp` appears in exactly one behavioral branch (`components.py:59`); every extended signature defaults to `"full"`; grep confirms no other gate.
+3. **Trace/audit parity:** `_build_index_ref` and `_build_derived_avg_ref` use the same quantization helpers as the calculation paths; the trace test pins trace avg == component `current_avg_index` for both the series and SL4 derived cases.
+4. **SL4 ordering:** per-series quantize → derived-mean quantize is documented in a `KU-001-STC-AVG` code comment and discriminated by test (`1.004/1.004/1.014 → 1.00`, vs `1.01` for raw-mean-only quantization). Base values, including a >2dp SL4 derived base, verified unrounded.
+5. **Backend row → engine coercion probed directly:** `PVCRuleSet.model_validate` with production-shaped rows (extra `id`/`version` keys ignored; JSONB string weights → exact `Decimal`; float weights → `Decimal(str())` semantics; legacy payloads without the field → `"full"`).
+6. **Migration 018:** default backfills existing rows to explicit `'full'`; CHECK constraint rejects unknown values (exercised via the sqlite-executed ALTER in the threading test).
+
+### Deferred (pre-existing, not introduced by this change)
+
+- **Version-on-write for rule sets** — the PUT lock still blocks any contract with an Approved run from adopting a new policy version; already flagged by Codex in the implementation Results and carried forward.
+- `RuleSetUpdate.rounding_mode` / `negative_pvc_policy` remain unvalidated `str` at the API layer (DB enums catch bad values); predates this change.
+
+---
+
 **KU-001-REVIEW** — opened and closed 2026-07-16. Adversarial pass by **Claude (Fable 5, Opus review session — `tasks/handoffs/2026-07-16-opus-ku001-adversarial-review.md`)** on the rolling-quarter change merged to `main` via PR [#17](https://github.com/saqlainmmomin/Rail-PVC/pull/17) (`f164bc1`): `engine/engine/quarter.py` rewritten to derive rolling quarters from each contract's `base_month` (plain ordinal labels `Q1`…`Qn`, unbounded), called from `engine/engine/calculator.py:318` and mirrored at `backend/services/pvc_service.py:549`.
 
 **Status: CLOSED — no HIGH/MEDIUM defects. 1 LOW deferred. 2 coverage gaps closed with new tests in this pass.** Suite after review: engine **122 passed, 9 xfailed**; backend **167 passed** (was 166; +1 HTTP-level regression pin).
