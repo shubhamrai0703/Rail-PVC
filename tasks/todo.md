@@ -217,3 +217,17 @@ Branches: `saqlain/railway-dockerfile` (PR #21), `saqlain/openrouter-llm` (PR #2
 - [x] Saqlain: resolve Railway custom-domain plan limit, then add `api.tenderaudit.in` CNAME + TXT at GoDaddy.
 - [ ] Saqlain: confirm `anthropic/claude-haiku-4.5` resolves on the OpenRouter account (override via `OPENROUTER_MODEL` if not).
 - [x] Vercel frontend deploy once backend URL confirmed live — hit `MIDDLEWARE_INVOCATION_FAILED` (Next 16 middleware.ts→proxy.ts) and a Framework Preset mismatch along the way, both fixed 2026-07-19. `tenderaudit.in` is live.
+
+---
+
+# Landing page + auth redesign — 2026-07-19 (evening)
+
+No handoff file; session log in `tasks/session-log-2026-07-19.md` (20:43 entry).
+
+## Tasks
+
+- [x] Public marketing landing page at `/` (`frontend/app/page.tsx`) — hero with stylized PVC-run card, stat strip, 6 features, how-it-works, CTA; proxy allows `/` logged-out, logged-in still → `/contracts`.
+- [x] Auth redesign: split-panel `(auth)/layout.tsx` (dark brand panel + proof points), login/signup forms restyled, no logic changes.
+- [x] Verified: `next build` clean ×2; browser smoke of landing (desktop+mobile), login, signup via `next start`.
+- [ ] Second design pass on landing + auth before first outside exposure (two-pass rule).
+- [ ] Optional: swap invented hero figures for a real golden-workbook case (PVC/ gitignored sources).

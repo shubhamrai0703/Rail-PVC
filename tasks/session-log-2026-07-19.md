@@ -86,3 +86,24 @@ Finish wiring `tenderaudit.in` end-to-end per DEPLOY.md: GoDaddy DNS, Vercel fro
 - ~~Merge `codex/ku001-stc-avg-option2` to `main`~~ — done in the 20:15 wrap (`a204a85`, plus PR #21/#22 merged and all branches deleted; migration 018 applied to the live DB).
 - Compile this fallback file into the vault when Obsidian is open, then delete it.
 - Nothing else outstanding on the go-live checklist — DEPLOY.md steps 1-5 are done. `tenderaudit.in` live end-to-end.
+
+## 20:43 — RailPVC (fallback log — Obsidian closed; compile to vault later)
+
+### Goal
+Post-launch polish: give `tenderaudit.in` a real landing page and un-bland the auth pages.
+
+### What Happened
+- Diagnosed the "landing page looks bad" complaint: there was no landing page — `/` redirected to `/contracts`, so every logged-out visitor hit the bare login card.
+- Built a public marketing page at `frontend/app/page.tsx` in the existing editorial style (slate + amber, Geist, mono tabular numerals): hero with a stylized approved-PVC-run card (W waterfall, rolling quarter, index avg, PVC payable), stat strip, six features from PRODUCT.md, 3-step how-it-works, CTA, footer.
+- `proxy.ts`: `/` is now public for logged-out visitors; logged-in users at `/` still redirect to `/contracts`.
+- Redesigned the auth flow: split-panel `(auth)/layout.tsx` (dark slate-900 brand panel with landing headline + three amber proof points; compact header on mobile), forms sit directly on white with larger headings and roomier inputs; signup "check your email" state got an amber-ringed badge. No auth logic touched.
+- Verified: `next build` clean both times; browser-smoked landing (desktop full-page + mobile), login, signup at desktop and narrow widths via `next start`. Hero figures are plausible but invented — swap for a real Banjara case if wanted.
+- Added `.claude/launch.json` (`frontend-prod`: `npm run start --prefix frontend`, autoPort) for browser-pane smoke tests on the 8 GB box.
+
+### Key Decisions
+- Landing page is a route in the same Next app (no separate marketing site) gated only by the proxy allowlist — smallest surface that fixes the first-visit experience.
+- Auth pages share the landing's visual vocabulary via the layout, so future copy edits happen in one place per page, not per variant.
+
+### Next Actions
+- Second design pass on landing + auth right before showing outsiders (two-pass rule; pass one done today).
+- Optionally replace invented hero figures with a real golden-workbook case.

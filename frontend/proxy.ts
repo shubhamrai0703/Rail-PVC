@@ -28,14 +28,15 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isAuthPage = pathname === "/login" || pathname === "/signup";
+  const isLandingPage = pathname === "/";
 
-  if (!user && !isAuthPage) {
+  if (!user && !isAuthPage && !isLandingPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthPage) {
+  if (user && (isAuthPage || isLandingPage)) {
     const url = request.nextUrl.clone();
     url.pathname = "/contracts";
     return NextResponse.redirect(url);

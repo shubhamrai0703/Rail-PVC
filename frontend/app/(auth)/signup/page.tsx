@@ -45,9 +45,16 @@ export default function SignupPage() {
 
   if (done) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl px-8 py-7 shadow-sm text-center">
-        <div className="text-[32px] mb-3">✉️</div>
-        <h2 className="text-[17px] font-semibold text-slate-900 mb-2">Check your email</h2>
+      <div className="text-center">
+        <div
+          aria-hidden
+          className="mx-auto mb-5 h-12 w-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-[20px]"
+        >
+          ✉️
+        </div>
+        <h2 className="text-[22px] font-semibold tracking-tight text-slate-900 mb-2">
+          Check your email
+        </h2>
         <p className="text-[13px] text-slate-500">
           We sent a confirmation link to{" "}
           <span className="font-medium text-slate-700">{email}</span>.
@@ -59,9 +66,11 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl px-8 py-7 shadow-sm">
-      <h2 className="text-[17px] font-semibold text-slate-900 mb-1">Create account</h2>
-      <p className="text-[13px] text-slate-500 mb-6">
+    <div>
+      <h2 className="text-[22px] font-semibold tracking-tight text-slate-900 mb-1.5">
+        Create your account
+      </h2>
+      <p className="text-[13px] text-slate-500 mb-8">
         Your team admin may have sent you an invite — check your inbox first.
       </p>
 
@@ -80,7 +89,7 @@ export default function SignupPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full h-9 px-3 text-[13px] text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors"
+            className="w-full h-10 px-3.5 text-[13.5px] text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors placeholder:text-slate-400"
             placeholder="you@railway.gov.in"
           />
         </div>
@@ -99,7 +108,7 @@ export default function SignupPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full h-9 px-3 text-[13px] text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors"
+            className="w-full h-10 px-3.5 text-[13.5px] text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors placeholder:text-slate-400"
             placeholder="Min. 8 characters"
           />
         </div>
@@ -118,7 +127,7 @@ export default function SignupPage() {
             required
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            className="w-full h-9 px-3 text-[13px] text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors"
+            className="w-full h-10 px-3.5 text-[13.5px] text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors placeholder:text-slate-400"
             placeholder="••••••••"
           />
         </div>
@@ -129,12 +138,12 @@ export default function SignupPage() {
           </p>
         )}
 
-        <Button type="submit" variant="primary" className="w-full" disabled={loading}>
+        <Button type="submit" variant="primary" className="w-full h-10 text-[13.5px]" disabled={loading}>
           {loading ? "Creating account…" : "Create account"}
         </Button>
       </form>
 
-      <p className="text-[12px] text-slate-500 text-center mt-5">
+      <p className="text-[12.5px] text-slate-500 text-center mt-7">
         Already have an account?{" "}
         <Link href="/login" className="text-slate-900 font-medium hover:underline">
           Sign in

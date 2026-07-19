@@ -32,10 +32,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl px-8 py-7 shadow-sm">
-      <h2 className="text-[17px] font-semibold text-slate-900 mb-1">Sign in</h2>
-      <p className="text-[13px] text-slate-500 mb-6">
-        Enter your email and password to continue.
+    <div>
+      <h2 className="text-[22px] font-semibold tracking-tight text-slate-900 mb-1.5">
+        Welcome back
+      </h2>
+      <p className="text-[13px] text-slate-500 mb-8">
+        Sign in to your workspace to continue.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -53,7 +55,7 @@ export default function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full h-9 px-3 text-[13px] text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors"
+            className="w-full h-10 px-3.5 text-[13.5px] text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors placeholder:text-slate-400"
             placeholder="you@railway.gov.in"
           />
         </div>
@@ -72,7 +74,7 @@ export default function LoginPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full h-9 px-3 text-[13px] text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors"
+            className="w-full h-10 px-3.5 text-[13.5px] text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors placeholder:text-slate-400"
             placeholder="••••••••"
           />
         </div>
@@ -83,12 +85,12 @@ export default function LoginPage() {
           </p>
         )}
 
-        <Button type="submit" variant="primary" className="w-full" disabled={loading}>
+        <Button type="submit" variant="primary" className="w-full h-10 text-[13.5px]" disabled={loading}>
           {loading ? "Signing in…" : "Sign in"}
         </Button>
       </form>
 
-      <p className="text-[12px] text-slate-500 text-center mt-5">
+      <p className="text-[12.5px] text-slate-500 text-center mt-7">
         Don&apos;t have an account?{" "}
         <Link href="/signup" className="text-slate-900 font-medium hover:underline">
           Create one
