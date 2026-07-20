@@ -1,7 +1,7 @@
 """
 Seed one end-to-end BCT-24-25-252 demo billing cycle.
 
-Creates, for tenant bd589426-93ba-4847-b5f3-1f69b020b4c0:
+Creates, for the tenant explicitly supplied in SEED_TENANT_ID:
   - Contract BCT-24-25-252 / WR/BCT/Civil/2025/0059
   - PVC rule set version 1 matching the verified fixtures
   - DSR, NS, and ExtraNS schedules
@@ -82,13 +82,9 @@ except ModuleNotFoundError:
         )
     raise
 
-load_dotenv(BACKEND_DIR / ".env", override=True)
+load_dotenv(BACKEND_DIR / ".env", override=False)
 
 
-# Tenant the demo data is written to. Override per environment, e.g.
-#   SEED_TENANT_ID=<your-tenant-uuid> uv run python seeds/seed_demo_contract.py
-# Find your tenant uuid with the query in seeds/README.md.
-TENANT_ID = os.environ.get("SEED_TENANT_ID", "1c2c96ba-0ece-48eb-a2c5-edfda6cf26de")
 TENDER_NUMBER = "BCT-24-25-252"
 
 INDEX_SERIES = (
@@ -365,6 +361,15 @@ def money(value: Decimal) -> str:
     return f"{value:.2f}"
 
 
+def resolve_tenant_id() -> str:
+    tenant_id = os.environ.get("SEED_TENANT_ID", "").strip()
+    if not tenant_id:
+        raise SystemExit(
+            "SEED_TENANT_ID is required; refusing to seed a default tenant"
+        )
+    return tenant_id
+
+
 async def connect() -> asyncpg.Connection:
     raw = os.environ["DATABASE_URL"].strip()
     u = make_url(raw)
@@ -383,10 +388,12 @@ async def connect() -> asyncpg.Connection:
         ) from exc
 
 
-async def require_tenant(conn: asyncpg.Connection) -> None:
-    row = await conn.fetchrow("SELECT id FROM tenants WHERE id = $1::uuid", TENANT_ID)
+async def require_tenant(conn: asyncpg.Connection, tenant_id: str) -> None:
+    row = await conn.fetchrow("SELECT id FROM tenants WHERE id = $1::uuid", tenant_id)
     if row is None:
-        raise SystemExit(f"Tenant {TENANT_ID} not found. Log in/create the tenant before seeding demo data.")
+        raise SystemExit(
+            f"Tenant {tenant_id} not found. Provision the tenant before seeding demo data."
+        )
 
 
 async def require_indices(conn: asyncpg.Connection) -> None:
@@ -418,14 +425,17 @@ async def require_indices(conn: asyncpg.Connection) -> None:
         )
 
 
-async def get_or_create_contract(conn: asyncpg.Connection) -> tuple[str, bool]:
+async def get_or_create_contract(
+    conn: asyncpg.Connection,
+    tenant_id: str,
+) -> tuple[str, bool]:
     existing = await conn.fetchrow(
         """
         SELECT id::text AS id
         FROM contracts
         WHERE tenant_id = $1::uuid AND tender_number = $2
         """,
-        TENANT_ID,
+        tenant_id,
         TENDER_NUMBER,
     )
     if existing:
@@ -447,7 +457,7 @@ async def get_or_create_contract(conn: asyncpg.Connection) -> tuple[str, bool]:
         )
         RETURNING id::text AS id
         """,
-        TENANT_ID,
+        tenant_id,
         TENDER_NUMBER,
         "WR/BCT/Civil/2025/0059",
         "00944450126035",
@@ -769,13 +779,14 @@ def assert_expected_buckets(bill_number: int, actual: dict[str, Decimal]) -> Non
 
 async def seed() -> None:
     counts = Counts()
+    tenant_id = resolve_tenant_id()
     conn = await connect()
     try:
-        await require_tenant(conn)
+        await require_tenant(conn, tenant_id)
         await require_indices(conn)
 
         async with conn.transaction():
-            contract_id, created = await get_or_create_contract(conn)
+            contract_id, created = await get_or_create_contract(conn, tenant_id)
             counts.add("contract", created)
             print(f"contract: {'created' if created else 'skipped'} {contract_id}")
 

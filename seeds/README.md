@@ -1,37 +1,43 @@
 # Seed scripts
 
-Scripts to load reference index data and a full end-to-end demo contract into
-the database. Both read `DATABASE_URL` from `backend/.env` and connect with the
-same asyncpg pattern, so they can be run from the repo root with a bare
-`uv run` — they auto re-exec under the backend project environment.
+Scripts to provision an invited tenant, load reference index data, and seed a
+full end-to-end demo contract. They read `DATABASE_URL` from `backend/.env` and
+connect with the same asyncpg pattern, so they can be run from the repo root
+with a bare `uv run` — they auto re-exec under the backend environment.
 
 ## Prerequisites
 
 - A valid `backend/.env` with a working `DATABASE_URL` (Supabase pooler URL).
   If the password contains special characters, URL-encode them (e.g. `@` → `%40`).
-- Your tenant must already exist (it is created the first time you log in).
+- Migration 019 must be applied before provisioning an invited tenant.
+- The invite email must match the address used for Supabase signup.
 
 ## Run order
 
-Indices are global (not tenant-scoped) and must exist before the demo contract,
-which validates that the index months it needs are present.
+Provision the tenant and invite before the user logs in. Indices are global
+(not tenant-scoped) and must exist before the demo contract, which validates
+that the index months it needs are present.
 
 ```bash
-# 1. Reference index data (RBI + JPC steel). Idempotent.
+# 1. Create the tenant + invite. Idempotent; note the printed TENANT_ID.
+PROVISION_TENANT_NAME="<tenant name>" \
+PROVISION_INVITE_EMAIL="<invite email>" \
+uv run python seeds/provision_tenant.py
+
+# 2. Reference index data (RBI + JPC steel). Idempotent.
 uv run python seeds/seed_indices.py
 
-# 2. Demo contract BCT-24-25-252 with two running bills. Idempotent.
-uv run python seeds/seed_demo_contract.py
+# 3. Demo contract BCT-24-25-252 with two running bills. Idempotent.
+SEED_TENANT_ID="<printed tenant UUID>" uv run python seeds/seed_demo_contract.py
 ```
 
-Both scripts are safe to re-run: existing rows are detected by their natural
-keys and skipped, so no duplicates are created.
+All three scripts are safe to re-run sequentially. Existing rows are detected
+by their natural keys and skipped, so no duplicates are created.
 
-## Targeting your own tenant
+## Targeting a tenant
 
-`seed_demo_contract.py` writes to the tenant in `SEED_TENANT_ID`, defaulting to
-the shared dev tenant. Because of tenant isolation you only see contracts in
-**your** tenant, so seed into the tenant your login resolves to:
+`seed_demo_contract.py` requires `SEED_TENANT_ID` and has no default. A missing
+variable aborts instead of risking writes to another tenant:
 
 ```bash
 SEED_TENANT_ID=<your-tenant-uuid> uv run python seeds/seed_demo_contract.py
@@ -66,7 +72,9 @@ After seeding, refresh the app and open the contract from the run summary:
   `backend/.env` is stale or not URL-encoded. Refresh it from the Supabase
   dashboard (Project Settings → Database) and encode special characters.
 - **`Missing required index observations`** — run `seed_indices.py` first.
-- **`Tenant <uuid> not found`** — log into the app once to create your tenant,
-  or pass a `SEED_TENANT_ID` that exists.
+- **`SEED_TENANT_ID is required`** — pass the UUID printed by
+  `provision_tenant.py`; there is intentionally no fallback tenant.
+- **`Tenant <uuid> not found`** — run `provision_tenant.py` first or pass an
+  existing tenant UUID.
 - **Seed succeeds but you can't see the contract** — you seeded a different
   tenant than the one your login uses. Re-run with the correct `SEED_TENANT_ID`.
