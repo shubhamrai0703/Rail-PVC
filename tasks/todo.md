@@ -231,3 +231,27 @@ No handoff file; session log in `tasks/session-log-2026-07-19.md` (20:43 entry).
 - [x] Verified: `next build` clean ×2; browser smoke of landing (desktop+mobile), login, signup via `next start`.
 - [ ] Second design pass on landing + auth before first outside exposure (two-pass rule).
 - [ ] Optional: swap invented hero figures for a real golden-workbook case (PVC/ gitignored sources).
+
+---
+
+# Tenant demo provisioning — 2026-07-19
+
+Source: `tasks/handoffs/2026-07-19-codex-tenant-demo-provisioning.md`
+Branch: `codex/tenant-demo-provisioning`
+
+## Assumptions
+
+- Provisioning is invite-only: an uninvited Supabase user keeps the exact existing rejection.
+- The real contact's name and email remain runtime-only environment variables.
+- Live migration, test-email provisioning, demo seeding, and browser smoke are required before completion.
+
+## Tasks
+
+- [x] Review the existing BCT-24-25-252 seed for idempotency, FK ordering, precision, and fixture reconciliation (DEMO-2); reconciliation failed and is recorded as a blocker.
+- [x] Add migration 019 for case-insensitive, consumable tenant invites.
+- [x] Implement race-safe invite consumption in `get_current_user` with real-dependency tests.
+- [x] Add an idempotent tenant/invite provisioning script and document the operator flow.
+- [x] Run focused and full backend verification, then review/simplify the diff.
+- [x] Apply migration 019 live and verify the API health endpoint.
+- [ ] Provision and seed a test tenant twice, then browser-smoke invited and uninvited signup flows.
+- [x] Update project status/task records and write evidence plus blockers to the handoff Results section.

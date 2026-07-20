@@ -57,6 +57,7 @@ Focus entities for Phase 1 (from the full 19-entity model):
 -- Tenant isolation
 tenants (id, name, created_at)
 users (id, tenant_id, supabase_auth_id, email, created_at)
+tenant_invites (id, tenant_id, email, created_at, consumed_at)
 
 -- Contract hierarchy
 contracts (
