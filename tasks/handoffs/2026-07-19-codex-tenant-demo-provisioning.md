@@ -63,7 +63,8 @@ Status: **partially complete; production demo seed and browser definition-of-don
 
 ### Shipped implementation
 
-- Branch: `codex/tenant-demo-provisioning` (draft PR link added after publication).
+- Implementation commit: `e471955` (`feat(backend): provision invited tenants on first login`).
+- PR [#23](https://github.com/saqlainmmomin/Rail-PVC/pull/23) merged to `main` as `fca35c9` on 2026-07-20.
 - Migration 019 creates normalized, case-insensitive unique tenant invites with timestamps, tenant FK, and forced RLS.
 - `get_current_user` now provisions only a JWT whose verified email matches a prepared invite. The CTE locks the invite, inserts an ordinary user, consumes the invite only after a successful insert, commits before the protected endpoint runs, and re-selects a concurrent winner.
 - `seeds/provision_tenant.py` validates env-only name/email input, serializes concurrent runs with a transaction advisory lock, creates tenant before invite, and prints `TENANT_ID=<uuid>`.
@@ -88,7 +89,7 @@ Status: **partially complete; production demo seed and browser definition-of-don
 
 ### Browser smoke
 
-Not run. The auth hook is not live until this branch merges and Railway deploys it; a controlled invited email is also required. Consequently, invited `/contracts`, clickable bill/recoveries rendering, and the uninvited negative signup remain unverified and must not be represented as passed.
+Not run. PR #23 has merged, but the Railway deployment of that merge was not version-verifiable from the health endpoint and a controlled invited email is still required. Consequently, invited `/contracts`, clickable bill/recoveries rendering, and the uninvited negative signup remain unverified and must not be represented as passed.
 
 ### DEMO-2 pre-run review
 
