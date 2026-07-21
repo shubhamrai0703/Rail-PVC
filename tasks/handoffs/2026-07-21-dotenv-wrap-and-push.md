@@ -67,6 +67,6 @@ Append a `## Results` section to this file containing: files committed, wrap out
 
 **Files committed:** `backend/main.py`, `backend/migrations/env.py`, `backend/tests/test_dotenv_paths.py`, `tasks/todo.md`, this handoff file. Excluded and left untouched: `.codex-stage/`, `REFERENCES/Airtel_Money_NBFC_IT_Compliance_Matrix.numbers`, `RailPVC Smoke Test & Usability Audit.pdf`, and `backend/.env` (never staged, never printed).
 
-**Commit:** `<filled after commit>`
-**Pushed branch:** `origin/codex/tenant-demo-provisioning-results`
-**Post-push check:** `<filled after push>` — `git status -sb` should show no unpushed intended changes; the four explicitly excluded untracked artifacts remain untracked by design.
+**Commit:** `769c529` — "fix(backend): load .env relative to file location, not cwd"
+**Pushed branch:** `origin/codex/tenant-demo-provisioning-results` (fast-forwarded `e0b09d4..769c529`)
+**Post-push check:** `git status -sb` shows `codex/tenant-demo-provisioning-results...origin/codex/tenant-demo-provisioning-results` with zero ahead/behind; only the three excluded untracked artifacts remain (`.codex-stage/`, the Airtel `.numbers` file, the smoke-test PDF). `backend/.env` was never staged, committed, or printed at any point in this session.
