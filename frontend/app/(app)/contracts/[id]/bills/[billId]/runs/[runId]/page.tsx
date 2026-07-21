@@ -10,6 +10,11 @@ import { Button } from "@/components/ui/Button";
 import { formatINRWithSymbol } from "@/lib/format";
 import { statusVariant, canExportRun } from "@/lib/pvcRunStatus";
 import { describeWDerivation, type WDerivation } from "@/lib/pvcWDerivation";
+import {
+  JourneyGuide,
+  PageGuidance,
+} from "@/components/help/FirstUserHelp";
+import { TOTAL_PVC_GUIDANCE } from "@/lib/firstUserHelp";
 
 interface PvcComponent {
   category: string;
@@ -126,14 +131,14 @@ export default function PvcRunPage({
     <div className="space-y-6">
       <header className="space-y-2">
         <BackLink id={id} billId={billId} />
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-[22px] font-semibold tracking-tight text-slate-900">
               PVC run
             </h1>
             <Badge variant={statusVariant(run.status)}>{run.status}</Badge>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {run.status === "Calculated" && (
               <Button
                 type="button"
@@ -151,9 +156,6 @@ export default function PvcRunPage({
               size="sm"
               onClick={() => handleExport("excel")}
               disabled={!exportable || downloading !== null}
-              title={
-                exportable ? undefined : "Approve the run to enable export"
-              }
             >
               <Download className="h-3.5 w-3.5 mr-1" strokeWidth={1.75} />
               {downloading === "excel" ? "Exporting…" : "Excel"}
@@ -164,9 +166,6 @@ export default function PvcRunPage({
               size="sm"
               onClick={() => handleExport("pdf")}
               disabled={!exportable || downloading !== null}
-              title={
-                exportable ? undefined : "Approve the run to enable export"
-              }
             >
               <FileText className="h-3.5 w-3.5 mr-1" strokeWidth={1.75} />
               {downloading === "pdf" ? "Exporting…" : "PDF"}
@@ -174,6 +173,29 @@ export default function PvcRunPage({
           </div>
         </div>
       </header>
+
+      <JourneyGuide stage="review" />
+      <PageGuidance title="Review the calculation before approval">
+        {TOTAL_PVC_GUIDANCE} Quarter used is the rolling three-month window
+        selected from the bill&apos;s measurement date. W derivation shows the
+        on-account amount and every deduction before the price-variation
+        formula is applied.
+      </PageGuidance>
+
+      {run.status === "Calculated" && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-5 text-amber-900">
+          Approval freezes this result permanently. Corrections require a new
+          linked run, preserving the audit trail. Excel and PDF exports unlock
+          only after approval.
+        </div>
+      )}
+
+      {!exportable && run.status !== "Calculated" && (
+        <p className="text-[12px] text-slate-500">
+          Excel and PDF exports are unavailable because only an Approved run
+          can be exported.
+        </p>
+      )}
 
       {run.status === "Superseded" && (
         <div className="text-[12px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
@@ -199,7 +221,7 @@ export default function PvcRunPage({
       )}
 
       {/* Result summary. */}
-      <dl className="grid grid-cols-3 gap-4 text-[13px]">
+      <dl className="grid grid-cols-1 gap-4 text-[13px] sm:grid-cols-3">
         <Summary
           label="Total PVC"
           value={
@@ -221,7 +243,7 @@ export default function PvcRunPage({
         <Summary label="Quarter used" value={run.quarter_used ?? "—"} />
       </dl>
 
-      <dl className="grid grid-cols-3 gap-4 text-[13px] text-slate-500">
+      <dl className="grid grid-cols-1 gap-4 text-[13px] text-slate-500 sm:grid-cols-3">
         <Summary label="Created" value={formatDateTime(run.created_at)} small />
         <Summary
           label="Approved by"
@@ -238,6 +260,10 @@ export default function PvcRunPage({
       {/* W derivation — every subtraction named (PRODUCT.md rule 1). */}
       <section className="space-y-2">
         <h2 className="text-[14px] font-medium text-slate-900">W derivation</h2>
+        <p className="text-[12px] leading-5 text-slate-500">
+          Follow the named subtractions from the gross on-account amount to W,
+          the amount eligible for price variation in this run.
+        </p>
         {wSteps.length === 0 ? (
           <div className="text-[13px] text-slate-400 border border-slate-200 rounded-xl bg-white px-5 py-6">
             W was not derived for this run.
@@ -277,9 +303,13 @@ export default function PvcRunPage({
         <h2 className="text-[14px] font-medium text-slate-900">
           Component breakdown
         </h2>
-        <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
+        <p className="text-[12px] leading-5 text-slate-500">
+          Each row shows the eligible amount, base and current indices, weight,
+          and resulting PVC contribution. Together they reconcile to Total PVC.
+        </p>
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <div
-            className="px-5 py-3 grid grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-4
+            className="grid min-w-[860px] grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-4 px-5 py-3
                        text-[11px] uppercase tracking-wider text-slate-500 font-medium
                        border-b border-slate-200 bg-slate-50"
           >
@@ -299,7 +329,7 @@ export default function PvcRunPage({
             <div
               key={c.category}
               className={
-                "px-5 h-11 grid grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-4 items-center text-[12px] " +
+                "grid h-11 min-w-[860px] grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] items-center gap-4 px-5 text-[12px] " +
                 (i < run.components.length - 1 ? "border-b border-slate-100" : "")
               }
             >
@@ -336,9 +366,9 @@ export default function PvcRunPage({
             snapshots. The bill page shows the current lines.
           </div>
         ) : (
-          <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
             <div
-              className="px-5 py-3 grid grid-cols-[1fr_repeat(4,minmax(0,1fr))] gap-4
+              className="grid min-w-[760px] grid-cols-[1fr_repeat(4,minmax(0,1fr))] gap-4 px-5 py-3
                          text-[11px] uppercase tracking-wider text-slate-500 font-medium
                          border-b border-slate-200 bg-slate-50"
             >
@@ -357,7 +387,7 @@ export default function PvcRunPage({
               <div
                 key={l.id}
                 className={
-                  "px-5 h-11 grid grid-cols-[1fr_repeat(4,minmax(0,1fr))] gap-4 items-center text-[12px] font-mono text-slate-700 " +
+                  "grid h-11 min-w-[760px] grid-cols-[1fr_repeat(4,minmax(0,1fr))] items-center gap-4 px-5 text-[12px] font-mono text-slate-700 " +
                   (i < run.lines_snapshot!.length - 1 ? "border-b border-slate-100" : "")
                 }
               >

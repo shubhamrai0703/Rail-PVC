@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
+import { apiFetch, ApiError } from "@/lib/api/client";
 import type { ParsedRow, SteelSubtype } from "@/lib/parseTsvImport";
 import {
   TARGET_FIELDS,
@@ -12,9 +14,33 @@ import {
 import {
   normalizeImportRows,
   type Mapping,
+  type ValueNormalizations,
 } from "@/lib/normalizeImportRows";
 import type { XlsxWorkbook } from "@/lib/parseXlsx";
 import { ImportTemplateControls } from "./ImportTemplateControls";
+import {
+  ExcelFieldGuide,
+  NumberedStageGuide,
+} from "@/components/help/FirstUserHelp";
+
+interface SuggestMappingResponse {
+  mapping: Record<string, string | null>;
+  value_normalizations: ValueNormalizations;
+  confidence: number;
+  unmapped: string[];
+  notes: string | null;
+}
+
+const TARGET_FIELD_SET = new Set<string>(TARGET_FIELDS);
+
+/** Reject any target the LLM invents that isn't in our schema — never trust it blindly. */
+function sanitizeAiMapping(raw: Record<string, string | null>): Mapping {
+  const out: Mapping = {};
+  for (const [header, target] of Object.entries(raw)) {
+    out[header] = target !== null && TARGET_FIELD_SET.has(target) ? (target as TargetField) : null;
+  }
+  return out;
+}
 
 type ImportedRow = ParsedRow & { _rowState: "new" };
 
@@ -49,8 +75,62 @@ const FIELD_LABEL: Record<TargetField, string> = {
   steel_subtype: "Steel subtype",
 };
 
+const IMPORT_STAGES = [
+  { id: "source", label: "Choose source" },
+  { id: "headers", label: "Confirm sheet & headers" },
+  { id: "mapping", label: "Map columns" },
+  { id: "preview", label: "Preview & add" },
+] as const;
+
 export function ImportRowsModal({ onClose, onAdd }: Props) {
   const [mode, setMode] = useState<SourceMode>("file");
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!dialogRef.current) return;
+
+    const activeDialog: HTMLDivElement = dialogRef.current;
+    const previousFocus = document.activeElement as HTMLElement | null;
+
+    const focusableSelector =
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
+    const focusableElements = () =>
+      Array.from(activeDialog.querySelectorAll<HTMLElement>(focusableSelector));
+
+    (focusableElements()[0] ?? activeDialog).focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const elements = focusableElements();
+      if (elements.length === 0) {
+        event.preventDefault();
+        activeDialog.focus();
+        return;
+      }
+
+      const first = elements[0];
+      const last = elements[elements.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, [onClose]);
 
   // --- File / xlsx path -----------------------------------------------------
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,6 +148,7 @@ export function ImportRowsModal({ onClose, onAdd }: Props) {
   // --- Mapping state --------------------------------------------------------
   // Null target = ignore. Empty object = no source yet.
   const [mappingOverrides, setMappingOverrides] = useState<Mapping>({});
+  const [valueNormalizations, setValueNormalizations] = useState<ValueNormalizations>({});
 
   async function handleFile(file: File) {
     setFileError(null);
@@ -124,6 +205,27 @@ export function ImportRowsModal({ onClose, onAdd }: Props) {
   // documented "adjust state during render" pattern — the guard ensures
   // we only re-run on a real change, avoiding the cascading-render
   // lint warning that useEffect+setState would trigger.
+  const suggestMapping = useMutation<SuggestMappingResponse, Error, void>({
+    mutationFn: () => {
+      if (source === null) throw new Error("No source loaded");
+      return apiFetch<SuggestMappingResponse>("/api/imports/suggest-mapping", {
+        method: "POST",
+        silent: true,
+        body: {
+          headers: source.headers,
+          sample_rows: source.body.slice(0, 5),
+        },
+      });
+    },
+    onSuccess: (result) => {
+      setMappingOverrides((prev) => ({
+        ...prev,
+        ...sanitizeAiMapping(result.mapping),
+      }));
+      setValueNormalizations(result.value_normalizations ?? {});
+    },
+  });
+
   const headersKey = source ? source.headers.join("\x1f") : "";
   const [lastHeadersKey, setLastHeadersKey] = useState<string | null>(null);
   if (headersKey !== lastHeadersKey) {
@@ -131,6 +233,8 @@ export function ImportRowsModal({ onClose, onAdd }: Props) {
     setMappingOverrides(
       source === null ? {} : fuzzyHeaderMap(source.headers).mapping,
     );
+    setValueNormalizations({});
+    suggestMapping.reset();
   }
 
   // Compute the effective mapping (overrides win).
@@ -170,8 +274,9 @@ export function ImportRowsModal({ onClose, onAdd }: Props) {
     return normalizeImportRows({
       mapping: effectiveMapping,
       rows: source.body,
+      value_normalizations: valueNormalizations,
     });
-  }, [source, effectiveMapping, missingRequired, duplicateTargets]);
+  }, [source, effectiveMapping, missingRequired, duplicateTargets, valueNormalizations]);
 
   const commit = () => {
     if (!parsed || parsed.rows.length === 0 || parsed.errors.length > 0) return;
@@ -181,14 +286,21 @@ export function ImportRowsModal({ onClose, onAdd }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-2 sm:p-6"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[92vh] overflow-auto p-6 space-y-4">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="import-rows-title"
+        tabIndex={-1}
+        className="max-h-[96vh] w-full max-w-4xl space-y-4 overflow-auto rounded-xl bg-white p-4 shadow-xl sm:max-h-[92vh] sm:p-6"
+      >
         <header className="flex items-center justify-between">
-          <h2 className="text-[16px] font-semibold text-slate-900">
+          <h2 id="import-rows-title" className="text-[16px] font-semibold text-slate-900">
             Import rows from Excel
           </h2>
           <button
@@ -200,6 +312,18 @@ export function ImportRowsModal({ onClose, onAdd }: Props) {
             ×
           </button>
         </header>
+
+        <div>
+          <p className="text-[12px] leading-5 text-slate-600">
+            Review all four stages before adding rows. Nothing is added when a
+            mapping or row error remains, so an import cannot commit partially.
+          </p>
+          <NumberedStageGuide
+            ariaLabel="Excel import stages"
+            items={IMPORT_STAGES}
+            className="mt-2 sm:grid-cols-4"
+          />
+        </div>
 
         {/* Step 1 — pick a source */}
         <div className="border-b border-slate-200">
@@ -243,23 +367,41 @@ export function ImportRowsModal({ onClose, onAdd }: Props) {
 
         {/* Step 2 — mapping */}
         {source !== null && source.headers.length > 0 && (
-          <ImportTemplateControls
-            headers={source.headers}
-            effectiveMapping={effectiveMapping}
-            onApply={setMappingOverrides}
-          />
-        )}
-        {source !== null && source.headers.length > 0 && (
-          <MappingTable
-            source={source}
-            mapping={effectiveMapping}
-            onChange={(header, target) =>
-              setMappingOverrides((prev) => ({ ...prev, [header]: target }))
-            }
-            onResetAuto={() => setMappingOverrides(fuzzyHeaderMap(source.headers).mapping)}
-            missingRequired={missingRequired}
-            duplicateTargets={duplicateTargets}
-          />
+          <>
+            <ImportTemplateControls
+              headers={source.headers}
+              effectiveMapping={effectiveMapping}
+              onApply={setMappingOverrides}
+            />
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-4 text-slate-600">
+              <p className="mb-1 font-medium">Mapping guide</p>
+              <ExcelFieldGuide />
+            </div>
+            <MappingTable
+              source={source}
+              mapping={effectiveMapping}
+              onChange={(header, target) =>
+                setMappingOverrides((prev) => ({ ...prev, [header]: target }))
+              }
+              onResetAuto={() => {
+                setMappingOverrides(fuzzyHeaderMap(source.headers).mapping);
+                setValueNormalizations({});
+                suggestMapping.reset();
+              }}
+              missingRequired={missingRequired}
+              duplicateTargets={duplicateTargets}
+              onAutoMapAI={() => suggestMapping.mutate()}
+              aiPending={suggestMapping.isPending}
+              aiError={
+                suggestMapping.isError
+                  ? suggestMapping.error instanceof ApiError
+                    ? suggestMapping.error.message
+                    : "AI mapping is unavailable — map columns manually."
+                  : null
+              }
+              aiResult={suggestMapping.data ?? null}
+            />
+          </>
         )}
 
         {/* Step 3 — preview + errors */}
@@ -477,6 +619,10 @@ function MappingTable({
   onResetAuto,
   missingRequired,
   duplicateTargets,
+  onAutoMapAI,
+  aiPending,
+  aiError,
+  aiResult,
 }: {
   source: SourceData;
   mapping: Mapping;
@@ -484,9 +630,17 @@ function MappingTable({
   onResetAuto: () => void;
   missingRequired: TargetField[];
   duplicateTargets: TargetField[];
+  onAutoMapAI: () => void;
+  aiPending: boolean;
+  aiError: string | null;
+  aiResult: {
+    confidence: number;
+    unmapped: string[];
+    notes: string | null;
+  } | null;
 }) {
   return (
-    <div className="border border-slate-200 rounded-lg overflow-hidden">
+    <div className="overflow-x-auto rounded-lg border border-slate-200">
       <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
         <div className="text-[13px] font-medium text-slate-700">
           Column mapping{" "}
@@ -502,18 +656,33 @@ function MappingTable({
           >
             Re-run auto-map
           </button>
-          <span
-            title="The AI-assisted mapper ships in the next release. Use the dropdowns to assign columns manually for now."
-            className="cursor-help"
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={aiPending}
+            onClick={onAutoMapAI}
           >
-            <Button type="button" variant="secondary" size="sm" disabled>
-              🤖 Auto-map with AI
-            </Button>
-          </span>
+            {aiPending ? "Mapping…" : "🤖 Auto-map with AI"}
+          </Button>
         </div>
       </div>
 
-      <table className="w-full text-[12px]">
+      {aiError && (
+        <div className="px-3 py-2 text-[12px] text-red-700 bg-red-50 border-b border-red-200">
+          {aiError} Falling back to manual mapping — use the dropdowns below.
+        </div>
+      )}
+      {!aiError && aiResult && (
+        <div className="px-3 py-2 text-[12px] text-slate-600 bg-slate-50 border-b border-slate-200">
+          AI mapping applied (confidence {Math.round(aiResult.confidence * 100)}%).{" "}
+          {aiResult.unmapped.length > 0
+            ? `Left unmapped: ${aiResult.unmapped.join(", ")}.`
+            : "All columns mapped."}
+        </div>
+      )}
+
+      <table className="w-full min-w-[640px] text-[12px]">
         <thead className="text-slate-500 border-b border-slate-200">
           <tr>
             <th className="px-3 py-2 text-left font-medium">Source header</th>

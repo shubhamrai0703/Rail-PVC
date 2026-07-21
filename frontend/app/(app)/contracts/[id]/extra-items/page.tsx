@@ -1,11 +1,15 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { ExtraItemDecisionList } from "@/components/contracts/ExtraItemDecisionList";
+import {
+  JourneyGuide,
+  PageGuidance,
+} from "@/components/help/FirstUserHelp";
 
 interface Schedule {
   id: string;
@@ -26,6 +30,11 @@ export default function ExtraItemsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+
+  const [decisionStatus, setDecisionStatus] = useState({
+    total: 0,
+    allDecided: false,
+  });
 
   const schedules = useQuery<Schedule[]>({
     queryKey: ["contract-schedules", id],
@@ -83,6 +92,27 @@ export default function ExtraItemsPage({
         </p>
       </header>
 
+      <JourneyGuide stage="decisions" />
+      <PageGuidance
+        title="Decide how ExtraNS items affect PVC"
+        next={
+          decisionStatus.allDecided ? (
+            <Link
+              href={`/contracts/${id}/bills`}
+              className="font-medium text-amber-700 hover:text-amber-800 hover:underline"
+            >
+              Continue to Bills →
+            </Link>
+          ) : (
+            "Create the bill after every extra item has an explicit decision."
+          )
+        }
+      >
+        Choose Yes when an ExtraNS item is eligible for PVC and No when it is
+        excluded. Undecided items block calculation. A decision affects W only
+        when that item is present in the bill lines used by the run.
+      </PageGuidance>
+
       {isLoading ? (
         <div className="text-[13px] text-slate-400 py-12 text-center">
           Loading…
@@ -92,6 +122,7 @@ export default function ExtraItemsPage({
           contractId={id}
           schedules={schedules.data ?? []}
           decisions={decisions.data ?? []}
+          onStatusChange={setDecisionStatus}
         />
       )}
     </div>

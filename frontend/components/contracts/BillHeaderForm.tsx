@@ -86,7 +86,7 @@ export function BillHeaderForm({ billId, initial, onSaved, onCancel }: Props) {
       className="border border-slate-200 rounded-xl p-5 bg-white space-y-4 max-w-2xl"
       noValidate
     >
-      <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         <div>
           <label className={labelCls}>Bill number *</label>
           <input
@@ -111,7 +111,7 @@ export function BillHeaderForm({ billId, initial, onSaved, onCancel }: Props) {
             })}
             className={inputCls}
           />
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="mt-1 text-[11px] leading-4 text-slate-500">
             On-account bill total from the Measurement Book. Cement/steel and
             other PVC exclusions are deducted during the PVC run, not here.
           </p>
@@ -124,6 +124,10 @@ export function BillHeaderForm({ billId, initial, onSaved, onCancel }: Props) {
         <div>
           <label className={labelCls}>Measurement date *</label>
           <input type="date" {...register("measurement_date")} className={inputCls} />
+          <p className="mt-1 text-[11px] leading-4 text-slate-500">
+            Use the Measurement Book date. Changing it can change the rolling
+            quarter and the index observations used by the next run.
+          </p>
           {errors.measurement_date && (
             <p className={errCls}>{errors.measurement_date.message}</p>
           )}

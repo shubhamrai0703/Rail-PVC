@@ -1,10 +1,11 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api/client";
+import { SupplementaryHelp } from "@/components/help/FirstUserHelp";
 
 const scheduleSchema = z.object({
   name: z.string().min(1, "required"),
@@ -33,11 +34,13 @@ export function ScheduleForm({ contractId, onCreated }: Props) {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(scheduleSchema),
     defaultValues: { schedule_type: "DSR", bid_discount_pct: 0 },
   });
+  const scheduleType = useWatch({ control, name: "schedule_type" });
 
   async function submit(values: FormValues) {
     await apiFetch(`/api/contracts/${contractId}/schedules`, {
@@ -51,7 +54,7 @@ export function ScheduleForm({ contractId, onCreated }: Props) {
   return (
     <form
       onSubmit={handleSubmit(submit)}
-      className="grid grid-cols-[1fr_140px_180px_auto] gap-3 items-end"
+      className="grid grid-cols-1 items-start gap-3 md:grid-cols-[1fr_160px_200px_auto]"
       noValidate
     >
       <div>
@@ -66,6 +69,16 @@ export function ScheduleForm({ contractId, onCreated }: Props) {
           <option value="NS">NS</option>
           <option value="ExtraNS">ExtraNS</option>
         </select>
+        <SupplementaryHelp summary="Choose the schedule type">
+          DSR is for published schedule items, NS for agreement non-schedule
+          items, and ExtraNS for later extra items.
+        </SupplementaryHelp>
+        {scheduleType === "ExtraNS" && (
+          <p className="mt-1 text-[11px] leading-4 text-amber-800">
+            Every ExtraNS item needs an eligibility decision before a PVC run
+            can proceed.
+          </p>
+        )}
       </div>
       <div>
         <label className={labelCls}>
@@ -80,13 +93,22 @@ export function ScheduleForm({ contractId, onCreated }: Props) {
           })}
           className={inputCls}
         />
+        <p className="mt-1 text-[11px] leading-4 text-slate-500">
+          Enter a fraction: <span className="font-medium">0.05 means 5%</span>.
+          The agreement rate reflects this schedule-level discount.
+        </p>
         {errors.bid_discount_pct && (
           <p className={errCls}>{errors.bid_discount_pct.message}</p>
         )}
       </div>
-      <Button type="submit" variant="primary" disabled={isSubmitting}>
-        {isSubmitting ? "Adding…" : "Add"}
-      </Button>
+      <div>
+        <span aria-hidden="true" className={`${labelCls} invisible`}>
+          Add
+        </span>
+        <Button type="submit" variant="primary" disabled={isSubmitting}>
+          {isSubmitting ? "Adding…" : "Add"}
+        </Button>
+      </div>
     </form>
   );
 }

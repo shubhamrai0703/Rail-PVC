@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Trash2 } from "lucide-react";
@@ -8,10 +8,20 @@ import { apiFetch, ApiError } from "@/lib/api/client";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RecoveryForm, RECOVERY_TYPES } from "@/components/contracts/RecoveryForm";
+import { BillLineForm } from "@/components/contracts/BillLineForm";
 import { BillHeaderForm } from "@/components/contracts/BillHeaderForm";
 import { formatINRWithSymbol } from "@/lib/format";
-import { describePvcRunError } from "@/lib/pvcRunError";
+import {
+  describePvcRunError,
+  getPvcRunRecoveryActions,
+} from "@/lib/pvcRunError";
 import { statusVariant } from "@/lib/pvcRunStatus";
+import {
+  JourneyGuide,
+  PageGuidance,
+} from "@/components/help/FirstUserHelp";
+import { TOTAL_PVC_GUIDANCE } from "@/lib/firstUserHelp";
+import type { CreatedBillLine } from "@/lib/billLine";
 
 interface Bill {
   id: string;
@@ -85,6 +95,10 @@ export default function BillDetailPage({
     queryKey: ["bill-lines", billId],
     queryFn: () => apiFetch<BillLine[]>(`/api/bills/${billId}/lines`),
   });
+  const existingBillLineItemIds = useMemo(
+    () => (linesQuery.data ?? []).map((line) => line.item_id),
+    [linesQuery.data],
+  );
 
   const recoveriesQuery = useQuery<Recovery[]>({
     queryKey: ["bill-recoveries", billId],
@@ -103,10 +117,9 @@ export default function BillDetailPage({
     (r) => r.bill_id.toLowerCase() === billId.toLowerCase(),
   );
 
-  // Calculate PVC — calls the engine synchronously (POST /pvc-runs). On success
-  // the engine writes the bill's lines and recomputes amounts, so we invalidate
-  // the bill + lines queries to pull the fresh values. `silent: true` because we
-  // render the failure inline below rather than relying on the default toast.
+  // Calculate PVC — calls the engine synchronously (POST /pvc-runs). A run
+  // reads and snapshots the bill lines that already exist; it does not create
+  // line inputs. `silent: true` because the failure is rendered inline below.
   const pvcRun = useMutation<PvcRunResult, Error>({
     mutationFn: () =>
       apiFetch<PvcRunResult>(`/api/contracts/${id}/pvc-runs`, {
@@ -123,6 +136,11 @@ export default function BillDetailPage({
   });
 
   const pvcError = describePvcRunError(pvcRun.error);
+  const recoveryActions = getPvcRunRecoveryActions(
+    pvcError.validationErrors ?? [],
+    id,
+    billId,
+  );
 
   const [editing, setEditing] = useState(false);
 
@@ -177,6 +195,17 @@ export default function BillDetailPage({
         </div>
       </header>
 
+      <JourneyGuide stage="calculate" />
+      <PageGuidance
+        title="Check the bill, then calculate"
+        next="Open the result, compare W and components, then approve only when accepted."
+      >
+        The run uses this bill&apos;s measurement date, gross amount, selected
+        PVC-base recoveries, existing bill lines, contract rules, item
+        classifications, and required index months. Re-running creates a new
+        auditable result and supersedes the previous draft.
+      </PageGuidance>
+
       {/* Header fields — read-only with an inline edit toggle (C-3). */}
       {editing ? (
         <BillHeaderForm
@@ -194,8 +223,8 @@ export default function BillDetailPage({
           onCancel={() => setEditing(false)}
         />
       ) : (
-        <div className="space-y-3 max-w-2xl">
-          <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-[13px]">
+        <div id="bill-header" className="max-w-2xl space-y-3">
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-[13px] sm:grid-cols-2">
             <Field label="Bill number" value={bill.bill_number} />
             <Field label="Status" value={bill.status} />
             <Field label="Bill date" value={bill.bill_date} />
@@ -221,16 +250,17 @@ export default function BillDetailPage({
         </div>
       )}
 
-      {/* Calculate PVC — triggers the engine run that generates this bill's lines. */}
+      {/* Calculate PVC uses the bill inputs and existing lines as they stand. */}
       <section className="border border-slate-200 rounded-xl p-5 bg-white space-y-3">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
           <div>
             <h2 className="text-[14px] font-medium text-slate-900">
               Price Variation (PVC)
             </h2>
             <p className="text-[12px] text-slate-500 mt-0.5 max-w-md">
-              Runs the PVC engine for this bill, generates its bill lines, and
-              recomputes amounts. Re-running supersedes the previous draft run.
+              Calculates an immutable draft result from the bill data and any
+              existing lines. It does not create bill-line inputs. Re-running
+              supersedes the previous draft run.
             </p>
           </div>
           <Button
@@ -256,6 +286,19 @@ export default function BillDetailPage({
                     <li key={i}>{e}</li>
                   ))}
                 </ul>
+                {recoveryActions.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t border-red-200 pt-2">
+                    {recoveryActions.map((action) => (
+                      <Link
+                        key={action.href}
+                        href={action.href}
+                        className="font-medium text-red-800 underline underline-offset-2"
+                      >
+                        {action.label} →
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               pvcError.message
@@ -264,41 +307,45 @@ export default function BillDetailPage({
         )}
 
         {pvcRun.isSuccess && pvcRun.data && (
-          <dl className="grid grid-cols-3 gap-4 text-[13px] pt-1 border-t border-slate-100">
-            <div className="pt-3">
-              <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
-                Total PVC
-              </dt>
-              <dd className="text-slate-900 mt-0.5 font-mono">
-                {formatINRWithSymbol(pvcRun.data.total_pvc)}
-              </dd>
-            </div>
-            <div className="pt-3">
-              <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
-                Negative carry-forward
-              </dt>
-              <dd className="text-slate-900 mt-0.5 font-mono">
-                {formatINRWithSymbol(pvcRun.data.negative_carry_forward)}
-              </dd>
-            </div>
-            <div className="pt-3">
-              <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
-                Quarter used
-              </dt>
-              <dd className="text-slate-900 mt-0.5">
-                {String(pvcRun.data.quarter_used)}
-              </dd>
-            </div>
-          </dl>
-        )}
-
-        {pvcRun.isSuccess && pvcRun.data && (
-          <Link
-            href={`/contracts/${id}/bills/${billId}/runs/${pvcRun.data.id}`}
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-slate-700 hover:text-slate-900"
-          >
-            View full results →
-          </Link>
+          <>
+            <dl className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-1 text-[13px] sm:grid-cols-3">
+              <div className="pt-3">
+                <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+                  Total PVC
+                </dt>
+                <dd className="text-slate-900 mt-0.5 font-mono">
+                  {formatINRWithSymbol(pvcRun.data.total_pvc)}
+                </dd>
+              </div>
+              <div className="pt-3">
+                <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+                  Negative carry-forward
+                </dt>
+                <dd className="text-slate-900 mt-0.5 font-mono">
+                  {formatINRWithSymbol(pvcRun.data.negative_carry_forward)}
+                </dd>
+              </div>
+              <div className="pt-3">
+                <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+                  Quarter used
+                </dt>
+                <dd className="text-slate-900 mt-0.5">
+                  {String(pvcRun.data.quarter_used)}
+                </dd>
+              </div>
+            </dl>
+            <p className="text-[12px] leading-5 text-slate-600">
+              {TOTAL_PVC_GUIDANCE} Confirm the quarter against the annexure
+              first, then open the full result to review W and every component
+              before approval.
+            </p>
+            <Link
+              href={`/contracts/${id}/bills/${billId}/runs/${pvcRun.data.id}`}
+              className="inline-flex items-center gap-1 text-[12px] font-medium text-slate-700 hover:text-slate-900"
+            >
+              View full results →
+            </Link>
+          </>
         )}
       </section>
 
@@ -306,9 +353,9 @@ export default function BillDetailPage({
       {billRuns.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-[14px] font-medium text-slate-900">Run history</h2>
-          <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
             <div
-              className="px-5 py-3 grid grid-cols-[1fr_140px_120px_100px] gap-4
+              className="grid min-w-[620px] grid-cols-[1fr_140px_120px_100px] gap-4 px-5 py-3
                          text-[11px] uppercase tracking-wider text-slate-500 font-medium
                          border-b border-slate-200 bg-slate-50"
             >
@@ -322,7 +369,7 @@ export default function BillDetailPage({
                 key={r.id}
                 href={`/contracts/${id}/bills/${billId}/runs/${r.id}`}
                 className={
-                  "px-5 h-11 grid grid-cols-[1fr_140px_120px_100px] gap-4 items-center text-[13px] hover:bg-slate-50 " +
+                  "grid h-11 min-w-[620px] grid-cols-[1fr_140px_120px_100px] items-center gap-4 px-5 text-[13px] hover:bg-slate-50 " +
                   (i < billRuns.length - 1 ? "border-b border-slate-100" : "")
                 }
               >
@@ -342,12 +389,50 @@ export default function BillDetailPage({
         </section>
       )}
 
-      {/* Bill lines — read-only; engine-generated on a PVC run (Phase 7). */}
-      <section className="space-y-2">
+      {/* Bill-line inputs feed item-classified deductions in the next PVC run. */}
+      <section className="space-y-3">
         <h2 className="text-[14px] font-medium text-slate-900">Bill lines</h2>
-        <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
+        <p className="text-[12px] leading-5 text-slate-500">
+          Add one item-wise line for each billed contract item. TenderAudit uses
+          the item&apos;s classification and these amounts to derive cement,
+          steel, and ExtraNS deductions in the next PVC run.
+        </p>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <h3 className="mb-3 text-[14px] font-medium text-slate-900">
+            Add bill line
+          </h3>
+          {linesQuery.isLoading ? (
+            <p className="text-[12px] text-slate-400">
+              Loading existing bill lines…
+            </p>
+          ) : linesQuery.isError ? (
+            <p className="text-[12px] text-red-600" role="alert">
+              Existing bill lines could not be loaded. Refresh the page before
+              adding another line.
+            </p>
+          ) : (
+            <BillLineForm
+              billId={billId}
+              contractId={bill.contract_id}
+              existingItemIds={existingBillLineItemIds}
+              onCreated={async (createdLine: CreatedBillLine) => {
+                await queryClient.cancelQueries({
+                  queryKey: ["bill-lines", billId],
+                });
+                queryClient.setQueryData<BillLine[]>(
+                  ["bill-lines", billId],
+                  (current) => [...(current ?? []), createdLine],
+                );
+                await queryClient.invalidateQueries({
+                  queryKey: ["bill-lines", billId],
+                });
+              }}
+            />
+          )}
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <div
-            className="px-5 py-3 grid grid-cols-[1fr_repeat(4,minmax(0,1fr))] gap-4
+            className="grid min-w-[760px] grid-cols-[1fr_repeat(4,minmax(0,1fr))] gap-4 px-5 py-3
                        text-[11px] uppercase tracking-wider text-slate-500 font-medium
                        border-b border-slate-200 bg-slate-50"
           >
@@ -360,16 +445,24 @@ export default function BillDetailPage({
           {linesQuery.isLoading && (
             <div className="px-5 py-6 text-[13px] text-slate-400">Loading…</div>
           )}
-          {!linesQuery.isLoading && (linesQuery.data?.length ?? 0) === 0 && (
-            <div className="px-5 py-6 text-[13px] text-slate-400">
-              No lines yet — bill lines are generated when a PVC run is executed.
+          {linesQuery.isError && (
+            <div className="px-5 py-6 text-[13px] text-red-600" role="alert">
+              Bill lines could not be loaded. Refresh the page and try again.
             </div>
           )}
+          {!linesQuery.isLoading &&
+            !linesQuery.isError &&
+            (linesQuery.data?.length ?? 0) === 0 && (
+              <div className="px-5 py-6 text-[13px] text-slate-400">
+                No bill lines yet. Add the first billed item above before
+                calculating PVC when item-wise deductions apply.
+              </div>
+            )}
           {linesQuery.data?.map((l, i) => (
             <div
               key={l.id}
               className={
-                "px-5 h-11 grid grid-cols-[1fr_repeat(4,minmax(0,1fr))] gap-4 items-center text-[12px] font-mono text-slate-700 " +
+                "grid h-11 min-w-[760px] grid-cols-[1fr_repeat(4,minmax(0,1fr))] items-center gap-4 px-5 text-[12px] font-mono text-slate-700 " +
                 (i < linesQuery.data!.length - 1 ? "border-b border-slate-100" : "")
               }
             >
@@ -392,9 +485,13 @@ export default function BillDetailPage({
       {/* Recoveries — manually entered. */}
       <section className="space-y-2">
         <h2 className="text-[14px] font-medium text-slate-900">Recoveries</h2>
-        <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
+        <p className="text-[12px] leading-5 text-slate-500">
+          Only recoveries marked Affects PVC base reduce W. Other recoveries
+          remain part of the bill&apos;s net amount calculation only.
+        </p>
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <div
-            className="px-5 py-3 grid grid-cols-[1fr_160px_160px_60px] gap-4
+            className="grid min-w-[620px] grid-cols-[1fr_160px_160px_60px] gap-4 px-5 py-3
                        text-[11px] uppercase tracking-wider text-slate-500 font-medium
                        border-b border-slate-200 bg-slate-50"
           >
@@ -416,7 +513,7 @@ export default function BillDetailPage({
             <div
               key={r.id}
               className={
-                "px-5 h-11 grid grid-cols-[1fr_160px_160px_60px] gap-4 items-center text-[13px] " +
+                "grid h-11 min-w-[620px] grid-cols-[1fr_160px_160px_60px] items-center gap-4 px-5 text-[13px] " +
                 (i < recoveriesQuery.data!.length - 1
                   ? "border-b border-slate-100"
                   : "")
