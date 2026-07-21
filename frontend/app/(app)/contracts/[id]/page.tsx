@@ -13,6 +13,11 @@ import { ScheduleForm } from "@/components/contracts/ScheduleForm";
 import { ItemsGrid } from "@/components/contracts/ItemsGrid";
 import type { z } from "zod";
 import { contractCreateSchema, type ContractFormValues } from "@/lib/contracts-schema";
+import {
+  JourneyGuide,
+  PageGuidance,
+} from "@/components/help/FirstUserHelp";
+import { CONTRACT_SETUP_GUIDANCE } from "@/lib/firstUserHelp";
 
 type ContractFormInput = z.input<typeof contractCreateSchema>;
 
@@ -184,6 +189,36 @@ export default function ContractDetailPage({
         </div>
       </header>
 
+      <JourneyGuide stage={tab === "items" ? "items" : "contract"} />
+      {tab === "overview" && (
+        <PageGuidance
+          title="Confirm the contract basis"
+          next="Add schedules, then enter or import their agreement items."
+        >
+          {CONTRACT_SETUP_GUIDANCE}
+        </PageGuidance>
+      )}
+      {tab === "schedules" && (
+        <PageGuidance
+          title="Organise the agreement schedules"
+          next="Select Items and add or import the BOQ rows for each schedule."
+        >
+          Schedules group the agreement&apos;s DSR, NS, and ExtraNS items. The
+          selected type and bid discount determine how those rows are
+          interpreted later.
+        </PageGuidance>
+      )}
+      {tab === "items" && (
+        <PageGuidance
+          title="Build and classify the agreement items"
+          next="Resolve any ExtraNS decisions, then create the running bill."
+        >
+          Enter rows directly or import them from Excel. Cement and steel
+          classifications choose the PVC bucket for matching bill lines; one
+          item cannot belong to both.
+        </PageGuidance>
+      )}
+
       <TabBar tab={tab} setTab={setTab} />
 
       {tab === "overview" && (
@@ -288,7 +323,7 @@ function OverviewTab({
           Edit
         </Button>
       </div>
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-3 max-w-3xl text-[13px]">
+      <dl className="grid max-w-3xl grid-cols-1 gap-x-8 gap-y-3 text-[13px] sm:grid-cols-2">
         <Field label="Tender number" value={contract.tender_number} />
         <Field label="Agreement number" value={contract.agreement_number} />
         <Field label="LOA number" value={contract.loa_number} />
@@ -333,7 +368,7 @@ function Field({
   full?: boolean;
 }) {
   return (
-    <div className={full ? "col-span-2" : ""}>
+    <div className={full ? "sm:col-span-2" : ""}>
       <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
         {label}
       </dt>
@@ -361,9 +396,9 @@ function SchedulesTab({
 }) {
   return (
     <div className="space-y-6">
-      <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <div
-          className="px-5 py-3 grid grid-cols-[1fr_120px_140px] gap-4 text-[11px]
+          className="grid min-w-[520px] grid-cols-[1fr_120px_140px] gap-4 px-5 py-3 text-[11px]
                      uppercase tracking-wider text-slate-500 font-medium
                      border-b border-slate-200 bg-slate-50"
         >
@@ -383,7 +418,7 @@ function SchedulesTab({
           <div
             key={s.id}
             className={
-              "px-5 h-11 grid grid-cols-[1fr_120px_140px] gap-4 items-center text-[13px] " +
+              "grid h-11 min-w-[520px] grid-cols-[1fr_120px_140px] items-center gap-4 px-5 text-[13px] " +
               (i < schedules.length - 1 ? "border-b border-slate-100" : "")
             }
           >

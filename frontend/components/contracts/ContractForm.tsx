@@ -9,6 +9,7 @@ import {
   type ContractFormValues,
 } from "@/lib/contracts-schema";
 import { ZoneSelect } from "./ZoneSelect";
+import { SupplementaryHelp } from "@/components/help/FirstUserHelp";
 
 // The schema's *input* type is what react-hook-form sees pre-resolver
 // (i.e. raw form values: `string | undefined`). The schema's *output* type
@@ -67,7 +68,7 @@ export function ContractForm({
       noValidate
     >
       {/* Identification */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className={labelCls}>Tender number *</label>
           <input
@@ -128,7 +129,7 @@ export function ContractForm({
       </div>
 
       {/* Zone + base month */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className={labelCls}>Railway zone *</label>
           <ZoneSelect
@@ -152,6 +153,10 @@ export function ContractForm({
             })}
             className={inputCls}
           />
+          <p className="mt-1 text-[11px] leading-4 text-slate-500">
+            Use the agreement&apos;s PVC base month. TenderAudit anchors it to
+            day 1 and counts each bill&apos;s rolling quarter from the next month.
+          </p>
           {errors.base_month && (
             <p className={errCls}>{errors.base_month.message}</p>
           )}
@@ -159,7 +164,7 @@ export function ContractForm({
       </div>
 
       {/* Dates */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className={labelCls}>Start date</label>
           <input
@@ -185,7 +190,7 @@ export function ContractForm({
       </div>
 
       {/* Money */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className={labelCls}>Contract value</label>
           <input
@@ -219,7 +224,7 @@ export function ContractForm({
       </div>
 
       {/* GST + PVC + rebate */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <label className={labelCls}>GST mode *</label>
           <select {...register("gst_mode")} className={inputCls}>
@@ -227,7 +232,7 @@ export function ContractForm({
             <option value="inclusive">Inclusive</option>
           </select>
         </div>
-        <div className="flex items-end pb-1">
+        <div className="pb-1 sm:pt-5">
           <label className="inline-flex items-center gap-2 text-[13px] text-slate-700">
             <input
               type="checkbox"
@@ -236,6 +241,11 @@ export function ContractForm({
             />
             PVC applicable
           </label>
+          <p className="mt-1 text-[11px] leading-4 text-slate-500">
+            Records whether this agreement is eligible for Clause 46A price
+            variation. The current calculator does not block runs when this is
+            cleared.
+          </p>
         </div>
         <div>
           <label className={labelCls}>
@@ -250,6 +260,15 @@ export function ContractForm({
             })}
             className={inputCls}
           />
+          <p className="mt-1 text-[11px] leading-4 text-slate-500">
+            Enter a fraction: <span className="font-medium">0.05 means 5%</span>,
+            not 5. The stored value and calculation convention are unchanged.
+          </p>
+          <SupplementaryHelp summary="How the rebate is used">
+            This value records the agreement-level rebate for reference. The
+            current PVC calculation does not apply it; schedule bid discount is
+            stored separately on each schedule.
+          </SupplementaryHelp>
           {errors.overall_rebate && (
             <p className={errCls}>{errors.overall_rebate.message}</p>
           )}

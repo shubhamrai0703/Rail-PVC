@@ -246,6 +246,33 @@ class BillLineCreate(BaseModel):
     special_condition_amount: Decimal = Decimal("0")
 
 
+_BILL_LINE_ITEM_UNIQUE_CONSTRAINT = "bill_lines_bill_id_item_id_key"
+
+
+def _is_bill_line_item_duplicate(exc: IntegrityError) -> bool:
+    """Match Postgres unique violations without relabeling other DB races."""
+    sqlstate: str | None = None
+    constraint_name: str | None = None
+    current: BaseException | None = exc.orig
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        sqlstate = sqlstate or getattr(current, "sqlstate", None)
+        sqlstate = sqlstate or getattr(current, "pgcode", None)
+        constraint_name = constraint_name or getattr(
+            current, "constraint_name", None
+        )
+        diag = getattr(current, "diag", None)
+        constraint_name = constraint_name or getattr(diag, "constraint_name", None)
+        current = getattr(current, "__cause__", None) or getattr(
+            current, "__context__", None
+        )
+    return (
+        sqlstate == "23505"
+        and constraint_name == _BILL_LINE_ITEM_UNIQUE_CONSTRAINT
+    )
+
+
 @router.post("/bills/{bill_id}/lines", status_code=status.HTTP_201_CREATED)
 async def create_bill_line(
     bill_id: str,
@@ -257,32 +284,43 @@ async def create_bill_line(
     contract_id = await assert_bill_belongs_to_tenant(session, bill_id, user.tenant_id)
     await assert_item_belongs_to_contract(session, body.item_id, contract_id)
 
-    row = (
-        await session.execute(
-            text("""
-                INSERT INTO bill_lines (
-                    bill_id, item_id, qty_up_to_last, qty_since_last, qty_up_to_date,
-                    amount_up_to_last, amount_since_last, amount_up_to_date,
-                    special_condition_amount
-                )
-                VALUES (
-                    :bid, :iid, :qul, :qsl, :qutd, :aul, :asl, :autd, :sca
-                )
-                RETURNING id::text AS id
-            """),
-            {
-                "bid": bill_id,
-                "iid": body.item_id,
-                "qul": body.qty_up_to_last,
-                "qsl": body.qty_since_last,
-                "qutd": body.qty_up_to_date,
-                "aul": body.amount_up_to_last,
-                "asl": body.amount_since_last,
-                "autd": body.amount_up_to_date,
-                "sca": body.special_condition_amount,
-            },
-        )
-    ).mappings().first()
+    try:
+        row = (
+            await session.execute(
+                text("""
+                    INSERT INTO bill_lines (
+                        bill_id, item_id, qty_up_to_last, qty_since_last,
+                        qty_up_to_date, amount_up_to_last, amount_since_last,
+                        amount_up_to_date, special_condition_amount
+                    )
+                    VALUES (
+                        :bid, :iid, :qul, :qsl, :qutd, :aul, :asl, :autd, :sca
+                    )
+                    RETURNING id::text AS id
+                """),
+                {
+                    "bid": bill_id,
+                    "iid": body.item_id,
+                    "qul": body.qty_up_to_last,
+                    "qsl": body.qty_since_last,
+                    "qutd": body.qty_up_to_date,
+                    "aul": body.amount_up_to_last,
+                    "asl": body.amount_since_last,
+                    "autd": body.amount_up_to_date,
+                    "sca": body.special_condition_amount,
+                },
+            )
+        ).mappings().first()
+    except IntegrityError as exc:
+        # UNIQUE(bill_id, item_id): client filtering is advisory because two
+        # tabs can race. Preserve the API error contract instead of leaking 500.
+        if not _is_bill_line_item_duplicate(exc):
+            raise
+        raise ConflictProblem(
+            "A bill line already exists for this contract item",
+            bill_id=bill_id,
+            item_id=body.item_id,
+        ) from exc
     assert row is not None
     return {"id": row["id"], "bill_id": bill_id, **body.model_dump(mode="json")}
 

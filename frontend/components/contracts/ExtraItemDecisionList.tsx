@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiFetch, ApiError } from "@/lib/api/client";
@@ -51,10 +51,14 @@ export function ExtraItemDecisionList({
   contractId,
   schedules,
   decisions,
+  onStatusChange,
 }: {
   contractId: string;
   schedules: Schedule[];
   decisions: Decision[];
+  /** Reports whether every ExtraNS item has an explicit decision, so the
+   * parent page can offer forward navigation once true. */
+  onStatusChange?: (status: { total: number; allDecided: boolean }) => void;
 }) {
   const queryClient = useQueryClient();
 
@@ -111,6 +115,17 @@ export function ExtraItemDecisionList({
     (r) => effectiveVerdict(r) === "undecided",
   ).length;
   const pendingCount = Object.keys(pending).length;
+
+  // Only the *saved* state (server verdicts, ignoring unsaved pending
+  // toggles) should unlock forward navigation — an unsaved "Yes" shouldn't
+  // let the user click through to Bills before it's actually persisted.
+  useEffect(() => {
+    onStatusChange?.({
+      total: rows.length,
+      allDecided:
+        rows.length > 0 && rows.every((r) => r.serverVerdict !== "undecided"),
+    });
+  }, [rows, onStatusChange]);
 
   function toggle(itemId: string, opt: Verdict, serverVerdict: Verdict) {
     setPending((prev) => {
@@ -216,9 +231,9 @@ export function ExtraItemDecisionList({
         )}
       </div>
 
-      <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <div
-          className="px-5 py-3 grid grid-cols-[120px_1fr_160px_240px] gap-4 text-[11px]
+          className="grid min-w-[760px] grid-cols-[120px_1fr_160px_240px] gap-4 px-5 py-3 text-[11px]
                      uppercase tracking-wider text-slate-500 font-medium
                      border-b border-slate-200 bg-slate-50"
         >
@@ -242,7 +257,7 @@ export function ExtraItemDecisionList({
             <div
               key={r.item_id}
               className={
-                "px-5 h-12 grid grid-cols-[120px_1fr_160px_240px] gap-4 items-center text-[13px] " +
+                "grid h-12 min-w-[760px] grid-cols-[120px_1fr_160px_240px] items-center gap-4 px-5 text-[13px] " +
                 (i < rows.length - 1 ? "border-b border-slate-100" : "")
               }
             >

@@ -72,7 +72,7 @@ export function RecoveryForm({ billId, onCreated }: Props) {
   return (
     <form
       onSubmit={handleSubmit(submit)}
-      className="grid grid-cols-[1fr_160px_auto_auto] gap-3 items-end"
+      className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1fr_180px_220px_auto]"
       noValidate
     >
       <div>
@@ -99,14 +99,20 @@ export function RecoveryForm({ billId, onCreated }: Props) {
         />
         {errors.amount && <p className={errCls}>{errors.amount.message}</p>}
       </div>
-      <label className="flex items-center gap-2 h-9 text-[12px] text-slate-700">
-        <input
-          type="checkbox"
-          {...register("affects_pvc_base")}
-          className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-        />
-        Affects PVC base
-      </label>
+      <div>
+        <label className="flex h-9 items-center gap-2 text-[12px] text-slate-700">
+          <input
+            type="checkbox"
+            {...register("affects_pvc_base")}
+            className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+          />
+          Affects PVC base
+        </label>
+        <p className="text-[11px] leading-4 text-slate-500">
+          Select only when this recovery reduces W in your PVC working.
+          Unselected recoveries affect the bill&apos;s net amount, not W.
+        </p>
+      </div>
       <Button type="submit" variant="primary" disabled={isSubmitting}>
         {isSubmitting ? "Adding…" : "Add recovery"}
       </Button>

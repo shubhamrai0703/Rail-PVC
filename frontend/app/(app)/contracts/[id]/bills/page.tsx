@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { BillForm } from "@/components/contracts/BillForm";
 import { formatINRWithSymbol } from "@/lib/format";
+import {
+  JourneyGuide,
+  PageGuidance,
+} from "@/components/help/FirstUserHelp";
 
 interface Bill {
   id: string;
@@ -58,13 +62,25 @@ export default function BillsPage({
           Bills
         </h1>
         <p className="text-[13px] text-slate-500">
-          Create a running bill, then enter its lines and recoveries.
+          Create the running-bill header and record any recoveries that affect
+          the PVC base.
         </p>
       </header>
 
-      <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
+      <JourneyGuide stage="bill" />
+      <PageGuidance
+        title="Record the bill basis"
+        next="Open the bill, check recoveries and prerequisites, then calculate PVC."
+      >
+        Measurement date determines the rolling quarter. Gross amount is the
+        on-account Measurement Book total. Item-wise bill-line entry is not
+        available on this screen yet; runs use only lines already prepared for
+        the bill.
+      </PageGuidance>
+
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <div
-          className="px-5 py-3 grid grid-cols-[80px_140px_140px_1fr_100px_80px] gap-4
+          className="grid min-w-[760px] grid-cols-[80px_140px_140px_1fr_100px_80px] gap-4 px-5 py-3
                      text-[11px] uppercase tracking-wider text-slate-500 font-medium
                      border-b border-slate-200 bg-slate-50"
         >
@@ -104,7 +120,7 @@ export default function BillsPage({
           <div
             key={b.id}
             className={
-              "px-5 h-12 grid grid-cols-[80px_140px_140px_1fr_100px_80px] gap-4 items-center text-[13px] " +
+              "grid h-12 min-w-[760px] grid-cols-[80px_140px_140px_1fr_100px_80px] items-center gap-4 px-5 text-[13px] " +
               (i < data.length - 1 ? "border-b border-slate-100" : "")
             }
           >

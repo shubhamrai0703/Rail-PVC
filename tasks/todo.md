@@ -1,5 +1,53 @@
 # Phase 7 — PVC Run + Results UI (D-1…D-4)
 
+## First-user walkthrough + second design pass — 2026-07-21
+
+Source: `tasks/handoffs/2026-07-20-sonnet-walkthrough-design-review.md` (Results filled)
+
+- [x] Walkthrough script at `tasks/walkthrough-first-user.md`; public flow rehearsed live, gated screens verified against source.
+- [x] Second design pass (two-pass rule satisfied): 8 findings D-1…D-8 in the handoff Results, none shipped.
+- [ ] Saqlain: triage D-1…D-7 (recommended fix-now bundle: D-2 invite-only copy + D-5; D-6 already covered by the layered-help branch).
+- [ ] Saqlain: run walkthrough Part A (provision + A4 auth dry run) before scheduling the contractor session.
+
+---
+
+## Bill-line entry UI — 2026-07-21
+
+Source: `tasks/handoffs/2026-07-21-codex-bill-line-entry-ui.md`
+Branch: `codex/tenant-demo-provisioning-results`
+
+### Assumptions
+
+- Continue in the existing dirty checkout without committing, pushing, or changing branches; preserve unrelated first-user-help edits.
+- Source selectable items from every schedule under the bill's contract and retain schedule context in each option label.
+- Keep all seven decimal inputs as strings through validation and payload construction so JavaScript number coercion cannot reduce precision.
+
+### Tasks
+
+- [x] Add proof-first tests for bill-line validation and precision-preserving payload construction.
+- [x] Build the schedule-aware bill-line form with inline client/API errors and reset-on-success behavior.
+- [x] Wire the form into bill detail and invalidate the existing `bill-lines` query after creation.
+- [x] Run focused tests, full frontend/backend suites, typecheck/lint, and the production build.
+- [x] Browser-smoke the authenticated form (desktop width; mobile not yet checked) — Sonnet, 2026-07-21: real click-through on Banjara contract bill #1, line created correctly, item picker excludes it afterward. See session log 2026-07-21 13:11.
+- [x] Review and simplify the diff, then record exact evidence and decisions in the handoff Results section.
+- [ ] Update stale copy on the bills-**list** page (`bills/page.tsx`) claiming line entry isn't available on-screen — contradicts the now-working bill-detail form.
+- [ ] Fix `backend/main.py` `load_dotenv()` resolving to repo-root `.env` instead of `backend/.env` when launched from repo root (silently drops backend-only env vars, e.g. `CORS_ORIGINS`) — flagged as background task task_f59c1521.
+
+---
+
+## In-app help requirements brainstorm — 2026-07-20
+
+- [x] Check what already exists.
+- [x] Ask scoping questions.
+- [x] Weigh approaches and recommend.
+- [x] Confirm scope before writing.
+- [x] Write the requirements plan.
+
+Plan: `docs/plans/2026-07-20-001-feat-layered-first-user-help-plan.md`
+Implementation handoff: `tasks/handoffs/2026-07-20-codex-layered-first-user-help.md`
+
+---
+
 Branch: `saqlain/phase-7` off `main` (a88b85e + 0c90a72 docs).
 Owner: [CC-S]. Gate: C-3 stable ✅. Review: `P7-REVIEW` (Codex-S) after it lands.
 
@@ -255,3 +303,41 @@ Branch: `codex/tenant-demo-provisioning`
 - [x] Apply migration 019 live and verify the API health endpoint.
 - [ ] Provision and seed a test tenant twice, then browser-smoke invited and uninvited signup flows.
 - [x] Update project status/task records and write evidence plus blockers to the handoff Results section.
+
+---
+
+# Layered first-user help — 2026-07-20
+
+Source: `tasks/handoffs/2026-07-20-codex-layered-first-user-help.md`
+Branch: `codex/tenant-demo-provisioning-results`
+
+## Assumptions
+
+- Continue on the existing feature branch; preserve all pre-existing dirty files and do not commit, push, or deploy.
+- Treat the executable handoff as implementation authority for the linked requirements-only Product Contract.
+- Keep calculation-critical consequences inline; use accessible disclosure controls only for supplementary definitions.
+- Describe the missing bill-line entry UI honestly without expanding this ticket into capability work.
+
+## Tasks
+
+- [x] Add the reusable journey, page-guidance, and supplementary-help patterns with focused tests.
+- [x] Add contract, schedule, item-import, and classification guidance.
+- [x] Add bill, calculation, blocking-error, result, approval, and export guidance; remove inaccurate bill-line claims.
+- [x] Run typecheck, lint, unit tests, build, simplification, and code review; resolve findings.
+- [ ] Browser-smoke all three protected moments at desktop and mobile widths and record evidence in the handoff Results section.
+
+---
+
+# Three help-UI fixes + Continue-to-Bills nav — 2026-07-21
+
+Source: `tasks/handoffs/2026-07-21-three-help-ui-fixes.md` (Results filled)
+Branch: `codex/tenant-demo-provisioning-results`
+
+## Tasks
+
+- [x] Issue 1: ScheduleForm input misalignment — `items-end` → `items-start` + invisible Add-button label spacer; verified desktop + mobile.
+- [x] Issue 2: wire the dormant AI-assisted column mapper (`ImportRowsModal.tsx` → `POST /api/imports/suggest-mapping`), loading/error/fallback states; also fixed two real bugs found in `backend/services/llm.py` (wrong OpenRouter URL, structured-output schema silently returning empty mappings) — verified end-to-end with a real Claude Haiku call and the deliberate-failure path.
+- [x] Issue 3: wrote up 3 navigation options; Saqlain chose option 1 (conditional "Continue to Bills →" link gated on saved decision state); implemented in `ExtraItemDecisionList.tsx` + `extra-items/page.tsx`, verified both directions of the gate.
+- [ ] Saqlain: real click-test "Continue to Bills →" on `BCT-24-25-252` (automation couldn't confirm the click-through itself this session, only href/destination/gating logic independently — see handoff caveat).
+- [ ] Saqlain: decide on Issue-3 option 2 (clickable `JourneyGuide` stages, all six) as a follow-up, or leave as-is.
+- [ ] Saqlain: experiment with swapping `OPENROUTER_MODEL` now that the AI-mapper wiring works end-to-end.

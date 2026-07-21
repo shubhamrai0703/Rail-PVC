@@ -17,6 +17,10 @@ import { apiFetch, ApiError } from "@/lib/api/client";
 import { type SteelSubtype } from "@/lib/parseTsvImport";
 import { parseNumericCell } from "@/lib/parseNumericCell";
 import { ImportRowsModal } from "./ImportRowsModal";
+import {
+  ExcelFieldGuide,
+  SupplementaryHelp,
+} from "@/components/help/FirstUserHelp";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -159,7 +163,12 @@ export function ItemsGrid({ scheduleId }: { scheduleId: string }) {
   }
 
   const cementSteelConflicts = useMemo(
-    () => rows.filter((r) => r.is_cement_item && r.steel_subtype),
+    () =>
+      rows.flatMap((item, index) =>
+        item.is_cement_item && item.steel_subtype
+          ? [{ item, rowNumber: index + 1 }]
+          : [],
+      ),
     [rows],
   );
 
@@ -382,14 +391,35 @@ export function ItemsGrid({ scheduleId }: { scheduleId: string }) {
 
   return (
     <div className="space-y-3">
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] leading-5 text-slate-600">
+        <p>
+          Cement and steel subtype route a matching bill line into one PVC
+          bucket and its index series. Select only one classification per item;
+          leave both unset for items that stay in the other-work bucket.
+        </p>
+        <SupplementaryHelp summary="Excel columns and TenderAudit fields">
+          <ExcelFieldGuide />
+        </SupplementaryHelp>
+      </div>
+
       {cementSteelConflicts.length > 0 && (
         <div className="text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          One or more items are marked as both a cement item and a steel item.
-          Each item can only belong to one — please correct before saving.
+          <p className="font-medium">
+            Each item can belong to only one PVC bucket. Clear Cement or Steel
+            subtype for:
+          </p>
+          <ul className="mt-1 list-disc pl-4">
+            {cementSteelConflicts.map(({ item, rowNumber }) => (
+              <li key={item.id ?? `${item.item_code}-${rowNumber}`}>
+                {item.item_code || `Row ${rowNumber}`}
+                {item.description ? ` — ${item.description}` : ""}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="secondary" size="sm" onClick={addRow}>
           + Add row
         </Button>

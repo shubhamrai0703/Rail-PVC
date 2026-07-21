@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 from functools import lru_cache
 from typing import Any
@@ -97,31 +98,13 @@ class LLMUnavailableProblem(ApiProblem):
     code = "llm_unavailable"
 
 
-_RESPONSE_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "mapping": {
-            "type": "object",
-            # mapping has dynamic keys (source headers); the values must be
-            # one of the target field names or null. additionalProperties
-            # carries the per-value constraint.
-            "additionalProperties": {
-                "type": ["string", "null"],
-            },
-        },
-        "value_normalizations": {
-            "type": "object",
-            "additionalProperties": {
-                "type": "object",
-                "additionalProperties": {"type": "string"},
-            },
-        },
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-        "unmapped": {"type": "array", "items": {"type": "string"}},
-        "notes": {"type": ["string", "null"]},
-    },
-    "required": ["mapping", "value_normalizations", "confidence", "unmapped", "notes"],
-}
+_CODE_FENCE_RE = re.compile(r"^```[a-zA-Z]*\n?|\n?```$")
+
+
+def _strip_code_fence(content: str) -> str:
+    """Some providers wrap JSON-mode output in a ```json ... ``` fence
+    even though the response_format asked for raw JSON."""
+    return _CODE_FENCE_RE.sub("", content.strip()).strip()
 
 
 async def suggest_mapping_via_llm(
@@ -143,7 +126,7 @@ async def suggest_mapping_via_llm(
     try:
         client = _client()
         http_response = await client.post(
-            "",
+            _OPENROUTER_URL,
             json={
                 "model": _MODEL,
                 "max_tokens": _MAX_TOKENS,
@@ -151,10 +134,15 @@ async def suggest_mapping_via_llm(
                     {"role": "system", "content": _SYSTEM_PROMPT},
                     {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
                 ],
-                "response_format": {
-                    "type": "json_schema",
-                    "json_schema": {"name": "column_mapping", "schema": _RESPONSE_SCHEMA},
-                },
+                # Plain JSON mode, not a strict json_schema: the `mapping`
+                # object's keys are the source headers (data-dependent, not
+                # known ahead of time). Anthropic's structured-output
+                # schema validator can't express that as `additionalProperties`
+                # and silently returns an empty object under strict
+                # enforcement — the shape is governed by the system prompt
+                # instead, and content is JSON with possible ``` fences we
+                # strip before parsing.
+                "response_format": {"type": "json_object"},
             },
         )
         http_response.raise_for_status()
@@ -173,7 +161,7 @@ async def suggest_mapping_via_llm(
         raise LLMUnavailableProblem("Mapping service returned no content") from exc
 
     try:
-        parsed = json.loads(content)
+        parsed = json.loads(_strip_code_fence(content))
     except json.JSONDecodeError as exc:
         raise LLMUnavailableProblem(
             f"Mapping service returned non-JSON output: {exc}"

@@ -10,6 +10,61 @@ export interface PvcRunErrorView {
   message: string;
 }
 
+export interface PvcRunRecoveryAction {
+  label: string;
+  href: string;
+}
+
+export function getPvcRunRecoveryActions(
+  validationErrors: string[],
+  contractId: string,
+  billId?: string,
+): PvcRunRecoveryAction[] {
+  const actions: PvcRunRecoveryAction[] = [];
+  const seenHrefs = new Set<string>();
+
+  function add(action: PvcRunRecoveryAction) {
+    if (!seenHrefs.has(action.href)) {
+      seenHrefs.add(action.href);
+      actions.push(action);
+    }
+  }
+
+  for (const error of validationErrors) {
+    if (/measurement_date|measurement date|no pvc quarter/i.test(error) && billId) {
+      add({
+        label: "Review bill measurement date",
+        href: `/contracts/${contractId}/bills/${billId}#bill-header`,
+      });
+      continue;
+    }
+    if (/extra.?item|eligibility decision/i.test(error)) {
+      add({
+        label: "Resolve extra-item decisions",
+        href: `/contracts/${contractId}/extra-items`,
+      });
+      continue;
+    }
+    if (/index|observation|index month/i.test(error)) {
+      add({ label: "Add missing index months", href: "/indices" });
+      continue;
+    }
+    if (/cement|steel|classification|bucket/i.test(error)) {
+      add({
+        label: "Correct item classifications",
+        href: `/contracts/${contractId}?tab=items`,
+      });
+      continue;
+    }
+    add({
+      label: "Review contract setup",
+      href: `/contracts/${contractId}`,
+    });
+  }
+
+  return actions;
+}
+
 export function describePvcRunError(error: unknown): PvcRunErrorView {
   const detail = error instanceof ApiError ? error.detail : undefined;
   if (

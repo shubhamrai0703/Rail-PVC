@@ -82,7 +82,7 @@ export function BillForm({ contractId, onCreated }: Props) {
   return (
     <form
       onSubmit={handleSubmit(submit)}
-      className="grid grid-cols-[120px_1fr_1fr_180px_auto] gap-3 items-end"
+      className="grid grid-cols-1 items-end gap-3 md:grid-cols-2 xl:grid-cols-[120px_1fr_1fr_220px_auto]"
       noValidate
     >
       <div>
@@ -112,6 +112,10 @@ export function BillForm({ contractId, onCreated }: Props) {
           {...register("measurement_date")}
           className={inputCls}
         />
+        <p className="mt-1 text-[11px] leading-4 text-slate-500">
+          Use the Measurement Book date. It determines the bill&apos;s rolling
+          three-month quarter from the contract base month.
+        </p>
         {errors.measurement_date && (
           <p className={errCls}>{errors.measurement_date.message}</p>
         )}
@@ -128,7 +132,7 @@ export function BillForm({ contractId, onCreated }: Props) {
           })}
           className={inputCls}
         />
-        <p className="text-[11px] text-slate-400 mt-1">
+        <p className="mt-1 text-[11px] leading-4 text-slate-500">
           On-account bill total from the Measurement Book. Cement/steel and
           other PVC exclusions are deducted during the PVC run, not here.
         </p>

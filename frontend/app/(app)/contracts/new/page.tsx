@@ -6,6 +6,11 @@ import { ChevronLeft } from "lucide-react";
 import { apiFetch } from "@/lib/api/client";
 import { ContractForm } from "@/components/contracts/ContractForm";
 import type { ContractFormValues } from "@/lib/contracts-schema";
+import {
+  JourneyGuide,
+  PageGuidance,
+} from "@/components/help/FirstUserHelp";
+import { CONTRACT_SETUP_GUIDANCE } from "@/lib/firstUserHelp";
 
 type CreatedContract = { id: string };
 
@@ -38,6 +43,15 @@ export default function NewContractPage() {
           on the detail page after this step.
         </p>
       </header>
+
+      <JourneyGuide stage="contract" />
+      <PageGuidance
+        title="Set the calculation foundation"
+        next="Create schedules and add or import the agreement items."
+      >
+        {CONTRACT_SETUP_GUIDANCE} Check every value against the signed
+        agreement; it remains editable while the contract is a draft.
+      </PageGuidance>
 
       <ContractForm onSubmit={onSubmit} submitLabel="Create contract" />
     </div>
