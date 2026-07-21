@@ -31,7 +31,7 @@ Branch: `codex/tenant-demo-provisioning-results`
 - [x] Browser-smoke the authenticated form (desktop width; mobile not yet checked) — Sonnet, 2026-07-21: real click-through on Banjara contract bill #1, line created correctly, item picker excludes it afterward. See session log 2026-07-21 13:11.
 - [x] Review and simplify the diff, then record exact evidence and decisions in the handoff Results section.
 - [ ] Update stale copy on the bills-**list** page (`bills/page.tsx`) claiming line entry isn't available on-screen — contradicts the now-working bill-detail form.
-- [ ] Fix `backend/main.py` `load_dotenv()` resolving to repo-root `.env` instead of `backend/.env` when launched from repo root (silently drops backend-only env vars, e.g. `CORS_ORIGINS`) — flagged as background task task_f59c1521.
+- [x] Fix `backend/main.py` `load_dotenv()` resolving to repo-root `.env` instead of `backend/.env` when launched from repo root (silently drops backend-only env vars, e.g. `CORS_ORIGINS`) — flagged as background task task_f59c1521. Fixed 2026-07-21 evening: both `backend/main.py` and `backend/migrations/env.py` now resolve `.env` relative to file location; regression coverage in `backend/tests/test_dotenv_paths.py`. See `tasks/handoffs/2026-07-21-dotenv-wrap-and-push.md`.
 
 ---
 
