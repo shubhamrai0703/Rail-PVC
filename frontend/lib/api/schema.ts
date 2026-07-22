@@ -482,6 +482,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/documents/{document_id}/download-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document Download Url */
+        get: operations["get_document_download_url_api_documents__document_id__download_url_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pvc-runs/{run_id}/export/excel": {
         parameters: {
             query?: never;
@@ -744,6 +761,32 @@ export interface components {
             overall_rebate?: number | string | null;
             /** Railway Zone */
             railway_zone?: string | null;
+        };
+        /** DocumentDownload */
+        DocumentDownload: {
+            /** Download Url */
+            download_url: string;
+        };
+        /** DocumentRecord */
+        DocumentRecord: {
+            /** Id */
+            id: string;
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * File Type
+             * @enum {string}
+             */
+            file_type: "agreement" | "mb" | "bill" | "recovery" | "workbook" | "other";
+            /** Storage Path */
+            storage_path: string;
+            /** Original Filename */
+            original_filename: string;
+            /**
+             * Uploaded At
+             * Format: date-time
+             */
+            uploaded_at: string;
         };
         /** ExtraItemDecisionUpsert */
         ExtraItemDecisionUpsert: {
@@ -2152,9 +2195,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["DocumentRecord"][];
                 };
             };
             /** @description Validation Error */
@@ -2189,9 +2230,38 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DocumentRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_document_download_url_api_documents__document_id__download_url_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDownload"];
                 };
             };
             /** @description Validation Error */

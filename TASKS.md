@@ -241,7 +241,7 @@ Source: `RailPVC Smoke Test & Usability Audit.pdf` (repo root, untracked). Audit
 | AUDIT-1-2 | F12 | Contracts list missing contract value column | quick win | complete (2026-07-17) | `contract_value` added to `GET /api/contracts` SELECT + "Value (₹)" column (`formatINR`, right-aligned, "—" when null). |
 | AUDIT-1-3 | F5 | Junk draft contracts visible (fake contractor, base month 2501-02) | ticket | open | Data hygiene in the live tenant, not a code defect. Saqlain to delete the junk drafts (UI or SQL); consider a follow-up ticket for a draft-delete affordance if one doesn't exist. |
 | AUDIT-1-4 | F11 | Rebate entered as decimal (0.15 = 15%) invites input errors | ticket | open | UX change to `ContractForm`: percent-suffixed input accepting "15", stored as 0.15. Touches form semantics + stored value expectations — needs Saqlain's call on display convention before implementing. |
-| AUDIT-1-5 | F7 | Document Vault non-functional | duplicate | open (tracked) | Already planned as P5-006 (Supabase Storage upload). No new ticket. |
+| AUDIT-1-5 | F7 | Document Vault non-functional | implementation | complete (2026-07-22) | Replaced the stale placeholder with contract selection, private upload/list/download, 50 MB client/server validation, DB-failure storage compensation, and live bucket setup. P5-006 was an incorrect reference (Schedules tab); backend P3-BF-4 had already shipped. |
 | AUDIT-1-6 | F8 (residual) | No retry button on failed page loads | won't-fix (for now) | closed | Error states + messages exist everywhere now; React Query refetches on focus. Revisit only if real users report it. |
 
 ### Phases 8–9 — Forward Plan

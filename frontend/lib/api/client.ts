@@ -61,6 +61,34 @@ export async function apiFetch<T = unknown>(
     body: body === undefined ? undefined : JSON.stringify(body),
   }, { silent, method: init.method ?? "GET", path });
 
+  return parseJsonResponse<T>(res, { silent });
+}
+
+/** Authenticated multipart upload. The browser must set Content-Type itself so
+ * the generated multipart boundary matches the FormData body. */
+export async function apiUpload<T = unknown>(
+  path: string,
+  formData: FormData,
+  { silent }: { silent?: boolean } = {},
+): Promise<T> {
+  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const res = await authedFetch(
+    url,
+    {
+      method: "POST",
+      headers: { accept: "application/json" },
+      body: formData,
+    },
+    { silent, method: "POST", path },
+  );
+
+  return parseJsonResponse<T>(res, { silent });
+}
+
+async function parseJsonResponse<T>(
+  res: Response,
+  { silent }: { silent?: boolean },
+): Promise<T> {
   const text = await res.text();
   const json = text ? safeJSON(text) : null;
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 import re
 from functools import lru_cache
+from typing import BinaryIO
 from uuid import uuid4
 
 from .errors import StorageProblem
@@ -121,7 +122,7 @@ async def get_storage_client():
     return holder["client"]
 
 
-async def upload_document(path: str, content: bytes, content_type: str) -> None:
+async def upload_document(path: str, content: bytes | BinaryIO, content_type: str) -> None:
     """Upload `content` to Supabase Storage at `path` under the documents
     bucket. Any failure from the storage SDK — network error, auth error,
     duplicate key, bucket missing — is wrapped in `StorageProblem(503)`
@@ -142,5 +143,41 @@ async def upload_document(path: str, content: bytes, content_type: str) -> None:
     except Exception as exc:  # noqa: BLE001 — storage SDK raises a wide tree
         raise StorageProblem(
             "Document storage backend is unavailable; please retry",
+            path=path,
+        ) from exc
+
+
+async def create_document_download_url(path: str, filename: str) -> str:
+    """Create a one-minute private download URL after the API tenant gate."""
+    try:
+        client = await get_storage_client()
+        result = await client.storage.from_(STORAGE_BUCKET).create_signed_url(
+            path,
+            expires_in=60,
+            options={"download": sanitize_filename(filename)},
+        )
+        signed_url = result.get("signedUrl") or result.get("signedURL")
+        if not signed_url:
+            raise RuntimeError("Storage did not return a signed URL")
+        return signed_url
+    except StorageProblem:
+        raise
+    except Exception as exc:  # noqa: BLE001 — storage SDK raises a wide tree
+        raise StorageProblem(
+            "Document storage backend is unavailable; please retry",
+            path=path,
+        ) from exc
+
+
+async def delete_document(path: str) -> None:
+    """Remove an object during upload compensation when DB persistence fails."""
+    try:
+        client = await get_storage_client()
+        await client.storage.from_(STORAGE_BUCKET).remove([path])
+    except StorageProblem:
+        raise
+    except Exception as exc:  # noqa: BLE001 — storage SDK raises a wide tree
+        raise StorageProblem(
+            "Document storage cleanup failed",
             path=path,
         ) from exc
