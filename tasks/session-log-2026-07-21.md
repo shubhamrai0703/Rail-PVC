@@ -47,3 +47,26 @@ Execute `tasks/handoffs/2026-07-21-three-help-ui-fixes.md`: fix ScheduleForm inp
 - [Saqlain] Decide whether/when to experiment with swapping `OPENROUTER_MODEL` now that the AI-mapper wiring actually works end-to-end.
 - Optional: give `backend/.claude/launch.json`'s "backend" config a `CORS_ORIGINS` default (or otherwise fix the recurring manual-restart friction / process-collision seen this session).
 - Compile this fallback file (all entries) into the vault when Obsidian is open, then delete it.
+
+## 22:50 — RailPVC — Seed BCT-23-24-296 for Ritesh
+
+### Goal
+Seed contract `BCT-23-24-296` from the checked-in workbook and signed PDFs into Ritesh's existing Banjara Construction production tenant, without affecting other tenant data.
+
+### What Happened
+- Resolved the exact production tenant through its consumed invite and active user mapping, then reconciled the contract header, schedules, bills, recoveries, cement, steel, and technical-withholding values from the source files and real-tender fixtures.
+- Added a contract-specific transactional seed with explicit tenant and database-host guards, rollback-only dry-run support, duplicate detection, canonical reruns, and field-level verification. It loads 2 schedules, 6 source-labelled aggregate/steel items, 3 signed bills, 18 bill lines, and 12 recoveries.
+- Committed the seed to production as contract `0351f862-c55a-4efc-8afd-6b30b703316f`, then reran it repeatedly to prove idempotency. No PVC runs, document uploads, or global index observations were created.
+- Review found that cumulative quantities were synthetic, existing rule drift was insufficiently guarded, and bill-line technical withholding was ignored by the live PVC payload. Fixed all three, including sourcing the signed ₹1,249 withholding from `special_condition_amount`.
+- An independent production query caught a four-decimal persistence edge on bill 2; cumulative amounts are now quantized before accumulation. Final SQL confirmed all bill totals, recoveries, quantity invariants, and amount invariants, and the backend suite passed 208 tests.
+
+### Key Decisions
+- Preserve the workbook's historical index boundary: do not overwrite global observations or create PVC runs until the JPC/index mismatch is resolved.
+- Represent the available calculation evidence as six auditable aggregate/steel items rather than claiming a complete BOQ import.
+- Require an explicit expected database host for every committed seed rerun so an ambient `DATABASE_URL` cannot produce a false production-success report.
+
+### Next Actions
+- Resolve the historical JPC/global-index boundary before calculating PVC runs for this contract.
+- Import the complete source BOQ if Ritesh needs item-level auditability beyond the seeded calculation aggregates.
+- Ship the reviewed seed and withholding changes if approved.
+- Compile this fallback file into the vault when Obsidian is open, then delete it.

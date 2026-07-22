@@ -341,3 +341,44 @@ Branch: `codex/tenant-demo-provisioning-results`
 - [ ] Saqlain: real click-test "Continue to Bills →" on `BCT-24-25-252` (automation couldn't confirm the click-through itself this session, only href/destination/gating logic independently — see handoff caveat).
 - [ ] Saqlain: decide on Issue-3 option 2 (clickable `JourneyGuide` stages, all six) as a follow-up, or leave as-is.
 - [ ] Saqlain: experiment with swapping `OPENROUTER_MODEL` now that the AI-mapper wiring works end-to-end.
+
+---
+
+# Seed BCT-23-24-296 for Ritesh — 2026-07-21
+
+Branch: `codex/tenant-demo-provisioning-results`
+
+## Assumptions
+
+- Target the already-provisioned `BANJARA CONSTRUCTION CORPORATION- MUMBAI` tenant associated with Ritesh; resolve its UUID read-only before any write.
+- Seed only contract `BCT-23-24-296`; do not modify the existing BCT-24-25-252 demo seed or any other tenant data.
+- Treat the checked-in real-tender fixtures as calculation truth and the source workbook/PDFs as contract, bill, and UI-record truth.
+- Production writes must be idempotent, transaction-scoped, and followed by exact row/count verification.
+
+## Tasks
+
+- [x] Confirm the target tenant and prove the contract is not already present.
+- [x] Extract and reconcile contract metadata, schedules/items, and three bills from the source files.
+- [x] Add an idempotent BCT-23-24-296 seed path with focused tests.
+- [x] Run dry-run/reconciliation and backend smoke checks.
+- [x] Seed the production tenant, re-run for idempotency, and verify the visible contract/bill records.
+
+## Follow-ups
+
+- [ ] Resolve the historical JPC/global-index mismatch before creating PVC runs for BCT-23-24-296.
+- [ ] Import the complete BOQ if Ritesh needs item-level auditability beyond the six seeded calculation aggregates.
+
+---
+
+# Document Vault adversarial review — 2026-07-22
+
+Source: `tasks/handoffs/2026-07-22-claude-document-vault-adversarial-review.md`
+Branch: `codex/tenant-demo-provisioning-results`
+
+## Tasks
+
+- [x] Adversarial review of upload, list, and signed-URL download (P3-BF-4): no release-blocking issues found. Verdict: **READY**.
+- [x] Verified: 19/19 backend tests, 92/92 frontend tests, ESLint clean, TypeScript clean, production build green.
+- [ ] Optional hardening: replace `assert row is not None` (documents.py:127) with explicit raise.
+- [ ] Optional hardening: omit `storage_path` from public `DocumentRecord` API schema in v2.
+- [ ] Optional hardening: add IDOR negative tests for document upload and list endpoints.
