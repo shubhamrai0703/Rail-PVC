@@ -7,7 +7,7 @@ summed these recoveries into the engine's `technical_withheld` bucket. The
 agreed end-state, approach C, is implemented here: a dedicated
 `recoveries_affecting_pvc` field on `BillPayload` keeps the subtraction NAMED
 in `w_derivation` (PRODUCT.md rule 1) while disaggregating it from genuine
-technical withholding (which has no producer yet and stays 0).
+technical withholding (sourced from `bill_lines.special_condition_amount`).
 `on_account_amount` stays at the bill's gross — the deduction is NOT silently
 netted off on_account (that would be approach B, rejected for auditability).
 
@@ -39,18 +39,28 @@ def _result(*, first=None, rows=None):
     return result
 
 
-def _session(withheld: Decimal) -> AsyncMock:
+def _session(
+    recovery_withheld: Decimal,
+    technical_withheld: Decimal = Decimal("0"),
+) -> AsyncMock:
     """Stub the six execute() calls build_bill_payload makes, in order:
     bill, W-buckets, extra-item inputs, decisions, carry-forwards, recoveries."""
     session = AsyncMock()
     session.execute = AsyncMock(
         side_effect=[
             _result(first={"measurement_date": date(2026, 1, 31), "gross_amount": Decimal("100000")}),
-            _result(first={"cement": 0, "steel_angles": 0, "steel_plates": 0, "steel_tmt": 0, "steel_other": 0}),
+            _result(first={
+                "cement": 0,
+                "steel_angles": 0,
+                "steel_plates": 0,
+                "steel_tmt": 0,
+                "steel_other": 0,
+                "technical_withheld": technical_withheld,
+            }),
             _result(rows=[]),   # extra_inputs
             _result(rows=[]),   # decision_rows
             _result(rows=[]),   # cf_rows
-            _result(first={"withheld": withheld}),  # recoveries (affects_pvc_base=TRUE sum)
+            _result(first={"withheld": recovery_withheld}),  # recoveries (affects_pvc_base=TRUE sum)
         ]
     )
     return session
@@ -64,7 +74,7 @@ async def test_affects_pvc_base_recoveries_feed_recoveries_affecting_pvc():
     )
     # Approach C: recovery lands in the dedicated recoveries_affecting_pvc bucket…
     assert payload.recoveries_affecting_pvc == Decimal("10000")
-    # …genuine technical withholding has no producer yet, stays 0…
+    # …and no bill-line technical withholding remains zero…
     assert payload.technical_withheld == Decimal("0")
     # …and on_account is NOT netted — it stays at the bill's gross.
     assert payload.on_account_amount == Decimal("100000")
@@ -79,3 +89,27 @@ async def test_no_affecting_recoveries_keeps_bucket_zero():
     assert payload.recoveries_affecting_pvc == Decimal("0")
     assert payload.technical_withheld == Decimal("0")
     assert payload.on_account_amount == Decimal("100000")
+
+
+@pytest.mark.asyncio
+async def test_bill_line_special_condition_amount_feeds_technical_withholding():
+    payload = await build_bill_payload(
+        _session(Decimal("0"), technical_withheld=Decimal("1249")),
+        bill_id="bill-1",
+        contract_id="contract-1",
+    )
+
+    assert payload.technical_withheld == Decimal("1249")
+    assert payload.recoveries_affecting_pvc == Decimal("0")
+    assert payload.on_account_amount == Decimal("100000")
+
+
+@pytest.mark.asyncio
+async def test_bill_line_special_condition_amount_preserves_sign():
+    payload = await build_bill_payload(
+        _session(Decimal("0"), technical_withheld=Decimal("-1249")),
+        bill_id="bill-1",
+        contract_id="contract-1",
+    )
+
+    assert payload.technical_withheld == Decimal("-1249")

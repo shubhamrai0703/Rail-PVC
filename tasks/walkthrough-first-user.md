@@ -196,7 +196,7 @@ Note: this requires an access token for a user **in the contractor's tenant** �
 ## Appendix 2 — Known rough edges to route around (from the 2026-05-31 usability audit + this rehearsal)
 
 - **Rebate & bid discount are decimals** (`0.15` = 15%) — the audit flagged it (AUDIT-1-4, open); narrate it both times.
-- **Documents page is non-functional** (upload not wired — P5-006). Don't visit it; if he clicks it in the sidebar, say "document vault lands in a later phase".
+- **Document Vault is contract-scoped.** Select a contract, choose the document type, then upload a PDF or Excel file (maximum 50 MB); uploaded files can be downloaded from the same page.
 - **Bill lines have no entry UI** — see A1/Appendix 1. Session 1 is scoped around it.
 - **Items grid is desktop-only comfort** — do the session on a laptop, not a phone.
-- Sidebar nav shows three items: Contracts, Index Manager, Document Vault. Only the first two work; see the Documents note above.
+- Sidebar nav shows three working items: Contracts, Index Manager, and Document Vault.

@@ -334,7 +334,8 @@ async def build_bill_payload(
                     COALESCE(SUM(CASE WHEN ci.steel_subtype = 'angles' THEN bl.amount_since_last END), 0) AS steel_angles,
                     COALESCE(SUM(CASE WHEN ci.steel_subtype = 'plates' THEN bl.amount_since_last END), 0) AS steel_plates,
                     COALESCE(SUM(CASE WHEN ci.steel_subtype = 'tmt' THEN bl.amount_since_last END), 0) AS steel_tmt,
-                    COALESCE(SUM(CASE WHEN ci.steel_subtype = 'other_sections' THEN bl.amount_since_last END), 0) AS steel_other
+                    COALESCE(SUM(CASE WHEN ci.steel_subtype = 'other_sections' THEN bl.amount_since_last END), 0) AS steel_other,
+                    COALESCE(SUM(bl.special_condition_amount), 0) AS technical_withheld
                 FROM bill_lines bl
                 JOIN contract_items ci ON ci.id = bl.item_id
                 WHERE bl.bill_id = :bid AND ci.contract_id = :cid
@@ -425,8 +426,8 @@ async def build_bill_payload(
     # (PRODUCT.md rule 1) distinct from genuine technical withholding — not
     # silently netted off on_account, and not conflated with technical_withheld
     # (that was interim approach A; this is the agreed end-state, approach C).
-    # technical_withheld has no producer yet — there is no product-level input
-    # for genuine technical withholding, so it stays 0 until one exists.
+    # Genuine technical withholding is sourced independently from
+    # bill_lines.special_condition_amount in the W-bucket aggregation above.
     withheld_row = (
         await session.execute(
             text("""
@@ -448,7 +449,7 @@ async def build_bill_payload(
         steel_plates_amount=Decimal(bucket_rows["steel_plates"]),
         steel_tmt_amount=Decimal(bucket_rows["steel_tmt"]),
         steel_other_amount=Decimal(bucket_rows["steel_other"]),
-        technical_withheld=Decimal("0"),
+        technical_withheld=Decimal(bucket_rows["technical_withheld"]),
         recoveries_affecting_pvc=recoveries_affecting_pvc,
         extra_item_decisions=extra_item_decisions,
         carry_forwards=carry_forwards,

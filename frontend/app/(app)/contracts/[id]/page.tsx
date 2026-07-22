@@ -180,6 +180,12 @@ export default function ContractDetailPage({
               </Link>
             )}
             <Link
+              href={`/documents?contract=${id}`}
+              className="text-[12px] text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
+            >
+              Documents →
+            </Link>
+            <Link
               href={`/contracts/${id}/bills`}
               className="text-[12px] text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
             >

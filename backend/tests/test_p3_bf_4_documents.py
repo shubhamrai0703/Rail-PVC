@@ -204,3 +204,90 @@ async def test_upload_route_returns_503_when_storage_raises():
     assert resp.status_code == 503, resp.text
     body = resp.json()
     assert body["detail"]["code"] == "storage_unavailable"
+
+
+def _session_result(row: dict | None) -> AsyncMock:
+    result = MagicMock()
+    result.mappings.return_value.first.return_value = row
+    session = AsyncMock()
+    session.execute.return_value = result
+    return session
+
+
+@pytest.mark.asyncio
+async def test_download_route_is_tenant_gated_and_returns_signed_url():
+    from api.documents import get_document_download_url
+    from services.auth import AuthUser
+
+    user = AuthUser(
+        user_id="u-1",
+        tenant_id="tenant-A",
+        auth_id="auth-1",
+        email="t@example.com",
+        display_name="t@example.com",
+    )
+    session = _session_result({
+        "storage_path": "tenant-A/contract-X/document.pdf",
+        "original_filename": "measurement book.pdf",
+    })
+
+    with patch(
+        "api.documents.create_document_download_url",
+        new=AsyncMock(return_value="https://storage.example/signed"),
+    ):
+        response = await get_document_download_url(
+            document_id="document-1", user=user, session=session
+        )
+
+    sql = str(session.execute.await_args.args[0])
+    params = session.execute.await_args.args[1]
+    assert "JOIN contracts" in sql
+    assert "c.tenant_id = :tid" in sql
+    assert params == {"did": "document-1", "tid": "tenant-A"}
+    assert response.download_url == "https://storage.example/signed"
+
+
+@pytest.mark.asyncio
+async def test_upload_removes_storage_object_when_database_commit_fails():
+    from api.documents import upload_contract_document
+    from fastapi import UploadFile
+    from services.auth import AuthUser
+
+    user = AuthUser(
+        user_id="u-1",
+        tenant_id="tenant-A",
+        auth_id="auth-1",
+        email="t@example.com",
+        display_name="t@example.com",
+    )
+    session = _session_result({"id": "document-1", "uploaded_at": "2026-07-22T10:00:00Z"})
+    session.commit.side_effect = RuntimeError("database unavailable")
+    file = UploadFile(filename="agreement.pdf", file=MagicMock())
+    file.read = AsyncMock(side_effect=[b"pdf", b""])
+
+    with patch(
+        "api.documents.assert_contract_belongs_to_tenant",
+        new=AsyncMock(return_value=None),
+    ), patch(
+        "api.documents.build_storage_path",
+        return_value="tenant-A/contract-X/document.pdf",
+    ), patch(
+        "api.documents.upload_document",
+        new=AsyncMock(return_value=None),
+    ), patch(
+        "api.documents.delete_document",
+        new=AsyncMock(return_value=None),
+    ) as delete_mock:
+        with pytest.raises(RuntimeError, match="database unavailable"):
+            await upload_contract_document(
+                contract_id="contract-X",
+                file_type="agreement",
+                file=file,
+                user=user,
+                session=session,
+            )
+
+    session.rollback.assert_awaited_once()
+    delete_mock.assert_awaited_once_with(
+        "tenant-A/contract-X/document.pdf"
+    )
