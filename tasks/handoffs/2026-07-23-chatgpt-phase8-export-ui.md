@@ -139,6 +139,7 @@ Default `None` keeps backward compatibility with the existing tests, which don't
 
 **Completed:** 2026-07-23
 **Branch:** `codex-phase8-export-ui` (`codex/…` was unavailable because a branch named exactly `codex` occupies that Git ref namespace)
+**Commit / PR:** `844b9b5` (`feat(export): add multi-sheet audit workbook`); [PR #26](https://github.com/saqlainmmomin/Rail-PVC/pull/26), titled `feat(export): multi-sheet workbook (Phase 8)`
 
 ### Implemented
 
