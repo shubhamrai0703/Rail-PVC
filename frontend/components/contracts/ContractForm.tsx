@@ -58,7 +58,12 @@ export function ContractForm({
   });
 
   const submit: SubmitHandler<ContractFormValues> = async (values) => {
-    await onSubmit(values);
+    const payload: ContractFormValues = {
+      ...values,
+      overall_rebate:
+        values.overall_rebate != null ? values.overall_rebate / 100 : values.overall_rebate,
+    };
+    await onSubmit(payload);
   };
 
   return (
@@ -248,22 +253,17 @@ export function ContractForm({
           </p>
         </div>
         <div>
-          <label className={labelCls}>
-            Overall rebate{" "}
-            <span className="text-slate-400">(as decimal, 0.15 = 15%)</span>
-          </label>
+          <label className={labelCls}>Overall rebate (%)</label>
           <input
             type="number"
-            step="0.0001"
+            step="0.01"
+            min="0"
+            max="100"
             {...register("overall_rebate", {
               setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
             })}
             className={inputCls}
           />
-          <p className="mt-1 text-[11px] leading-4 text-slate-500">
-            Enter a fraction: <span className="font-medium">0.05 means 5%</span>,
-            not 5. The stored value and calculation convention are unchanged.
-          </p>
           <SupplementaryHelp summary="How the rebate is used">
             This value records the agreement-level rebate for reference. The
             current PVC calculation does not apply it; schedule bid discount is

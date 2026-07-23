@@ -12,8 +12,8 @@ const scheduleSchema = z.object({
   schedule_type: z.enum(["DSR", "NS", "ExtraNS"]),
   bid_discount_pct: z
     .number()
-    .min(0, "must be ≥ 0")
-    .max(1, "must be ≤ 1 (as fraction)"),
+    .min(0, "must be ≥ 0%")
+    .max(100, "must be ≤ 100%"),
 });
 
 type FormValues = z.infer<typeof scheduleSchema>;
@@ -45,7 +45,7 @@ export function ScheduleForm({ contractId, onCreated }: Props) {
   async function submit(values: FormValues) {
     await apiFetch(`/api/contracts/${contractId}/schedules`, {
       method: "POST",
-      body: values,
+      body: { ...values, bid_discount_pct: values.bid_discount_pct / 100 },
     });
     reset({ name: "", schedule_type: "DSR", bid_discount_pct: 0 });
     onCreated();
@@ -81,22 +81,17 @@ export function ScheduleForm({ contractId, onCreated }: Props) {
         )}
       </div>
       <div>
-        <label className={labelCls}>
-          Bid discount{" "}
-          <span className="text-slate-400">(0.05 = 5%)</span>
-        </label>
+        <label className={labelCls}>Bid discount (%)</label>
         <input
           type="number"
-          step="0.0001"
+          step="0.01"
+          min="0"
+          max="100"
           {...register("bid_discount_pct", {
             setValueAs: (v) => (v === "" || v === null ? 0 : Number(v)),
           })}
           className={inputCls}
         />
-        <p className="mt-1 text-[11px] leading-4 text-slate-500">
-          Enter a fraction: <span className="font-medium">0.05 means 5%</span>.
-          The agreement rate reflects this schedule-level discount.
-        </p>
         {errors.bid_discount_pct && (
           <p className={errCls}>{errors.bid_discount_pct.message}</p>
         )}

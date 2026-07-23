@@ -43,10 +43,9 @@ def test_main_app_imports_without_pythonpath():
     assert out.returncode == 0, f"main import failed: {out.stderr}"
     # TEST-03 (L-2 from PR #4 review): pin the route count so a forgotten
     # router include — or a stray duplicate registration — fails the test
-    # rather than silently changing the surface area. 48 = prior 43 + 4 new
-    # imports routes (GET/POST /api/imports/templates, DELETE /api/imports/templates/{id},
-    # POST /api/imports/suggest-mapping) + secure document download.
-    assert int(out.stdout.strip()) == 48, (
-        f"unexpected route count: {out.stdout.strip()} (expected 48). "
+    # rather than silently changing the surface area. 49 = prior 48 +
+    # DELETE /api/contracts/{contract_id} (AUDIT-1-3 draft-delete).
+    assert int(out.stdout.strip()) == 49, (
+        f"unexpected route count: {out.stdout.strip()} (expected 49). "
         f"If you added/removed a route, update this assertion in the same diff."
     )

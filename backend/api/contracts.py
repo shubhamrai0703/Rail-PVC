@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -174,6 +174,36 @@ async def get_contract(
     if row is None:
         raise NotFoundProblem("Contract not found", entity="contract", id=contract_id)
     return dict(row)
+
+
+@router.delete("/{contract_id}")
+async def delete_contract(
+    contract_id: str,
+    user: AuthUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    row = (
+        await session.execute(
+            text(
+                "SELECT status::text AS status "
+                "FROM contracts WHERE id = :id AND tenant_id = :tid"
+            ),
+            {"id": contract_id, "tid": user.tenant_id},
+        )
+    ).mappings().first()
+    if row is None:
+        raise NotFoundProblem("Contract not found", entity="contract", id=contract_id)
+    if row["status"] != "Draft":
+        raise ValidationProblem(
+            "Only Draft contracts can be deleted",
+            field="status",
+            value=row["status"],
+        )
+    await session.execute(
+        text("DELETE FROM contracts WHERE id = :id AND tenant_id = :tid"),
+        {"id": contract_id, "tid": user.tenant_id},
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.put("/{contract_id}")

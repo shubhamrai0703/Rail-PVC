@@ -196,7 +196,8 @@ Branch: `saqlain/parallel-backlog` → PR #19
 - [x] WS-D: ItemsGrid → AG Grid v35 rowSelection object API; deprecated options gone repo-wide.
 - [x] Authenticated browser pass — /contracts Value column, both gross-amount help-note surfaces, and Items-grid console free of AG Grid/deprecation warnings (Codex, 2026-07-18; evidence in the dedicated handoff Results).
 - [ ] Saqlain: merge PR #19 (note: migration 017 already applied to DB).
-- [ ] Saqlain: AUDIT-1-3 (delete junk draft contracts) + AUDIT-1-4 (rebate % input UX call).
+- [x] AUDIT-1-3 (delete affordance): `DELETE /api/contracts/{id}` (Draft-only, cascade, 204) + Trash button in UI — **Saqlain: use the Delete button in the live tenant to clear the junk drafts**.
+- [x] AUDIT-1-4 (rebate % input): `bid_discount_pct` + `overall_rebate` now accept percent values; display updated; tsc + vitest + build clean.
 - [ ] Saqlain: check hermes-agent WhatsApp bridge respawning on port 3000 (see handoff Results env notes).
 - [ ] P8-REVIEW: answer the 4 open export-parity questions (multi-sheet workbook, steel sub-lines, clause codes, "W" header wording).
 

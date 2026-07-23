@@ -4,7 +4,7 @@ import { use, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Pencil } from "lucide-react";
+import { ChevronLeft, Pencil, Trash2 } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -77,7 +77,7 @@ function toFormDefaults(c: Contract): Partial<ContractFormInput> {
       | "inclusive",
     pvc_applicable: c.pvc_applicable,
     overall_rebate:
-      c.overall_rebate === null ? undefined : Number(c.overall_rebate),
+      c.overall_rebate === null ? undefined : Number(c.overall_rebate) * 100,
   };
 }
 
@@ -231,6 +231,7 @@ export default function ContractDetailPage({
         <OverviewTab
           contract={data}
           onSaved={() => queryClient.invalidateQueries({ queryKey: ["contract", id] })}
+          onDeleted={() => router.push("/contracts")}
         />
       )}
       {tab === "schedules" && (
@@ -290,9 +291,11 @@ function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 function OverviewTab({
   contract,
   onSaved,
+  onDeleted,
 }: {
   contract: Contract;
   onSaved: () => void;
+  onDeleted: () => void;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -306,6 +309,12 @@ function OverviewTab({
       onSaved();
       setEditing(false);
     },
+  });
+
+  const remove = useMutation({
+    mutationFn: () =>
+      apiFetch(`/api/contracts/${contract.id}`, { method: "DELETE" }),
+    onSuccess: onDeleted,
   });
 
   if (editing) {
@@ -323,7 +332,22 @@ function OverviewTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {contract.status === "Draft" && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              if (window.confirm("Delete this draft contract? This cannot be undone.")) {
+                remove.mutate();
+              }
+            }}
+            disabled={remove.isPending}
+          >
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+            {remove.isPending ? "Deleting…" : "Delete"}
+          </Button>
+        )}
         <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
           <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
           Edit
@@ -351,7 +375,7 @@ function OverviewTab({
           value={
             contract.overall_rebate === null
               ? null
-              : `${contract.overall_rebate} (decimal)`
+              : `${(Number(contract.overall_rebate) * 100).toFixed(2)}%`
           }
         />
         <Field
@@ -410,7 +434,7 @@ function SchedulesTab({
         >
           <div>Name</div>
           <div>Type</div>
-          <div className="text-right">Bid discount</div>
+          <div className="text-right">Bid discount (%)</div>
         </div>
         {isLoading && (
           <div className="px-5 py-6 text-[13px] text-slate-400">Loading…</div>
@@ -433,7 +457,7 @@ function SchedulesTab({
               <Badge variant="neutral">{s.schedule_type}</Badge>
             </div>
             <div className="text-right font-mono text-[12px] text-slate-600">
-              {Number(s.bid_discount_pct).toFixed(4)}
+              {(Number(s.bid_discount_pct) * 100).toFixed(2)}%
             </div>
           </div>
         ))}

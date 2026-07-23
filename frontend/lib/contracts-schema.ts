@@ -6,7 +6,8 @@ import { ZONE_CODES } from "./zones";
 // uniqueness) are not duplicated here — see WORKPLAN.md Q6.
 //
 // overall_rebate is stored as a fraction (0.15 = 15%); DB column is
-// NUMERIC(5,4), max 9.9999. UI labels must say so explicitly.
+// NUMERIC(5,4), max 9.9999. The UI accepts percent (15 for 15%) and
+// divides by 100 in setValueAs before submitting.
 //
 // REVIEW.md M-4: optional nullable-in-DB fields parse `""`/`undefined` → `null`
 // (not left as `undefined`). JSON.stringify keeps `null` and drops `undefined`;
@@ -53,13 +54,15 @@ export const contractCreateSchema = z
     pvc_applicable: z.boolean(),
     overall_rebate: z
       .number()
-      .min(0, "must be ≥ 0")
-      .max(9.9999, "must be ≤ 9.9999 (stored as fraction, 0.15 = 15%)")
+      .min(0, "must be ≥ 0%")
+      .max(100, "must be ≤ 100%")
       .optional(),
     // overall_rebate stays `number | undefined`. It's NOT NULL in the DB
     // (default 0); leaving it blank means "do not change" on edit and
     // "use server default" on create. Backend H-2 rejects explicit null
     // on this column, so the schema must not surface one.
+    // The schema validates the percent value (0–100); setValueAs divides
+    // by 100 before the form submits to the API.
   })
   .refine(
     (v) =>
