@@ -21,6 +21,22 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+
+
+class ApiProblemDetail(BaseModel):
+    code: str
+    message: str
+    contract_id: str | None = None
+    blockers: list[str] | None = None
+    entity: str | None = None
+    id: str | None = None
+    field: str | None = None
+    value: Any | None = None
+
+
+class ApiProblemResponse(BaseModel):
+    detail: ApiProblemDetail
 
 
 class ApiProblem(Exception):
@@ -41,6 +57,23 @@ class ApiProblem(Exception):
 class ValidationProblem(ApiProblem):
     status_code = 422
     code = "validation_error"
+
+
+class ContractDeletionBlocked(ValidationProblem):
+    """A Draft contract has immutable/audit-bearing children.
+
+    Those rows intentionally do not cascade. Returning their categories lets
+    the UI explain why deletion is unavailable without exposing row contents.
+    """
+
+    code = "contract_deletion_blocked"
+
+    def __init__(self, contract_id: str, blockers: list[str]) -> None:
+        super().__init__(
+            "Contract cannot be deleted because it has calculation history",
+            contract_id=contract_id,
+            blockers=blockers,
+        )
 
 
 class FieldNotNullableProblem(ValidationProblem):

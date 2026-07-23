@@ -11,6 +11,63 @@ Use this file for the current live review state only.
 
 ## Active Cycle
 
+**AUDIT13-14-REVIEW** — opened 2026-07-23. Adversarial review of commit `184cbf0` (`AUDIT-1-3` Draft contract deletion and `AUDIT-1-4` percent-based rebate inputs). Full evidence and seven-point trace: `tasks/handoffs/2026-07-23-chatgpt-review-audit13-14.md#results`.
+
+**Status: CLOSED — all 2 HIGH, 4 MEDIUM, and 1 LOW findings remediated (2026-07-23).** Final correctness and reliability re-reviews found no remaining HIGH/MEDIUM code defects. **Deployment remains gated on applying migration 020 before the backend code.**
+
+### [HIGH] AUD13-14-H1 — Non-cascading child records make Draft deletes fail
+
+- `pvc_runs` and `carry_forwards` have contract references without `ON DELETE CASCADE`; a Draft-labelled contract can acquire a run and then DELETE fails with an FK error/500.
+- Preserve audit history: return a structured 422 when non-deletable children exist and add a real-Postgres regression test.
+- **CC Response: CLOSED.** DELETE locks the tenant-owned contract first, checks both audit-child tables in a fresh statement, and maps known FK races to `422 contract_deletion_blocked`. Existing-child and two-session race proofs are included; real-Postgres variants require isolated `TEST_DATABASE_URL`.
+
+### [HIGH] AUD13-14-H2 — Contract deletion orphans Supabase document objects
+
+- `documents` metadata cascades, but `delete_contract` never removes the object at `storage_path`; private bytes remain retained and become unreachable.
+- Add a durable, retryable Storage cleanup workflow that preserves paths across failures, plus cleanup/failure tests.
+- **CC Response: CLOSED.** Migration 020 adds a private forced-RLS cleanup outbox with tenant/contract path provenance, leases, backoff, quarantine, and safe-downgrade protection; direct authenticated document writes are revoked. DELETE atomically enqueues paths and returns after commit. A FastAPI lifespan worker drains bounded batches with timeouts and claim-token guards. Upload holds `FOR KEY SHARE` through Storage upload and metadata commit so concurrent deletion cannot lose the path.
+
+### [MEDIUM] AUD13-14-M1 — Delete success can show a stale contracts list
+
+- The mutation routes without invalidating `["contracts"]`; the shared query remains fresh for 30 seconds.
+- Invalidate/update the list query before navigation and add a cache-navigation test.
+- **CC Response: CLOSED.** `completeContractDeletion` removes the row and exact detail cache, awaits list invalidation, then navigates. A real `QueryClient` test pins the ordering.
+
+### [MEDIUM] AUD13-14-M2 — Percent conversion narrows the prior rebate domain
+
+- The former form accepted stored fractions through `9.9999`; `max(100)` on the percent value now caps storage at `1.0` and makes existing values above `1.0` uneditable.
+- Decide/document the intended domain and preserve or explicitly handle legacy-compatible values without changing fractional storage.
+- **CC Response: CLOSED.** The percent UI preserves the historical `NUMERIC(5,4)` domain as `0..999.99%`, still sending fractions `0..9.9999` to the API. Existing values above `1.0` remain editable and are explicitly documented as compatibility behavior.
+
+### [MEDIUM] AUD13-14-M3 — Percent conversion boundaries have no frontend tests
+
+- Add ContractForm and ScheduleForm coverage for `15 -> 0.15`, edit `0.15 -> 15`, blank, zero, invalid input, and display output.
+- **CC Response: CLOSED.** Both submit paths use shared, tested payload builders. Tests pin `15 -> 0.15`, `0.15 -> 15`, blank, zero, invalid values, display formatting, and the legacy maximum.
+
+### [MEDIUM] AUD13-14-M4 — Generated API schema omits the new DELETE
+
+- `frontend/lib/api/schema.ts` still declares `delete?: never` for `/api/contracts/{contract_id}`.
+- Regenerate from OpenAPI and pin the 204 DELETE operation.
+- **CC Response: CLOSED.** Schema regenerated from the local FastAPI OpenAPI. Type assertions pin DELETE `204/404/422`, structured `ApiProblemResponse`, the cleanup retry route, and expanded cleanup-result fields.
+
+### [LOW] AUD13-14-L1 — Schema comments misstate conversion location
+
+- Comments say `setValueAs` divides by 100; submit handlers do. Correct the comments.
+- **CC Response: CLOSED.** Comments now name submit-time payload conversion and the preserved storage domain accurately.
+
+### Verification record
+
+- Backend full suite: **243 passed, 4 skipped** (all skips are isolated real-Postgres concurrency proofs gated on `TEST_DATABASE_URL`; no production fallback).
+- Frontend Vitest: **102/102 passed**
+- Frontend TypeScript + ESLint + production build: **clean**
+- Focused remediation: **49 passed, 4 skipped backend**; **14/14 frontend**
+- Alembic: single head **020**; migration intentionally **not applied** in this local remediation.
+- Browser smoke reached the real login gate, but protected interaction was not run because the available browser session was unauthenticated.
+- Simplification: no reuse findings; 3 quality and 3 efficiency findings applied.
+- Final independent re-review: all original and follow-up HIGH/MEDIUM defects closed.
+
+---
+
 **KU-001-STC-AVG-REVIEW** — opened and closed 2026-07-19. Adversarial pass by **Claude (Fable 5)** on Codex's uncommitted `codex/ku001-stc-avg-option2` implementation of the rule-set-scoped quarter-average precision policy (`quarter_avg_precision: "full" | "half_up_2dp"` on `PVCRuleSet` + migration 018 + API/run threading). Implementation record: `tasks/handoffs/2026-07-19-ku001-stc-avg-option2-implementation.md`.
 
 **Status: CLOSED — 1 MEDIUM defect found and fixed in this pass; no other HIGH/MEDIUM defects.** Suites after review: engine **136 passed, 7 xfailed**; backend **180 passed**; `mypy engine` clean; frontend `tsc --noEmit` + `eslint` clean.

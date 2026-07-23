@@ -9,11 +9,14 @@ from typing import Any
 from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.auth import AuthUser, get_current_user
 from services.db import get_session
 from services.errors import (
+    ApiProblemResponse,
+    ContractDeletionBlocked,
     FieldNotNullableProblem,
     NotFoundProblem,
     ValidationProblem,
@@ -176,7 +179,14 @@ async def get_contract(
     return dict(row)
 
 
-@router.delete("/{contract_id}")
+@router.delete(
+    "/{contract_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        404: {"model": ApiProblemResponse},
+        422: {"model": ApiProblemResponse},
+    },
+)
 async def delete_contract(
     contract_id: str,
     user: AuthUser = Depends(get_current_user),
@@ -184,10 +194,12 @@ async def delete_contract(
 ) -> Response:
     row = (
         await session.execute(
-            text(
-                "SELECT status::text AS status "
-                "FROM contracts WHERE id = :id AND tenant_id = :tid"
-            ),
+            text("""
+                SELECT c.status::text AS status
+                FROM contracts c
+                WHERE c.id = :id AND c.tenant_id = :tid
+                FOR UPDATE
+            """),
             {"id": contract_id, "tid": user.tenant_id},
         )
     ).mappings().first()
@@ -199,11 +211,84 @@ async def delete_contract(
             field="status",
             value=row["status"],
         )
+    blocker_row = (
+        await session.execute(
+            text("""
+                SELECT EXISTS (
+                           SELECT 1 FROM pvc_runs
+                           WHERE contract_id = :id
+                       ) AS has_pvc_runs,
+                       EXISTS (
+                           SELECT 1 FROM carry_forwards
+                           WHERE contract_id = :id
+                       ) AS has_carry_forwards
+            """),
+            {"id": contract_id},
+        )
+    ).mappings().one()
+    blockers = [
+        name
+        for name, present in (
+            ("pvc_runs", blocker_row["has_pvc_runs"]),
+            ("carry_forwards", blocker_row["has_carry_forwards"]),
+        )
+        if present
+    ]
+    if blockers:
+        raise ContractDeletionBlocked(contract_id, blockers)
+
+    # Persist every Storage path before the documents FK cascade removes its
+    # metadata. The queue insert and contract delete commit atomically.
     await session.execute(
-        text("DELETE FROM contracts WHERE id = :id AND tenant_id = :tid"),
+        text("""
+            INSERT INTO document_cleanup_jobs (
+                tenant_id, source_contract_id, storage_path
+            )
+            SELECT :tid, :id, d.storage_path
+            FROM documents d
+            WHERE d.contract_id = :id
+            ON CONFLICT (storage_path) DO NOTHING
+        """),
         {"id": contract_id, "tid": user.tenant_id},
     )
+    try:
+        await session.execute(
+            text(
+                "DELETE FROM contracts "
+                "WHERE id = :id AND tenant_id = :tid AND status = 'Draft'"
+            ),
+            {"id": contract_id, "tid": user.tenant_id},
+        )
+    except IntegrityError as exc:
+        blockers = _contract_delete_fk_blockers(exc)
+        if blockers:
+            raise ContractDeletionBlocked(contract_id, blockers) from exc
+        raise
+    await session.commit()
+    # The lifespan worker owns Storage deletion. Returning after the atomic
+    # enqueue keeps this request independent of Storage latency or outages.
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _contract_delete_fk_blockers(exc: IntegrityError) -> list[str]:
+    """Translate only the known audit-history FK failures."""
+    constraint: str | None = None
+    current: BaseException | None = exc.orig
+    while current is not None:
+        constraint = constraint or getattr(current, "constraint_name", None)
+        diag = getattr(current, "diag", None)
+        constraint = constraint or getattr(diag, "constraint_name", None)
+        current = current.__cause__ or current.__context__
+    message = str(exc)
+    known = (
+        ("pvc_runs_contract_id_fkey", "pvc_runs"),
+        ("carry_forwards_contract_id_fkey", "carry_forwards"),
+    )
+    return [
+        blocker
+        for fk_name, blocker in known
+        if constraint == fk_name or fk_name in message
+    ]
 
 
 @router.put("/{contract_id}")

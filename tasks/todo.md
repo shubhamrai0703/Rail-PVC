@@ -1,4 +1,51 @@
+# Phase 8 — Multi-sheet export workbook — 2026-07-23
+
+Source: `tasks/handoffs/2026-07-23-chatgpt-phase8-export-ui.md`
+Branch: `codex-phase8-export-ui`
+
+### Assumptions
+
+- Preserve the existing Bill sheet layout and its seven-row summary block; put Zone and Base Month on Cover.
+- Use persisted `w_derivation` as the authoritative W breakdown.
+- Show prior negative PVC carry-forward separately from W arithmetic, sourced from `bill_snapshot`.
+- Keep PDF unchanged because the handoff marks it lower priority and the Phase 8 Definition of Done is Excel-specific.
+- Preserve all pre-existing dirty worktree changes and stage only Phase 8-owned files.
+
+### Tasks
+
+- [x] Run the 13-test export baseline before production changes.
+- [x] Add proof-first tests for sheet order, Cover content/summary, W derivation, and route enrichment.
+- [x] Implement tenant-safe contract/sibling-run loading and the pure three-sheet generator.
+- [x] Run focused export tests, workbook smoke, full backend tests, and frontend verification.
+- [x] Review/simplify the diff; update `TASKS.md`, `STATUS.md`, and the handoff Results section.
+- [x] Commit, push, and open the Phase 8 PR against `main` (commit `844b9b5`, PR #26).
+
+---
+
 # Phase 7 — PVC Run + Results UI (D-1…D-4)
+
+## AUDIT13-14 review remediation — 2026-07-23
+
+Source: `REVIEW.md` (`AUDIT13-14-REVIEW`)
+
+### Assumptions
+
+- Continue in the existing dirty checkout without committing, pushing, deploying, or overwriting unrelated documentation/artifacts.
+- Preserve audit history: contracts with PVC runs or carry-forwards must be rejected with a structured 422 rather than cascaded.
+- Contract deletion must not make private document objects unreachable; storage cleanup must be durable and retryable.
+- Preserve fractional API/storage semantics for rebate fields while keeping the UI percent-based.
+
+### Tasks
+
+- [x] Add proof-first backend tests for non-deletable children and retryable document cleanup.
+- [x] Implement production-safe Draft contract deletion and storage cleanup.
+- [x] Add frontend regression tests for percent round-trips/boundaries and delete cache invalidation.
+- [x] Resolve the legacy-compatible rebate domain, correct comments, and regenerate the OpenAPI client schema.
+- [x] Run targeted and full backend/frontend verification.
+- [x] Close all AUDIT13-14 findings in `REVIEW.md` with test evidence.
+- [ ] Deployment gate: apply migration 020 before deploying the backend, then verify the cleanup queue/policies and authenticated delete flow against the real stack.
+
+---
 
 ## First-user walkthrough + second design pass — 2026-07-21
 
@@ -383,3 +430,17 @@ Branch: `codex/tenant-demo-provisioning-results`
 - [ ] Optional hardening: replace `assert row is not None` (documents.py:127) with explicit raise.
 - [ ] Optional hardening: omit `storage_path` from public `DocumentRecord` API schema in v2.
 - [ ] Optional hardening: add IDOR negative tests for document upload and list endpoints.
+
+---
+
+# AUDIT-1-3 / AUDIT-1-4 adversarial review — 2026-07-23
+
+Source: `tasks/handoffs/2026-07-23-chatgpt-review-audit13-14.md`
+Branch: `main`
+
+## Tasks
+
+- [x] Review draft-contract deletion for tenant isolation, cascade safety, and status-change races.
+- [x] Trace schedule discount and contract rebate percent round-trips, including blank/zero/NaN and precision behavior.
+- [x] Run targeted verification and record the verdict in the handoff Results section.
+- [x] Defects found: add an `AUDIT13-14-REVIEW` cycle to `REVIEW.md`.

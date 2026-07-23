@@ -2,21 +2,18 @@
 
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api/client";
 import { SupplementaryHelp } from "@/components/help/FirstUserHelp";
-
-const scheduleSchema = z.object({
-  name: z.string().min(1, "required"),
-  schedule_type: z.enum(["DSR", "NS", "ExtraNS"]),
-  bid_discount_pct: z
-    .number()
-    .min(0, "must be ≥ 0%")
-    .max(100, "must be ≤ 100%"),
-});
-
-type FormValues = z.infer<typeof scheduleSchema>;
+import {
+  MAX_PERCENT_INPUT,
+  percentInputOrZero,
+} from "@/lib/percentage";
+import { buildScheduleFormPayload } from "@/lib/formPayloads";
+import {
+  scheduleSchema,
+  type ScheduleFormValues,
+} from "@/lib/schedules-schema";
 
 type Props = {
   contractId: string;
@@ -36,16 +33,16 @@ export function ScheduleForm({ contractId, onCreated }: Props) {
     reset,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
+  } = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleSchema),
     defaultValues: { schedule_type: "DSR", bid_discount_pct: 0 },
   });
   const scheduleType = useWatch({ control, name: "schedule_type" });
 
-  async function submit(values: FormValues) {
+  async function submit(values: ScheduleFormValues) {
     await apiFetch(`/api/contracts/${contractId}/schedules`, {
       method: "POST",
-      body: { ...values, bid_discount_pct: values.bid_discount_pct / 100 },
+      body: buildScheduleFormPayload(values),
     });
     reset({ name: "", schedule_type: "DSR", bid_discount_pct: 0 });
     onCreated();
@@ -86,12 +83,16 @@ export function ScheduleForm({ contractId, onCreated }: Props) {
           type="number"
           step="0.01"
           min="0"
-          max="100"
+          max={MAX_PERCENT_INPUT}
           {...register("bid_discount_pct", {
-            setValueAs: (v) => (v === "" || v === null ? 0 : Number(v)),
+            setValueAs: percentInputOrZero,
           })}
           className={inputCls}
         />
+        <SupplementaryHelp summary="How the discount is stored">
+          Enter the percentage shown in the agreement. Values above 100% remain
+          available for compatibility with existing schedule records.
+        </SupplementaryHelp>
         {errors.bid_discount_pct && (
           <p className={errCls}>{errors.bid_discount_pct.message}</p>
         )}

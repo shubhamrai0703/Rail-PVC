@@ -40,6 +40,11 @@ def _session_factory() -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(_engine(), expire_on_commit=False, class_=AsyncSession)
 
 
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    """Return the process-wide factory for bounded background DB work."""
+    return _session_factory()
+
+
 async def get_session() -> AsyncIterator[AsyncSession]:
     """FastAPI dependency yielding an AsyncSession with commit-on-exit."""
     async with _session_factory()() as session:
