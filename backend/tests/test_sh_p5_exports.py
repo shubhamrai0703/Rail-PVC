@@ -10,7 +10,7 @@ type and an attachment disposition.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
@@ -54,13 +54,32 @@ def _session_with(*results: tuple[str, object]) -> AsyncMock:
 
 _APPROVED_RUN = {
     "id": "run-1",
+    "contract_id": "contract-1",
     "status": "Approved",
     "approved_by": "alice@example.com",
     "approved_at": datetime(2026, 6, 1, 10, 0, 0),
     "created_at": datetime(2026, 5, 31, 9, 0, 0),
     "tender_number": "T-123",
+    "work_description": "Bridge renewal",
+    "loa_number": "LOA-42",
+    "loa_date": date(2025, 1, 15),
     "contractor_name": "Acme Infra",
+    "base_month": date(2025, 1, 1),
+    "railway_zone": "WR",
     "quarter_used": "Q2",
+    "w_derivation": {
+        "on_account_amount": "500000.00",
+        "cement": "20000.00",
+        "steel_angles": "10000.00",
+        "steel_plates": "5000.00",
+        "steel_tmt": "15000.00",
+        "steel_other": "2500.00",
+        "technical_withheld": "7500.00",
+        "recoveries_affecting_pvc": "10000.00",
+        "extra_items": "5000.00",
+        "w": "425000.00",
+    },
+    "bill_snapshot": {"prior_negative_carry_forward": "1200.00"},
 }
 
 _COMPONENTS = [
@@ -79,6 +98,23 @@ _COMPONENTS = [
         "current_avg_index": Decimal("61917.5"),
         "weight": Decimal("0.25"),
         "pvc_value": Decimal("3548.10"),
+    },
+]
+
+_APPROVED_RUNS = [
+    {
+        "id": "run-1",
+        "bill_number": "RA-2",
+        "quarter_used": "Q2",
+        "w_amount": "425000.00",
+        "total_pvc": Decimal("3801.55"),
+    },
+    {
+        "id": "run-0",
+        "bill_number": "RA-1",
+        "quarter_used": "Q1",
+        "w_amount": "300000.00",
+        "total_pvc": Decimal("2500.00"),
     },
 ]
 
@@ -122,13 +158,38 @@ async def test_export_pdf_unapproved_is_422():
 
 @pytest.mark.asyncio
 async def test_export_excel_returns_xlsx_attachment():
-    session = _session_with(("first", _APPROVED_RUN), ("all", _COMPONENTS))
+    session = _session_with(
+        ("first", _APPROVED_RUN),
+        ("all", _COMPONENTS),
+        ("all", _APPROVED_RUNS),
+    )
     resp = await export_run_excel("run-1", user=_user(), session=session)
     assert resp.status_code == 200
     assert resp.media_type.endswith("spreadsheetml.sheet")
     assert resp.headers["Content-Disposition"] == 'attachment; filename="pvc_run_run-1.xlsx"'
     # .xlsx is a zip container — magic bytes "PK".
     assert resp.body[:2] == b"PK"
+    assert session.execute.await_count == 3
+    wb = _load_workbook(resp.body)
+    assert wb.sheetnames == ["Cover", "Bill", "W Derivation"]
+    assert wb["Cover"]["B3"].value == "T-123 — Bridge renewal"
+    assert wb["Cover"]["C12"].value == 425000
+    assert wb["W Derivation"]["B13"].value == 425000
+    primary_query = str(session.execute.await_args_list[0].args[0])
+    for projection in (
+        "r.w_derivation",
+        "r.bill_snapshot",
+        "c.work_description",
+        "c.loa_number",
+        "c.base_month",
+        "c.railway_zone",
+    ):
+        assert projection in primary_query
+    sibling_query = session.execute.await_args_list[2]
+    assert "r.status = 'Approved'" in str(sibling_query.args[0])
+    assert "COALESCE(" in str(sibling_query.args[0])
+    assert "SUM(pc.pvc_value)" in str(sibling_query.args[0])
+    assert sibling_query.args[1] == {"cid": "contract-1"}
 
 
 @pytest.mark.asyncio
@@ -139,6 +200,7 @@ async def test_export_pdf_returns_pdf_attachment():
     assert resp.media_type == "application/pdf"
     assert resp.headers["Content-Disposition"] == 'attachment; filename="pvc_run_run-1.pdf"'
     assert resp.body[:4] == b"%PDF"
+    assert "w_derivation" not in str(session.execute.await_args_list[0].args[0])
 
 
 # ── Pure generators ──────────────────────────────────────────────────────────
@@ -162,12 +224,16 @@ def test_build_run_excel_handles_empty_components():
 # ── P8-REVIEW parity: submission-sheet column order, formats, live total ────
 
 
-def _load_sheet(out: bytes):
+def _load_workbook(out: bytes):
     from io import BytesIO
 
     from openpyxl import load_workbook
 
-    return load_workbook(BytesIO(out)).active
+    return load_workbook(BytesIO(out))
+
+
+def _load_sheet(out: bytes):
+    return _load_workbook(out)["Bill"]
 
 
 def test_build_run_excel_submission_column_order():
@@ -220,3 +286,60 @@ def test_build_run_excel_empty_components_total_is_zero():
     total_row = 11 + 1  # header row + total row directly after
     assert ws.cell(row=total_row, column=1).value == "Total PVC"
     assert float(ws.cell(row=total_row, column=6).value) == 0.0
+
+
+# ── Phase 8: multi-sheet audit workbook ─────────────────────────────────────
+
+
+def _build_phase8_workbook():
+    return _load_workbook(
+        build_run_excel(
+            _APPROVED_RUN,
+            _COMPONENTS,
+            contract=_APPROVED_RUN,
+            all_runs=_APPROVED_RUNS,
+        )
+    )
+
+
+def test_build_run_excel_has_phase8_sheet_order():
+    wb = _build_phase8_workbook()
+    assert wb.sheetnames == ["Cover", "Bill", "W Derivation"]
+
+
+def test_build_run_excel_cover_has_contract_fields_and_run_summary():
+    cover = _build_phase8_workbook()["Cover"]
+    assert cover["B3"].value == "T-123 — Bridge renewal"
+    assert cover["B4"].value == "LOA-42"
+    assert cover["B5"].value.date() == date(2025, 1, 15)
+    assert cover["B6"].value == "Acme Infra"
+    assert cover["B7"].value.date() == date(2025, 1, 1)
+    assert cover["B8"].value == "WR"
+    assert [cover.cell(row=11, column=c).value for c in range(1, 5)] == [
+        "Bill No.",
+        "Quarter",
+        "W Amount",
+        "Total PVC",
+    ]
+    assert [cover.cell(row=12, column=c).value for c in range(1, 5)] == [
+        "RA-2",
+        "Q2",
+        425000,
+        3801.55,
+    ]
+    assert cover["A12"].font.bold is True
+    assert cover["A15"].value == "Generated by TenderAudit"
+
+
+def test_build_run_excel_w_derivation_is_auditable():
+    ws = _build_phase8_workbook()["W Derivation"]
+    assert ws["A4"].value == "On-account (gross) amount"
+    assert ws["B4"].value == 500000
+    assert ws["A10"].value == "Less: technical withheld"
+    assert ws["B10"].value == 7500
+    assert ws["A11"].value == "Less: recoveries affecting PVC"
+    assert ws["B11"].value == 10000
+    assert ws["A13"].value == "W (eligible amount)"
+    assert ws["B13"].value == 425000
+    assert ws["A15"].value == "Prior negative PVC carry-forward (affects total PVC)"
+    assert ws["B15"].value == 1200

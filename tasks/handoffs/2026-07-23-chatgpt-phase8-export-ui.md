@@ -134,3 +134,64 @@ Default `None` keeps backward compatibility with the existing tests, which don't
 8. TASKS.md updated: Phase 8 marked complete
 9. STATUS.md updated with the new state
 10. Open PR against `main` titled "feat(export): multi-sheet workbook (Phase 8)"
+
+## Results
+
+**Completed:** 2026-07-23
+**Branch:** `codex-phase8-export-ui` (`codex/…` was unavailable because a branch named exactly `codex` occupies that Git ref namespace)
+
+### Implemented
+
+- `GET /api/pvc-runs/{id}/export/excel` keeps the existing tenant 404 and Approved-only 422 gates, then loads Excel-only contract/W context plus approved sibling runs for the gated contract.
+- Excel generation remains pure and backward-compatible at the Python call boundary through optional `contract` / `all_runs` parameters.
+- Workbook sheets are exactly `Cover`, `Bill`, and `W Derivation`.
+  - **Cover:** tender + work description, LOA number/date, contractor, base month, Railway zone, approved bill history (`Bill No. | Quarter | W Amount | Total PVC`), current-run highlight, TenderAudit generation note.
+  - **Bill:** the WS-B seven-row summary, column order, native numeric values/formats, and live total formula are unchanged; only the sheet name changes from the legacy `PVC Run` to the required `Bill`.
+  - **W Derivation:** persisted on-account amount and every named deduction bucket through W; prior negative PVC carry-forward is shown separately because it adjusts total PVC, not W.
+- Approved runs predating migration 015 can have `total_pvc = NULL`; Cover now derives those totals from `SUM(pvc_components.pvc_value)`.
+- Sibling history projects only the persisted W scalar instead of transferring full JSON, and openpyxl generation runs in a threadpool so the async route is not blocked.
+- Steel remains one component row with the required `TODO P8-STEEL` marker; `engine/` and PDF formatting were not changed.
+- No endpoints or migrations were added.
+
+### Decisions resolved during implementation
+
+- Preserved the existing Bill cell layout rather than adding Zone/Base Month there; both fields live on Cover.
+- Used `pvc_runs.w_derivation` as authoritative. `lines_snapshot` is bill-line evidence and is not a valid source for recomputing W.
+- Read `bill_snapshot.prior_negative_carry_forward` only for the separately labeled carry-forward line.
+- Kept PDF out of scope because this handoff marks it lower priority and every Phase 8 Definition-of-Done output is Excel-specific.
+
+### Tests and verification
+
+- Proof-first baseline: `uv run pytest backend/tests/test_sh_p5_exports.py -v` → **13 passed**.
+- Red proof: the added Phase 8 tests failed on the missing sheets/context/query behavior before production changes.
+- Focused final: `uv run pytest backend/tests/test_sh_p5_exports.py -q` → **16 passed**.
+- Full backend from `backend/`: `uv run pytest tests -q` → **232 passed, 2 skipped**.
+- Frontend:
+  - `npx tsc --noEmit` → passed.
+  - `npm run lint` → passed.
+  - `npm run build` → passed (required network access for Google Fonts).
+  - `npx vitest run --exclude lib/api/schema.test.ts` → **101 passed**.
+  - Full Vitest has one unrelated dirty-worktree failure: `lib/api/schema.test.ts` expects the in-progress contract-cleanup DELETE/retry operations that have not yet been regenerated into `schema.ts`.
+- Workbook smoke: generated `/tmp/phase8-export-smoke-v2.xlsx` from the export test fixture, loaded it with openpyxl, opened/converted it with LibreOffice Calc, and rendered the PDF. Result: exactly **3 pages / 3 sheets**, all required values visible, current-row highlight present, and no split columns, clipped headers, or `###` numeric cells.
+- `git diff --check` → passed for all Phase 8 code files.
+
+### Review
+
+- Simplification pass: applied 5 behavior-preserving improvements (quality 2, efficiency 3); reuse review found no duplication.
+- Structured review lenses: correctness, project standards, testing, maintainability, performance, API contract, and adversarial.
+- Fixed review finding: legacy approved-run Cover totals could be blank when migration-015 `total_pvc` is null.
+- Strengthened the route test to inspect generated Cover/W values and pin the required SQL projections/fallback.
+- Rejected as conflicting with the explicit handoff: retaining the legacy `PVC Run` sheet name or a separate versioned endpoint. The Definition of Done requires the exact new three-sheet names on the existing endpoint.
+- Residual risk (non-blocking): approved-run history is intentionally unbounded; expected bill cadence is small, but unusually long-lived contracts with hundreds/thousands of approved runs should be measured before adding pagination/summarization.
+- Independent cross-model adversarial review was not used because its fixed script would have read unrelated dirty-worktree changes outside Phase 8; the adversarial lens ran locally against the three scoped files instead.
+
+### Files changed
+
+- `backend/api/exports.py`
+- `backend/services/exports.py`
+- `backend/tests/test_sh_p5_exports.py`
+- `TASKS.md`
+- `STATUS.md`
+- `tasks/handoffs/2026-07-23-chatgpt-phase8-export-ui.md`
+
+`tasks/todo.md` was updated for session tracking but remains mixed with pre-existing user work and must not be included in the Phase 8 commit.
