@@ -10,6 +10,11 @@ import {
 } from "@/lib/contracts-schema";
 import { ZoneSelect } from "./ZoneSelect";
 import { SupplementaryHelp } from "@/components/help/FirstUserHelp";
+import {
+  MAX_PERCENT_INPUT,
+  optionalPercentInput,
+} from "@/lib/percentage";
+import { buildContractFormPayload } from "@/lib/formPayloads";
 
 // The schema's *input* type is what react-hook-form sees pre-resolver
 // (i.e. raw form values: `string | undefined`). The schema's *output* type
@@ -58,12 +63,7 @@ export function ContractForm({
   });
 
   const submit: SubmitHandler<ContractFormValues> = async (values) => {
-    const payload: ContractFormValues = {
-      ...values,
-      overall_rebate:
-        values.overall_rebate != null ? values.overall_rebate / 100 : values.overall_rebate,
-    };
-    await onSubmit(payload);
+    await onSubmit(buildContractFormPayload(values));
   };
 
   return (
@@ -258,16 +258,17 @@ export function ContractForm({
             type="number"
             step="0.01"
             min="0"
-            max="100"
+            max={MAX_PERCENT_INPUT}
             {...register("overall_rebate", {
-              setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
+              setValueAs: optionalPercentInput,
             })}
             className={inputCls}
           />
           <SupplementaryHelp summary="How the rebate is used">
             This value records the agreement-level rebate for reference. The
             current PVC calculation does not apply it; schedule bid discount is
-            stored separately on each schedule.
+            stored separately on each schedule. Values above 100% remain
+            available for compatibility with existing contract records.
           </SupplementaryHelp>
           {errors.overall_rebate && (
             <p className={errCls}>{errors.overall_rebate.message}</p>

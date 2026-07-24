@@ -1,13 +1,15 @@
 import { z } from "zod";
 import { ZONE_CODES } from "./zones";
+import { MAX_PERCENT_INPUT } from "./percentage";
 
 // Mirror of backend `ContractCreate` / `ContractUpdate` (backend/api/contracts.py).
 // Server-side rules that cannot be validated client-side (e.g. agreement_number
 // uniqueness) are not duplicated here — see WORKPLAN.md Q6.
 //
 // overall_rebate is stored as a fraction (0.15 = 15%); DB column is
-// NUMERIC(5,4), max 9.9999. The UI accepts percent (15 for 15%) and
-// divides by 100 in setValueAs before submitting.
+// NUMERIC(5,4), max 9.9999. To preserve that historical storage domain,
+// the percent UI accepts 0..999.99 (15 means 15%) and the form submit
+// handler converts the value back to a fraction.
 //
 // REVIEW.md M-4: optional nullable-in-DB fields parse `""`/`undefined` → `null`
 // (not left as `undefined`). JSON.stringify keeps `null` and drops `undefined`;
@@ -55,14 +57,14 @@ export const contractCreateSchema = z
     overall_rebate: z
       .number()
       .min(0, "must be ≥ 0%")
-      .max(100, "must be ≤ 100%")
+      .max(MAX_PERCENT_INPUT, `must be ≤ ${MAX_PERCENT_INPUT}%`)
       .optional(),
     // overall_rebate stays `number | undefined`. It's NOT NULL in the DB
     // (default 0); leaving it blank means "do not change" on edit and
     // "use server default" on create. Backend H-2 rejects explicit null
     // on this column, so the schema must not surface one.
-    // The schema validates the percent value (0–100); setValueAs divides
-    // by 100 before the form submits to the API.
+    // The schema validates the percent value; ContractForm's submit handler
+    // converts it to the fraction expected by the API.
   })
   .refine(
     (v) =>

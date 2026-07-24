@@ -248,7 +248,7 @@ Source: `RailPVC Smoke Test & Usability Audit.pdf` (repo root, untracked). Audit
 
 | Phase | Owner | Dependency |
 |---|---|---|
-| Phase 8 — Export UI (E-1, E-2) | [CC-S] | Phase 7 merged + SH-P5-5…6 merged ✅ |
+| Phase 8 — Export UI (E-1, E-2) — **COMPLETE 2026-07-23** | [CC-S] | Three-sheet Excel audit workbook (`Cover`, `Bill`, `W Derivation`), approved-run history, legacy-total fallback, viewer smoke, 16 export tests. Phase 7 + SH-P5-5…6 dependencies satisfied. |
 | Phase 9 — E2E + integration (F-1…F-3) | [CC-S]+[CC-SH] | Phase 8 stable |
 
 ## Next Review Checkpoints

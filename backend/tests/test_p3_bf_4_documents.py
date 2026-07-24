@@ -17,8 +17,11 @@ tests catch it on the diff.
 """
 from __future__ import annotations
 
+import asyncio
+import os
 import re
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -184,6 +187,9 @@ async def test_upload_route_returns_503_when_storage_raises():
             "api.documents.assert_contract_belongs_to_tenant",
             new=_ok_contract_gate,
         ), patch(
+            "api.documents._lock_contract_for_document_write",
+            new=AsyncMock(return_value=None),
+        ), patch(
             "api.documents.upload_document",
             new=AsyncMock(
                 side_effect=StorageProblem(
@@ -269,6 +275,9 @@ async def test_upload_removes_storage_object_when_database_commit_fails():
         "api.documents.assert_contract_belongs_to_tenant",
         new=AsyncMock(return_value=None),
     ), patch(
+        "api.documents._lock_contract_for_document_write",
+        new=AsyncMock(return_value=None),
+    ), patch(
         "api.documents.build_storage_path",
         return_value="tenant-A/contract-X/document.pdf",
     ), patch(
@@ -291,3 +300,159 @@ async def test_upload_removes_storage_object_when_database_commit_fails():
     delete_mock.assert_awaited_once_with(
         "tenant-A/contract-X/document.pdf"
     )
+
+
+@pytest.mark.asyncio
+async def test_upload_acquires_tenant_key_share_lock_before_storage():
+    from api.documents import upload_contract_document
+    from fastapi import UploadFile
+    from services.auth import AuthUser
+
+    user = AuthUser(
+        user_id="u-1",
+        tenant_id="tenant-A",
+        auth_id="auth-1",
+        email="t@example.com",
+        display_name="t@example.com",
+    )
+    lock_result = MagicMock()
+    lock_result.first.return_value = ("contract-X",)
+    insert_result = MagicMock()
+    insert_result.mappings.return_value.first.return_value = {
+        "id": "document-1",
+        "uploaded_at": "2026-07-22T10:00:00Z",
+    }
+    session = AsyncMock()
+    session.execute = AsyncMock(side_effect=[lock_result, insert_result])
+    file = UploadFile(filename="agreement.pdf", file=MagicMock())
+    file.read = AsyncMock(side_effect=[b"pdf", b""])
+
+    async def upload_after_lock(**_kwargs):
+        assert session.execute.await_count == 1
+        lock_sql = str(session.execute.await_args_list[0].args[0])
+        lock_params = session.execute.await_args_list[0].args[1]
+        assert "FOR KEY SHARE" in lock_sql
+        assert "tenant_id = :tenant_id" in lock_sql
+        assert lock_params == {
+            "contract_id": "contract-X",
+            "tenant_id": "tenant-A",
+        }
+        session.commit.assert_not_awaited()
+
+    with patch(
+        "api.documents.assert_contract_belongs_to_tenant",
+        new=AsyncMock(return_value=None),
+    ), patch(
+        "api.documents.build_storage_path",
+        return_value="tenant-A/contract-X/document.pdf",
+    ), patch(
+        "api.documents.upload_document",
+        new=upload_after_lock,
+    ):
+        await upload_contract_document(
+            contract_id="contract-X",
+            file_type="agreement",
+            file=file,
+            user=user,
+            session=session,
+        )
+
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_upload_key_share_lock_wrong_tenant_returns_404_before_storage():
+    from api.documents import upload_contract_document
+    from fastapi import UploadFile
+    from services.auth import AuthUser
+    from services.errors import NotFoundProblem
+
+    user = AuthUser(
+        user_id="u-1",
+        tenant_id="tenant-A",
+        auth_id="auth-1",
+        email="t@example.com",
+        display_name="t@example.com",
+    )
+    lock_result = MagicMock()
+    lock_result.first.return_value = None
+    session = AsyncMock()
+    session.execute.return_value = lock_result
+    file = UploadFile(filename="agreement.pdf", file=MagicMock())
+    file.read = AsyncMock(side_effect=[b"pdf", b""])
+
+    with patch(
+        "api.documents.assert_contract_belongs_to_tenant",
+        new=AsyncMock(return_value=None),
+    ), patch(
+        "api.documents.upload_document",
+        new=AsyncMock(),
+    ) as upload:
+        with pytest.raises(NotFoundProblem):
+            await upload_contract_document(
+                contract_id="contract-X",
+                file_type="agreement",
+                file=file,
+                user=user,
+                session=session,
+            )
+
+    upload.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_real_postgres_key_share_lock_blocks_contract_delete():
+    database_url = os.environ.get("TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("TEST_DATABASE_URL is not configured")
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace(
+            "postgresql://", "postgresql+asyncpg://", 1
+        )
+
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from api.documents import _lock_contract_for_document_write
+
+    schema = f"document_lock_{uuid4().hex}"
+    tenant_id = str(uuid4())
+    contract_id = str(uuid4())
+    engine = create_async_engine(database_url)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(f'CREATE SCHEMA "{schema}"'))
+            await conn.execute(text(f"""
+                CREATE TABLE "{schema}".contracts (
+                    id UUID PRIMARY KEY,
+                    tenant_id UUID NOT NULL
+                )
+            """))
+            await conn.execute(
+                text(f'INSERT INTO "{schema}".contracts VALUES (:id, :tenant)'),
+                {"id": contract_id, "tenant": tenant_id},
+            )
+
+        async with factory() as upload_session, factory() as delete_session:
+            await upload_session.execute(text(f'SET search_path TO "{schema}"'))
+            await delete_session.execute(text(f'SET search_path TO "{schema}"'))
+            await _lock_contract_for_document_write(
+                upload_session,
+                contract_id=contract_id,
+                tenant_id=tenant_id,
+            )
+            deleting = asyncio.create_task(delete_session.execute(
+                text("DELETE FROM contracts WHERE id = :id"),
+                {"id": contract_id},
+            ))
+            await asyncio.sleep(0.05)
+            assert deleting.done() is False
+
+            await upload_session.commit()
+            await asyncio.wait_for(deleting, timeout=2)
+            await delete_session.commit()
+    finally:
+        async with engine.begin() as conn:
+            await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        await engine.dispose()

@@ -1,7 +1,9 @@
 """FastAPI app entrypoint. Wires routers, error contract, and CORS."""
 from __future__ import annotations
 
+import asyncio
 import os
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -24,12 +26,26 @@ from api import (  # noqa: E402  (env must load before module-level imports)
     pvc_runs,
     schedules,
 )
+from services.document_cleanup import run_document_cleanup_loop  # noqa: E402
 from services.errors import register_exception_handlers  # noqa: E402
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    cleanup_task = asyncio.create_task(run_document_cleanup_loop())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await cleanup_task
+
 
 app = FastAPI(
     title="TenderAudit API",
     description="Billing OS for Indian Railway contractors — PVC calculation engine API",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

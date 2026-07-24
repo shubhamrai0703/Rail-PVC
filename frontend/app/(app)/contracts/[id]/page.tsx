@@ -18,6 +18,11 @@ import {
   PageGuidance,
 } from "@/components/help/FirstUserHelp";
 import { CONTRACT_SETUP_GUIDANCE } from "@/lib/firstUserHelp";
+import {
+  formatFractionAsPercent,
+  fractionToPercent,
+} from "@/lib/percentage";
+import { completeContractDeletion } from "@/lib/contractDeletion";
 
 type ContractFormInput = z.input<typeof contractCreateSchema>;
 
@@ -76,8 +81,7 @@ function toFormDefaults(c: Contract): Partial<ContractFormInput> {
       | "exclusive"
       | "inclusive",
     pvc_applicable: c.pvc_applicable,
-    overall_rebate:
-      c.overall_rebate === null ? undefined : Number(c.overall_rebate) * 100,
+    overall_rebate: fractionToPercent(c.overall_rebate),
   };
 }
 
@@ -231,7 +235,11 @@ export default function ContractDetailPage({
         <OverviewTab
           contract={data}
           onSaved={() => queryClient.invalidateQueries({ queryKey: ["contract", id] })}
-          onDeleted={() => router.push("/contracts")}
+          onDeleted={() =>
+            completeContractDeletion(queryClient, id, () =>
+              router.push("/contracts"),
+            )
+          }
         />
       )}
       {tab === "schedules" && (
@@ -295,7 +303,7 @@ function OverviewTab({
 }: {
   contract: Contract;
   onSaved: () => void;
-  onDeleted: () => void;
+  onDeleted: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -375,7 +383,7 @@ function OverviewTab({
           value={
             contract.overall_rebate === null
               ? null
-              : `${(Number(contract.overall_rebate) * 100).toFixed(2)}%`
+              : formatFractionAsPercent(contract.overall_rebate)
           }
         />
         <Field
@@ -457,7 +465,7 @@ function SchedulesTab({
               <Badge variant="neutral">{s.schedule_type}</Badge>
             </div>
             <div className="text-right font-mono text-[12px] text-slate-600">
-              {(Number(s.bid_discount_pct) * 100).toFixed(2)}%
+              {formatFractionAsPercent(s.bid_discount_pct)}
             </div>
           </div>
         ))}

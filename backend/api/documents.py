@@ -1,6 +1,6 @@
 """Document uploads under a contract (P3-BF-4).
 
-Three endpoints:
+Four endpoints:
 
   * `POST /api/contracts/{contract_id}/documents` — multipart upload. Streams
     the file in 1 MB chunks to enforce the 50 MB cap without loading an
@@ -10,6 +10,8 @@ Three endpoints:
     the contract.
   * `GET  /api/documents/{document_id}/download-url` — tenant-gated,
     short-lived download URL for the private bucket.
+  * `POST /api/documents/cleanup-pending` — retry the authenticated tenant's
+    durable queue of Supabase objects left by deleted contracts.
 
 No parsing in v1; the file is stored as-is for download/audit only.
 """
@@ -27,6 +29,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.auth import AuthUser, get_current_user
 from services.db import get_session
+from services.document_cleanup import (
+    CleanupResult,
+    process_document_cleanup_jobs,
+)
 from services.errors import NotFoundProblem, PayloadTooLargeProblem, ValidationProblem
 from services.pvc_service import assert_contract_belongs_to_tenant
 from services.storage import (
@@ -62,6 +68,18 @@ class DocumentDownload(BaseModel):
     download_url: str
 
 
+@router.post("/documents/cleanup-pending")
+async def retry_pending_document_cleanups(
+    user: AuthUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> CleanupResult:
+    """Retry only the authenticated tenant's pending Storage cleanup jobs."""
+    return await process_document_cleanup_jobs(
+        session,
+        tenant_id=user.tenant_id,
+    )
+
+
 async def _copy_capped(file: UploadFile, target: BinaryIO) -> None:
     """Copy an upload to disk while enforcing the limit from actual bytes."""
     total = 0
@@ -71,6 +89,31 @@ async def _copy_capped(file: UploadFile, target: BinaryIO) -> None:
             raise PayloadTooLargeProblem(MAX_FILE_BYTES)
         target.write(chunk)
     target.seek(0)
+
+
+async def _lock_contract_for_document_write(
+    session: AsyncSession,
+    *,
+    contract_id: str,
+    tenant_id: str,
+) -> None:
+    row = (
+        await session.execute(
+            text("""
+                SELECT id
+                FROM contracts
+                WHERE id = :contract_id AND tenant_id = :tenant_id
+                FOR KEY SHARE
+            """),
+            {"contract_id": contract_id, "tenant_id": tenant_id},
+        )
+    ).first()
+    if row is None:
+        raise NotFoundProblem(
+            "Contract not found",
+            entity="contract",
+            id=contract_id,
+        )
 
 
 @router.post(
@@ -98,6 +141,13 @@ async def upload_contract_document(
     # the 50 MB cap without holding two full in-memory copies of the upload.
     with TemporaryFile(mode="w+b", buffering=0) as content:
         await _copy_capped(file, content)
+        # Prevent a concurrent contract DELETE from cascading metadata after
+        # the Storage object is created but before its row commits.
+        await _lock_contract_for_document_write(
+            session,
+            contract_id=contract_id,
+            tenant_id=user.tenant_id,
+        )
         await upload_document(
             path=storage_path,
             content=content,

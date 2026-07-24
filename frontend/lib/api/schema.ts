@@ -34,7 +34,8 @@ export interface paths {
         /** Update Contract */
         put: operations["update_contract_api_contracts__contract_id__put"];
         post?: never;
-        delete?: never;
+        /** Delete Contract */
+        delete: operations["delete_contract_api_contracts__contract_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -464,6 +465,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/documents/cleanup-pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Pending Document Cleanups
+         * @description Retry only the authenticated tenant's pending Storage cleanup jobs.
+         */
+        post: operations["retry_pending_document_cleanups_api_documents_cleanup_pending_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/contracts/{contract_id}/documents": {
         parameters: {
             query?: never;
@@ -554,6 +575,29 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ApiProblemDetail */
+        ApiProblemDetail: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Contract Id */
+            contract_id?: string | null;
+            /** Blockers */
+            blockers?: string[] | null;
+            /** Entity */
+            entity?: string | null;
+            /** Id */
+            id?: string | null;
+            /** Field */
+            field?: string | null;
+            /** Value */
+            value?: unknown | null;
+        };
+        /** ApiProblemResponse */
+        ApiProblemResponse: {
+            detail: components["schemas"]["ApiProblemDetail"];
+        };
         /** BillCreate */
         BillCreate: {
             /** Bill Number */
@@ -633,6 +677,25 @@ export interface components {
         CarryForwardUpdate: {
             /** Paid Qty Source */
             paid_qty_source: number | string;
+        };
+        /** CleanupResult */
+        CleanupResult: {
+            /** Attempted */
+            attempted: number;
+            /** Succeeded */
+            succeeded: number;
+            /** Failed */
+            failed: number;
+            /**
+             * Quarantined
+             * @default 0
+             */
+            quarantined: number;
+            /**
+             * Lost Claims
+             * @default 0
+             */
+            lost_claims: number;
         };
         /** ContractCreate */
         ContractCreate: {
@@ -1027,6 +1090,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contract_api_contracts__contract_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblemResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblemResponse"];
                 };
             };
         };
@@ -2174,6 +2275,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_pending_document_cleanups_api_documents_cleanup_pending_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CleanupResult"];
                 };
             };
         };
